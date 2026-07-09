@@ -19,6 +19,8 @@ export const metadata: Metadata = {
   description: "Modern web application with premium design",
 };
 
+import { AuthProvider } from "@/components/auth-provider";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -31,12 +33,14 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col pt-24 bg-background text-foreground transition-colors duration-300">
-        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
-          <Navbar />
-          <main className="flex-1 flex flex-col px-4 md:px-8 max-w-[1200px] mx-auto w-full">
-            {children}
-          </main>
-        </ThemeProvider>
+        <AuthProvider>
+          <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
+            <Navbar />
+            <main className="flex-1 flex flex-col px-4 md:px-8 max-w-[1200px] mx-auto w-full">
+              {children}
+            </main>
+          </ThemeProvider>
+        </AuthProvider>
       </body>
     </html>
   );
