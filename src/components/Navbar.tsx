@@ -11,6 +11,7 @@ import {
   Menu, 
   X, 
   Search, 
+  Sun,
   Moon,
   Command,
   LogOut,
