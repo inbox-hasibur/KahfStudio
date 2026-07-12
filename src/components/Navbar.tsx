@@ -15,7 +15,8 @@ import {
   Moon,
   Command,
   LogOut,
-  User
+  User,
+  Cpu
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useSession, signOut } from "next-auth/react";
@@ -94,10 +95,10 @@ const Navbar = () => {
 
             {/* Links - Desktop */}
             <div className="hidden md:flex items-center gap-1">
-              <NavLink href="/" icon={<Headphones className="w-4 h-4" />} label="Home" active />
-              <NavLink href="/discover" icon={<Globe className="w-4 h-4" />} label="Discover" />
+              <NavLink href="/" icon={<Headphones className="w-4 h-4" />} label="News" active />
+              <NavLink href="/media" icon={<Globe className="w-4 h-4" />} label="Media" />
               <NavLink href="/archive" icon={<Archive className="w-4 h-4" />} label="Archive" />
-              <NavLink href="/categories" icon={<LayoutGrid className="w-4 h-4" />} label="Categories" />
+              <NavLink href="/ai-models" icon={<Cpu className="w-4 h-4" />} label="AI Models" />
             </div>
 
             <div className="flex items-center gap-1 pr-2">
@@ -269,10 +270,10 @@ const Navbar = () => {
               exit={{ opacity: 0, y: -10, scale: 0.95 }}
               transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
             >
-              <NavLink href="/" icon={<Headphones className="w-4 h-4" />} label="Home" active onClick={() => setIsMenuOpen(false)} />
-              <NavLink href="/discover" icon={<Globe className="w-4 h-4" />} label="Discover" onClick={() => setIsMenuOpen(false)} />
+              <NavLink href="/" icon={<Headphones className="w-4 h-4" />} label="News" active onClick={() => setIsMenuOpen(false)} />
+              <NavLink href="/media" icon={<Globe className="w-4 h-4" />} label="Media" onClick={() => setIsMenuOpen(false)} />
               <NavLink href="/archive" icon={<Archive className="w-4 h-4" />} label="Archive" onClick={() => setIsMenuOpen(false)} />
-              <NavLink href="/categories" icon={<LayoutGrid className="w-4 h-4" />} label="Categories" onClick={() => setIsMenuOpen(false)} />
+              <NavLink href="/ai-models" icon={<Cpu className="w-4 h-4" />} label="AI Models" onClick={() => setIsMenuOpen(false)} />
               <div className="h-px bg-border my-1" />
               <div className="flex gap-2 mt-1">
                 {session ? (
