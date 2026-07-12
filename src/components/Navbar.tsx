@@ -11,15 +11,11 @@ import {
   Menu, 
   X, 
   Search, 
-  Sun,
+  Sun, 
   Moon,
-  Command,
-  LogOut,
-  User,
-  Cpu
+  Command
 } from "lucide-react";
 import { useTheme } from "next-themes";
-import { useSession, signOut } from "next-auth/react";
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -28,7 +24,6 @@ const Navbar = () => {
   const [scrolled, setScrolled] = useState(false);
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
-  const { data: session } = useSession();
 
   // Avoid hydration mismatch
   useEffect(() => {
@@ -49,7 +44,7 @@ const Navbar = () => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
         e.preventDefault();
-        // setIsSearchOpen(prev => !prev); // Search disabled for now
+        setIsSearchOpen(prev => !prev);
       }
       if (e.key === "Escape") {
         setIsSearchOpen(false);
@@ -95,10 +90,10 @@ const Navbar = () => {
 
             {/* Links - Desktop */}
             <div className="hidden md:flex items-center gap-1">
-              <NavLink href="/" icon={<Headphones className="w-4 h-4" />} label="News" active />
-              <NavLink href="/media" icon={<Globe className="w-4 h-4" />} label="Media" />
+              <NavLink href="/" icon={<Headphones className="w-4 h-4" />} label="Home" active />
+              <NavLink href="/discover" icon={<Globe className="w-4 h-4" />} label="Discover" />
               <NavLink href="/archive" icon={<Archive className="w-4 h-4" />} label="Archive" />
-              <NavLink href="/ai-models" icon={<Cpu className="w-4 h-4" />} label="AI Models" />
+              <NavLink href="/categories" icon={<LayoutGrid className="w-4 h-4" />} label="Categories" />
             </div>
 
             <div className="flex items-center gap-1 pr-2">
@@ -127,7 +122,7 @@ const Navbar = () => {
 
               {/* Search Icon - With keyboard shortcut hint */}
               <motion.button 
-                onClick={() => {}} // Search disabled for now
+                onClick={() => setIsSearchOpen(!isSearchOpen)}
                 className="hidden sm:flex items-center gap-2 px-3 py-2 text-muted-foreground hover:text-foreground transition-colors rounded-xl hover:bg-muted"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
@@ -141,7 +136,7 @@ const Navbar = () => {
 
               {/* Mobile Search Button */}
               <motion.button 
-                onClick={() => {}} // Search disabled for now
+                onClick={() => setIsSearchOpen(!isSearchOpen)}
                 className="sm:hidden p-2.5 text-muted-foreground hover:text-foreground transition-colors rounded-xl hover:bg-muted"
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
@@ -178,48 +173,20 @@ const Navbar = () => {
             whileHover={{ scale: 1.01 }}
             transition={{ duration: 0.3 }}
           >
-            {session ? (
-              <>
-                <motion.div 
-                  className="flex items-center justify-center w-9 h-9 rounded-xl bg-muted border border-border overflow-hidden"
-                  whileHover={{ scale: 1.05 }}
-                >
-                  <span className="text-sm font-black uppercase">
-                    {session.user?.name?.[0] || session.user?.email?.[0] || <User className="w-4 h-4" />}
-                  </span>
-                </motion.div>
-                <motion.button 
-                  onClick={() => signOut({ callbackUrl: "/" })}
-                  className="px-4 py-2.5 text-[12px] font-bold text-muted-foreground hover:text-foreground hover:bg-muted transition-colors rounded-xl flex items-center gap-2"
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <LogOut className="w-3.5 h-3.5" />
-                  Logout
-                </motion.button>
-              </>
-            ) : (
-              <>
-                <Link href="/login">
-                  <motion.button 
-                    className="px-5 py-2.5 text-[12px] font-bold text-muted-foreground hover:text-foreground transition-colors rounded-xl hover:bg-muted"
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                  >
-                    Login
-                  </motion.button>
-                </Link>
-                <Link href="/register">
-                  <motion.button 
-                    className="px-5 py-2.5 bg-white/5 border border-white/10 text-foreground rounded-xl text-[12px] font-bold hover:bg-white/10 transition-all whitespace-nowrap"
-                    whileHover={{ scale: 1.02, y: -1 }}
-                    whileTap={{ scale: 0.98 }}
-                  >
-                    Sign&nbsp;up
-                  </motion.button>
-                </Link>
-              </>
-            )}
+            <motion.button 
+              className="px-5 py-2.5 text-[12px] font-bold text-muted-foreground hover:text-foreground transition-colors rounded-xl hover:bg-muted"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              Login
+            </motion.button>
+            <motion.button 
+              className="px-5 py-2.5 bg-primary text-primary-foreground rounded-xl text-[12px] font-bold hover:opacity-90 transition-all shadow-lg hover:shadow-xl whitespace-nowrap"
+              whileHover={{ scale: 1.02, y: -1 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              Sign&nbsp;up
+            </motion.button>
           </motion.div>
         </div>
 
@@ -270,57 +237,24 @@ const Navbar = () => {
               exit={{ opacity: 0, y: -10, scale: 0.95 }}
               transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
             >
-              <NavLink href="/" icon={<Headphones className="w-4 h-4" />} label="News" active onClick={() => setIsMenuOpen(false)} />
-              <NavLink href="/media" icon={<Globe className="w-4 h-4" />} label="Media" onClick={() => setIsMenuOpen(false)} />
+              <NavLink href="/" icon={<Headphones className="w-4 h-4" />} label="Home" active onClick={() => setIsMenuOpen(false)} />
+              <NavLink href="/discover" icon={<Globe className="w-4 h-4" />} label="Discover" onClick={() => setIsMenuOpen(false)} />
               <NavLink href="/archive" icon={<Archive className="w-4 h-4" />} label="Archive" onClick={() => setIsMenuOpen(false)} />
-              <NavLink href="/ai-models" icon={<Cpu className="w-4 h-4" />} label="AI Models" onClick={() => setIsMenuOpen(false)} />
+              <NavLink href="/categories" icon={<LayoutGrid className="w-4 h-4" />} label="Categories" onClick={() => setIsMenuOpen(false)} />
               <div className="h-px bg-border my-1" />
               <div className="flex gap-2 mt-1">
-                {session ? (
-                  <>
-                    <div className="flex items-center gap-3 px-2 py-1.5 flex-1">
-                      <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-muted border border-border">
-                        <span className="text-xs font-black uppercase">
-                          {session.user?.name?.[0] || session.user?.email?.[0] || <User className="w-3 h-3" />}
-                        </span>
-                      </div>
-                      <span className="text-sm font-semibold truncate flex-1">
-                        {session.user?.name || session.user?.email?.split('@')[0]}
-                      </span>
-                    </div>
-                    <motion.button 
-                      onClick={() => {
-                        setIsMenuOpen(false);
-                        signOut({ callbackUrl: "/" });
-                      }}
-                      className="px-4 py-2 text-[13px] font-bold text-muted-foreground hover:text-foreground transition-colors rounded-xl hover:bg-muted bg-muted/50 flex items-center gap-2"
-                      whileTap={{ scale: 0.98 }}
-                    >
-                      <LogOut className="w-4 h-4" />
-                    </motion.button>
-                  </>
-                ) : (
-                  <>
-                    <Link href="/login" className="flex-1">
-                      <motion.button 
-                        className="w-full py-3 text-[13px] font-bold text-muted-foreground hover:text-foreground transition-colors rounded-xl hover:bg-muted min-h-[44px]"
-                        whileTap={{ scale: 0.98 }}
-                        onClick={() => setIsMenuOpen(false)}
-                      >
-                        Login
-                      </motion.button>
-                    </Link>
-                    <Link href="/register" className="flex-1">
-                      <motion.button 
-                        className="w-full py-3 bg-white/5 border border-white/10 text-foreground rounded-xl text-[13px] font-bold hover:bg-white/10 transition-all whitespace-nowrap min-h-[44px]"
-                        whileTap={{ scale: 0.98 }}
-                        onClick={() => setIsMenuOpen(false)}
-                      >
-                        Sign&nbsp;up
-                      </motion.button>
-                    </Link>
-                  </>
-                )}
+                <motion.button 
+                  className="flex-1 py-3 text-[13px] font-bold text-muted-foreground hover:text-foreground transition-colors rounded-xl hover:bg-muted min-h-[44px]"
+                  whileTap={{ scale: 0.98 }}
+                >
+                  Login
+                </motion.button>
+                <motion.button 
+                  className="flex-1 py-3 bg-primary text-primary-foreground rounded-xl text-[13px] font-bold hover:opacity-90 transition-all shadow-lg whitespace-nowrap min-h-[44px]"
+                  whileTap={{ scale: 0.98 }}
+                >
+                  Sign&nbsp;up
+                </motion.button>
               </div>
             </motion.div>
           )}
@@ -358,9 +292,17 @@ const NavLink = ({
       whileHover={{ scale: 1.02 }}
       whileTap={{ scale: 0.98 }}
     >
-
+      {/* Active indicator background */}
+      {active && (
+        <motion.div
+          layoutId="activeNav"
+          className="absolute inset-0 bg-muted rounded-xl"
+          transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+        />
+      )}
+      
       <span className="relative z-10 flex items-center gap-2">
-        <span className={active ? "" : "group-hover:text-foreground transition-colors"}>
+        <span className={active ? "text-primary" : "group-hover:text-primary transition-colors"}>
           {icon}
         </span>
         {label}
