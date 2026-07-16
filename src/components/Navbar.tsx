@@ -36,7 +36,6 @@ const Navbar = () => {
 
   // Avoid hydration mismatch
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
   }, []);
 
@@ -70,7 +69,7 @@ const Navbar = () => {
       className="fixed top-2 md:top-6 left-1/2 -translate-x-1/2 z-[100] w-full max-w-[980px] px-2 md:px-6"
       initial={{ y: -100, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
-      transition={{ duration: 0.6 }}
+      transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
     >
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between gap-4">
@@ -261,7 +260,7 @@ const Navbar = () => {
               initial={{ opacity: 0, y: -10, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -10, scale: 0.95 }}
-              transition={{ duration: 0.3 }}
+              transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
             >
               <div className="relative flex items-center">
                 <Search className="absolute left-4 w-4 h-4 text-muted-foreground" />
@@ -298,7 +297,7 @@ const Navbar = () => {
               initial={{ opacity: 0, y: -10, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -10, scale: 0.95 }}
-              transition={{ duration: 0.3 }}
+              transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
             >
               <NavLink href="/" icon={<Headphones className="w-4 h-4" />} label="News" active={pathname === "/"} onClick={() => setIsMenuOpen(false)} />
               <NavLink href="/media" icon={<Globe className="w-4 h-4" />} label="Media" active={pathname === "/media"} onClick={() => setIsMenuOpen(false)} />

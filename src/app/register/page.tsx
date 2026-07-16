@@ -33,29 +33,26 @@ export default function RegisterPage() {
   const onSubmit = async (data: RegisterFormValues) => {
     setError(null);
     try {
-      const { createClient } = await import('@/utils/supabase/client');
-      const supabase = createClient();
-      const { error: signUpError } = await supabase.auth.signUp({
-        email: data.email,
-        password: data.password,
-        options: {
-          data: {
-            full_name: data.name,
-          },
+      const response = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
+        body: JSON.stringify({
+          name: data.name,
+          email: data.email,
+          password: data.password,
+        }),
       });
 
-      if (signUpError) {
-        throw new Error(signUpError.message);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Something went wrong");
       }
 
       router.push("/login");
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError("An unknown error occurred");
-      }
+    } catch (err: any) {
+      setError(err.message);
     }
   };
 
