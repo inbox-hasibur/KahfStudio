@@ -57,7 +57,7 @@ export default function PreferencesPage() {
           </div>
         </CardContent>
         <CardFooter>
-          <Button variant="default">Save Changes</Button>
+          <Button variant="outline" className="bg-white dark:bg-slate-800 text-foreground hover:bg-slate-100 dark:hover:bg-slate-700">Save Changes</Button>
         </CardFooter>
       </Card>
 
@@ -73,8 +73,8 @@ export default function PreferencesPage() {
             {categories.map((category, index) => (
               <Button 
                 key={category} 
-                variant={index % 3 === 0 ? "default" : "outline"} 
-                className="rounded-full"
+                variant="outline" 
+                className={`rounded-full ${index % 3 === 0 ? 'bg-white dark:bg-slate-800 text-foreground shadow-sm' : ''}`}
               >
                 {category}
               </Button>

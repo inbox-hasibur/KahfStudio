@@ -174,7 +174,7 @@ const Navbar = () => {
               <div className="flex items-center gap-2">
                 <motion.button 
                   onClick={() => signOut()}
-                  className="px-4 py-2 bg-transparent text-muted-foreground rounded-full text-[13px] font-bold hover:bg-muted hover:text-foreground transition-all flex items-center gap-2 h-9"
+                  className="px-4 py-2 bg-transparent text-muted-foreground rounded-full text-[13px] font-bold hover:bg-white dark:hover:bg-slate-800 hover:text-foreground transition-all flex items-center gap-2 h-9"
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                 >
@@ -309,7 +309,7 @@ const Navbar = () => {
                   <>
                     <Link href="/profile" className="flex-1" onClick={() => setIsMenuOpen(false)}>
                       <motion.button 
-                        className="w-full py-3 text-[13px] font-bold text-muted-foreground hover:text-foreground transition-colors rounded-xl hover:bg-muted min-h-[44px]"
+                        className="w-full py-3 text-[13px] font-bold text-muted-foreground hover:text-foreground transition-colors rounded-xl hover:bg-white dark:hover:bg-slate-800 min-h-[44px]"
                         whileTap={{ scale: 0.98 }}
                       >
                         Profile
@@ -318,7 +318,7 @@ const Navbar = () => {
                     <div className="flex-1">
                       <motion.button 
                         onClick={() => { signOut(); setIsMenuOpen(false); }}
-                        className="w-full py-3 bg-destructive/10 text-destructive rounded-xl text-[13px] font-bold hover:bg-destructive hover:text-destructive-foreground transition-all min-h-[44px]"
+                        className="w-full py-3 bg-transparent text-muted-foreground rounded-xl text-[13px] font-bold hover:bg-white dark:hover:bg-slate-800 hover:text-foreground transition-all min-h-[44px]"
                         whileTap={{ scale: 0.98 }}
                       >
                         Logout
@@ -329,7 +329,7 @@ const Navbar = () => {
                   <>
                     <Link href="/login" className="flex-1" onClick={() => setIsMenuOpen(false)}>
                       <motion.button 
-                        className="w-full py-3 text-[13px] font-bold text-muted-foreground hover:text-foreground transition-colors rounded-xl hover:bg-muted min-h-[44px]"
+                        className="w-full py-3 text-[13px] font-bold text-muted-foreground hover:text-foreground transition-colors rounded-xl hover:bg-white dark:hover:bg-slate-800 min-h-[44px]"
                         whileTap={{ scale: 0.98 }}
                       >
                         Login
