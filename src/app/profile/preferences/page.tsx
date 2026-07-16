@@ -42,7 +42,7 @@ export default function PreferencesPage() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Your Name"
-              className="w-full bg-muted/50 border border-border rounded-xl py-2 px-3 text-[14px] focus:outline-none focus:ring-2 focus:ring-slate-400/30"
+              className="w-full bg-background border border-border rounded-xl py-2 px-3 text-[14px] focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors"
             />
           </div>
           <div className="space-y-2">
@@ -52,12 +52,12 @@ export default function PreferencesPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
-              className="w-full bg-muted/50 border border-border rounded-xl py-2 px-3 text-[14px] focus:outline-none focus:ring-2 focus:ring-slate-400/30"
+              className="w-full bg-background border border-border rounded-xl py-2 px-3 text-[14px] focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors"
             />
           </div>
         </CardContent>
         <CardFooter>
-          <Button className="bg-white text-zinc-900 hover:bg-zinc-100 font-bold shadow-sm">Save Changes</Button>
+          <Button className="bg-white text-zinc-900 hover:bg-zinc-100 font-bold border-0">Save Changes</Button>
         </CardFooter>
       </Card>
 
@@ -74,7 +74,7 @@ export default function PreferencesPage() {
               <Button 
                 key={category} 
                 variant="outline" 
-                className={`rounded-full ${index % 3 === 0 ? 'bg-white dark:bg-slate-800 text-foreground shadow-sm' : ''}`}
+                className={`rounded-full ${index % 3 === 0 ? 'bg-white text-zinc-900 font-bold border-0 shadow-sm' : ''}`}
               >
                 {category}
               </Button>
@@ -82,7 +82,7 @@ export default function PreferencesPage() {
           </div>
         </CardContent>
         <CardFooter>
-          <Button className="bg-white text-zinc-900 hover:bg-zinc-100 font-bold shadow-sm">Save Interests</Button>
+          <Button className="bg-white text-zinc-900 hover:bg-zinc-100 font-bold border-0">Save Interests</Button>
         </CardFooter>
       </Card>
 
