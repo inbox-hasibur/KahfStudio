@@ -42,7 +42,7 @@ export default function PreferencesPage() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Your Name"
-              className="w-full bg-muted/50 border border-border rounded-xl py-2 px-3 text-[14px] focus:outline-none focus:ring-2 focus:ring-primary/30"
+              className="w-full bg-muted/50 border border-border rounded-xl py-2 px-3 text-[14px] focus:outline-none focus:ring-2 focus:ring-slate-400/30"
             />
           </div>
           <div className="space-y-2">
@@ -52,12 +52,12 @@ export default function PreferencesPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
-              className="w-full bg-muted/50 border border-border rounded-xl py-2 px-3 text-[14px] focus:outline-none focus:ring-2 focus:ring-primary/30"
+              className="w-full bg-muted/50 border border-border rounded-xl py-2 px-3 text-[14px] focus:outline-none focus:ring-2 focus:ring-slate-400/30"
             />
           </div>
         </CardContent>
         <CardFooter>
-          <Button variant="outline" className="bg-white dark:bg-slate-800 text-foreground hover:bg-slate-100 dark:hover:bg-slate-700">Save Changes</Button>
+          <Button className="bg-white text-zinc-900 hover:bg-zinc-100 font-bold shadow-sm">Save Changes</Button>
         </CardFooter>
       </Card>
 
@@ -82,7 +82,7 @@ export default function PreferencesPage() {
           </div>
         </CardContent>
         <CardFooter>
-          <Button variant="secondary">Save Interests</Button>
+          <Button className="bg-white text-zinc-900 hover:bg-zinc-100 font-bold shadow-sm">Save Interests</Button>
         </CardFooter>
       </Card>
 
