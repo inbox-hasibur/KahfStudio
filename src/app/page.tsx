@@ -5,7 +5,6 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import HeadlineSlider from "@/components/HeadlineSlider";
 import MainFeed from "@/components/MainFeed";
-import MainFeed from "@/components/MainFeed";
 import BreakingNewsTicker from "@/components/BreakingNewsTicker";
 import { useNews, useWeather } from "@/hooks/useNews";
 import { Newspaper, Loader2, Radio, TrendingUp, Calendar, Sparkles, CloudSun, Play, FileText } from "lucide-react";
