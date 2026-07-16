@@ -74,7 +74,7 @@ export default function PreferencesPage() {
               <Button 
                 key={category} 
                 variant="outline" 
-                className={`rounded-full ${index % 3 === 0 ? 'bg-white text-zinc-900 font-bold border-0 shadow-sm' : ''}`}
+                className={`rounded-full ${index % 3 === 0 ? 'bg-white/20 dark:bg-slate-700/50 text-foreground border-border shadow-sm' : ''}`}
               >
                 {category}
               </Button>
