@@ -5,35 +5,10 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import HeadlineSlider from "@/components/HeadlineSlider";
 import MainFeed from "@/components/MainFeed";
-import LiveFeedSidebar from "@/components/LiveFeedSidebar";
-
+import MainFeed from "@/components/MainFeed";
 import BreakingNewsTicker from "@/components/BreakingNewsTicker";
 import { useNews, useWeather } from "@/hooks/useNews";
 import { Newspaper, Loader2, Radio, TrendingUp, Calendar, Sparkles, CloudSun, Play, FileText } from "lucide-react";
-
-const LIVE_UPDATES = [
-  {
-    id: "l1",
-    title: "শাহবাগ মোড়ে যানজট",
-    summary: "বিক্ষোভকারীরা সমবেত হয়েছেন; যান চলাচল পুরোপুরি বন্ধ। বিকল্প রাস্তা ব্যবহারের পরামর্শ দেওয়া হচ্ছে।",
-    category: "ট্রাফিক",
-    publishedAt: "১০ মি. আগে"
-  },
-  {
-    id: "l2",
-    title: "রামপুরায় বিদ্যুৎ বিভ্রাট",
-    summary: "রক্ষণাবেক্ষণের কাজ চলছে; ২ ঘণ্টার মধ্যে বিদ্যুৎ ফেরার সম্ভাবনা রয়েছে।",
-    category: "বিদ্যুৎ",
-    publishedAt: "২৫ মি. আগে"
-  },
-  {
-    id: "l3",
-    title: "মেট্রোরেল পরিষেবা আপডেট",
-    summary: "সংক্ষিপ্ত যান্ত্রিক ত্রুটির পর গ্রিন লাইনে স্বাভাবিক চলাচল শুরু হয়েছে।",
-    category: "পরিবহন",
-    publishedAt: "৩৫ মি. আগে"
-  },
-];
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -274,15 +249,11 @@ export default function Home() {
         </div>
       </motion.section>
 
-      {/* 1. HERO SECTION & SIDEBAR */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 mb-10 md:mb-16">
-        <motion.section variants={itemVariants} className="lg:col-span-8">
+      {/* 1. HERO SECTION */}
+      <div className="mb-10 md:mb-16">
+        <motion.section variants={itemVariants} className="w-full">
           <HeadlineSlider headlines={headlines} />
         </motion.section>
-        
-        <motion.div variants={itemVariants} className="lg:col-span-4">
-          <LiveFeedSidebar updates={LIVE_UPDATES} />
-        </motion.div>
       </div>
 
       {/* 2. MAIN CONTENT: ALL NEWS GRID */}
