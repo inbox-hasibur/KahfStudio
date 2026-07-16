@@ -120,7 +120,7 @@ const Navbar = () => {
               {/* Search Icon - With keyboard shortcut hint */}
               <motion.button 
                 onClick={() => setIsSearchOpen(!isSearchOpen)}
-                className="hidden sm:flex items-center gap-2 px-3 py-2 text-muted-foreground hover:text-foreground transition-colors rounded-xl hover:bg-muted"
+                className="hidden sm:flex items-center gap-2 px-3 py-2 text-muted-foreground hover:text-foreground transition-colors rounded-xl hover:bg-white dark:hover:bg-slate-800"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
               >
@@ -134,7 +134,7 @@ const Navbar = () => {
               {/* Mobile Search Button */}
               <motion.button 
                 onClick={() => setIsSearchOpen(!isSearchOpen)}
-                className="sm:hidden p-2.5 text-muted-foreground hover:text-foreground transition-colors rounded-xl hover:bg-muted"
+                className="sm:hidden p-2.5 text-muted-foreground hover:text-foreground transition-colors rounded-xl hover:bg-white dark:hover:bg-slate-800"
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
               >
@@ -145,7 +145,7 @@ const Navbar = () => {
               <div className="md:hidden">
                 <motion.button 
                   onClick={() => setIsMenuOpen(!isMenuOpen)}
-                  className="p-2.5 text-muted-foreground hover:text-foreground transition-colors rounded-xl hover:bg-muted min-w-[44px] min-h-[44px] flex items-center justify-center"
+                  className="p-2.5 text-muted-foreground hover:text-foreground transition-colors rounded-xl hover:bg-white dark:hover:bg-slate-800 min-w-[44px] min-h-[44px] flex items-center justify-center"
                   whileTap={{ scale: 0.9 }}
                 >
                   <AnimatePresence mode="wait">
@@ -231,7 +231,7 @@ const Navbar = () => {
               <>
                 <Link href="/login">
                   <motion.button 
-                    className="px-5 py-2.5 text-[12px] font-bold text-muted-foreground hover:text-foreground transition-colors rounded-xl hover:bg-muted"
+                    className="px-5 py-2.5 text-[12px] font-bold text-muted-foreground hover:text-foreground transition-colors rounded-xl hover:bg-white dark:hover:bg-slate-800"
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                   >

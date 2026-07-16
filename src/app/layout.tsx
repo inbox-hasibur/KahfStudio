@@ -3,6 +3,7 @@ import { Hind_Siliguri, Noto_Serif_Bengali } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
 
 const hindSiliguri = Hind_Siliguri({ 
   subsets: ["bengali", "latin"], 
@@ -33,8 +34,13 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <Navbar />
-          {children}
+          <div className="flex flex-col min-h-screen">
+            <Navbar />
+            <main className="flex-1">
+              {children}
+            </main>
+            <Footer />
+          </div>
         </ThemeProvider>
       </body>
     </html>
