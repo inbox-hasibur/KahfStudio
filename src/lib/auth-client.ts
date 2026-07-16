@@ -56,3 +56,18 @@ export async function signIn(provider: string, options: { email: string; passwor
   if (error) return { error: error.message };
   return { ok: true, error: null };
 }
+
+export async function signUp(options: { email: string; password: string; name: string }) {
+  const supabase = createClient();
+  const { data, error } = await supabase.auth.signUp({
+    email: options.email,
+    password: options.password,
+    options: {
+      data: {
+        full_name: options.name,
+      }
+    }
+  });
+  if (error) return { error: error.message };
+  return { ok: true, error: null };
+}

@@ -29,30 +29,20 @@ export default function RegisterPage() {
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
   });
+import { signUp } from "@/lib/auth-client";
 
   const onSubmit = async (data: RegisterFormValues) => {
     setError(null);
-    try {
-      const response = await fetch("/api/auth/register", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          name: data.name,
-          email: data.email,
-          password: data.password,
-        }),
-      });
+    const result = await signUp({
+      name: data.name,
+      email: data.email,
+      password: data.password,
+    });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Something went wrong");
-      }
-
+    if (result?.error) {
+      setError(result.error);
+    } else {
       router.push("/login");
-    } catch (err: any) {
-      setError(err.message);
     }
   };
 
