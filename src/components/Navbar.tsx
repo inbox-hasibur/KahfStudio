@@ -84,7 +84,7 @@ const Navbar = () => {
                 <span className="text-[14px] font-black text-white italic">K</span>
               </motion.div>
               <span className="text-sm font-black tracking-tighter text-foreground hidden sm:block">
-                KahfStudio
+                Khobor<span className="text-primary">AI</span>
               </span>
             </Link>
 
