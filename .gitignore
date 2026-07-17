@@ -41,9 +41,4 @@ yarn-error.log*
 next-env.d.ts
 
 /src/generated/prisma
-Prototype_khobor-ai/
-Prototype_Khobor-AI/
-Prototype_*/
-
-# ignore prototype_src
-prototype_src/
+/prototype_src
