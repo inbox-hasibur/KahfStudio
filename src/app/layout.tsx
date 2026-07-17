@@ -1,46 +1,47 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Hind_Siliguri, Noto_Serif_Bengali } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
+const hindSiliguri = Hind_Siliguri({ 
+  subsets: ["bengali", "latin"], 
+  weight: ["300", "400", "500", "600", "700"],
+  variable: "--font-hind",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+const notoSerif = Noto_Serif_Bengali({ 
+  subsets: ["bengali", "latin"],
+  weight: ["400", "500", "600", "700", "800", "900"],
+  variable: "--font-noto-serif",
 });
 
 export const metadata: Metadata = {
-  title: "KahfStudio",
-  description: "Modern web application with premium design",
+  title: "KahfNews | খবর এআই",
+  description: "AI-powered personalized news briefing for Bangladesh",
 };
-
-import { AuthProvider } from "@/components/auth-provider";
 
 export default function RootLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+}: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-      suppressHydrationWarning
-    >
-      <body className="min-h-full flex flex-col pt-24 bg-background text-foreground transition-colors duration-300">
-        <AuthProvider>
-          <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
+    <html lang="bn" suppressHydrationWarning>
+      <body className={`${hindSiliguri.variable} ${notoSerif.variable} font-sans antialiased min-h-screen bg-background text-foreground`} style={{ fontFamily: "var(--font-hind)" }}>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <div className="flex flex-col min-h-screen">
             <Navbar />
-            <main className="flex-1 flex flex-col px-4 md:px-8 max-w-[1200px] mx-auto w-full">
+            <main className="flex-1">
               {children}
             </main>
-          </ThemeProvider>
-        </AuthProvider>
+            <Footer />
+          </div>
+        </ThemeProvider>
       </body>
     </html>
   );
