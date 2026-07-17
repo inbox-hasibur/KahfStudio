@@ -14,6 +14,7 @@ This backlog outlines the step-by-step modular implementation plan to migrate fe
   - `app/login/page.tsx`
   - `app/register/page.tsx`
   - `app/profile/page.tsx` (User profile and settings)
+  - `app/admin/page.tsx` (Basic 1-page admin profile)
 - **Library & Utils**:
   - `lib/auth-client.ts`
   - `lib/supabase` setup
