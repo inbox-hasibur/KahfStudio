@@ -35,6 +35,9 @@ export default function AdminLayout({
 
   const navItems = [
     { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
+    { name: "User Management", href: "/admin/users", icon: Users },
+    { name: "Scraping Pipeline", href: "/admin/scraping", icon: Database },
+    { name: "News Library", href: "/admin/library", icon: Library },
   ];
 
   return (
