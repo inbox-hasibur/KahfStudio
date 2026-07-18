@@ -20,14 +20,16 @@ export default function ProfileLayout({
   useEffect(() => {
     if (status === "unauthenticated") {
       router.push("/login");
+    } else if (status === "authenticated" && (session?.user as any)?.role === "admin") {
+      router.push("/admin");
     }
-  }, [status, router]);
+  }, [status, session, router]);
 
   if (status === "loading") {
     return <div className="pt-32 text-center text-muted-foreground">Loading Profile...</div>;
   }
   
-  if (status === "unauthenticated") {
+  if (status === "unauthenticated" || (session?.user as any)?.role === "admin") {
     return null; // Or some loading state while redirecting
   }
 

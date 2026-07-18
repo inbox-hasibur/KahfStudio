@@ -11,7 +11,8 @@ export function useSession(options?: Record<string, unknown>) {
     const formatUser = (user: User) => ({
       ...user,
       name: user.user_metadata?.full_name || user.email?.split('@')[0],
-      image: user.user_metadata?.avatar_url
+      image: user.user_metadata?.avatar_url,
+      role: user.app_metadata?.role || user.user_metadata?.role || (user.email === 'admin@gmail.com' ? 'admin' : 'user')
     });
     const fetchSession = async () => {
       const { data: { session: activeSession } } = await supabase.auth.getSession();
