@@ -2,11 +2,11 @@
 
 import React from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect } from "react";
 import { motion } from "framer-motion";
 import { LayoutDashboard, Users, Cpu, Database, Library, User } from "lucide-react";
 import { useSession } from "@/lib/auth-client";
-import { redirect } from "next/navigation";
 
 export default function AdminLayout({
   children,
@@ -14,19 +14,23 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const { data: session, status } = useSession({
-    required: true,
-    onUnauthenticated() {
-      redirect("/login");
-    },
-  });
+  const { data: session, status } = useSession();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      router.push("/login");
+    } else if (status === "authenticated" && (session?.user as any)?.role !== "admin") {
+      router.push("/profile");
+    }
+  }, [status, session, router]);
 
   if (status === "loading") {
     return <div className="pt-32 text-center text-muted-foreground">Loading...</div>;
   }
 
-  if ((session?.user as any)?.role !== "admin") {
-    redirect("/profile");
+  if (status === "unauthenticated" || (session?.user as any)?.role !== "admin") {
+    return null;
   }
 
   const navItems = [

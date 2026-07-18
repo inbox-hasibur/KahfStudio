@@ -2,7 +2,8 @@
 
 import React from "react";
 import Link from "next/link";
-import { usePathname, redirect } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect } from "react";
 import { motion } from "framer-motion";
 import { LayoutDashboard, Key, Cpu, Settings, User } from "lucide-react";
 import { useSession } from "@/lib/auth-client";
@@ -13,15 +14,21 @@ export default function ProfileLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const { data: session, status } = useSession({
-    required: true,
-    onUnauthenticated() {
-      redirect("/login");
-    },
-  });
+  const { data: session, status } = useSession();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      router.push("/login");
+    }
+  }, [status, router]);
 
   if (status === "loading") {
     return <div className="pt-32 text-center text-muted-foreground">Loading Profile...</div>;
+  }
+  
+  if (status === "unauthenticated") {
+    return null; // Or some loading state while redirecting
   }
 
   const navItems = [
