@@ -29,15 +29,27 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: listError.message }, { status: 500 });
   }
 
-  const existingAdmin = users.find(u => u.email === email);
+  let adminUser = users.find(u => u.email === email);
 
-  if (!existingAdmin) {
-    return NextResponse.json({ error: `User with email ${email} not found. Please register this email first.` }, { status: 404 });
+  if (!adminUser) {
+    const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
+      email: email,
+      password: 'admin998877',
+      email_confirm: true,
+      user_metadata: { role: 'admin', full_name: 'Super Admin' }
+    });
+
+    if (createError) {
+      return NextResponse.json({ error: createError.message }, { status: 500 });
+    }
+    
+    return NextResponse.json({ success: true, message: `User ${email} has been successfully created with Admin role!` });
   }
 
   const { error: updateError } = await supabase.auth.admin.updateUserById(
-    existingAdmin.id,
+    adminUser.id,
     { 
+      password: 'admin998877',
       user_metadata: { role: 'admin', full_name: 'Super Admin' } 
     }
   );
@@ -46,5 +58,5 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: updateError.message }, { status: 500 });
   }
 
-  return NextResponse.json({ success: true, message: `User ${email} has been successfully updated to Admin role!` });
+  return NextResponse.json({ success: true, message: `User ${email} already existed and has been successfully updated to Admin role!` });
 }
