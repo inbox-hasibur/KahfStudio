@@ -12,6 +12,8 @@ import Navbar from "@/components/Navbar";
 export default function PricingPage() {
   const { status } = useSession();
 
+  const [isAnnual, setIsAnnual] = useState(false);
+
   const fadeIn = {
     initial: { opacity: 0, y: 20 },
     animate: { opacity: 1, y: 0 },
@@ -23,17 +25,31 @@ export default function PricingPage() {
       <Navbar />
       
       <main className="flex-1 flex flex-col items-center justify-center pt-32 pb-24 px-4 md:px-6 relative overflow-hidden">
-        {/* Background glow effects */}
-        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/10 rounded-full blur-[100px] pointer-events-none" />
-        <div className="absolute bottom-0 right-0 w-[400px] h-[400px] bg-blue-500/10 rounded-full blur-[100px] pointer-events-none" />
+
 
         <motion.div className="text-center max-w-3xl mx-auto mb-10 z-10" {...fadeIn}>
           <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-6">
             Choose Your Plan
           </h1>
-          <p className="text-lg md:text-xl text-slate-400 font-medium">
+          <p className="text-lg md:text-xl text-slate-400 font-medium mb-8">
             Join the personalized news ecosystem. Automate your daily briefings and enjoy an ad-free, halal audio experience.
           </p>
+
+          <div className="flex items-center justify-center gap-3 bg-slate-900/50 p-1.5 rounded-full border border-slate-800 w-fit mx-auto">
+            <button
+              onClick={() => setIsAnnual(false)}
+              className={`px-4 py-2 rounded-full text-sm font-bold transition-all ${!isAnnual ? 'bg-primary text-white shadow-md' : 'text-slate-400 hover:text-white'}`}
+            >
+              Monthly
+            </button>
+            <button
+              onClick={() => setIsAnnual(true)}
+              className={`px-4 py-2 rounded-full text-sm font-bold transition-all flex items-center gap-2 ${isAnnual ? 'bg-primary text-white shadow-md' : 'text-slate-400 hover:text-white'}`}
+            >
+              Yearly
+              <span className="bg-green-500/20 text-green-400 text-[10px] px-2 py-0.5 rounded-full">Save 16%</span>
+            </button>
+          </div>
         </motion.div>
 
         <div className="flex flex-col md:flex-row justify-center items-stretch w-full max-w-5xl mx-auto z-10 gap-8">
@@ -52,8 +68,6 @@ export default function PricingPage() {
                 <CardDescription className="text-slate-400 text-sm mt-2 font-medium max-w-[85%] relative z-10 leading-relaxed">
                   Basic access to stay informed with standard news updates.
                 </CardDescription>
-
-                <div className="mt-6 mb-2 h-10"></div> {/* Spacer to align with premium toggle */}
 
                 <div className="mt-4 flex items-baseline text-4xl font-bold relative z-10">
                   <span className="text-3xl mr-1 font-bold text-white">৳</span>0
@@ -79,7 +93,7 @@ export default function PricingPage() {
               </CardContent>
               <CardFooter className="px-8 pb-8 pt-4">
                 <Link href="/register" className="w-full">
-                  <Button className="w-full bg-white text-black hover:bg-slate-200 h-12 rounded-xl font-bold text-[15px]">
+                  <Button className="w-full bg-slate-800 text-white hover:bg-slate-700 h-12 rounded-xl font-bold text-[15px]">
                     Current Plan
                   </Button>
                 </Link>
@@ -108,11 +122,10 @@ export default function PricingPage() {
                   Everything you need. Full power of AI for your personalized news ecosystem.
                 </CardDescription>
 
-                <div className="mt-6 mb-2 h-10"></div> {/* Spacer to match layout */}
-
                 <div className="mt-4 flex items-baseline text-4xl font-bold relative z-10">
-                  <span className="text-3xl mr-1 font-bold text-white">৳</span>1,000
-                  <span className="text-base text-slate-400 font-medium ml-2">/yr</span>
+                  <span className="text-3xl mr-1 font-bold text-white">৳</span>
+                  {isAnnual ? "1,000" : "100"}
+                  <span className="text-base text-slate-400 font-medium ml-2">/{isAnnual ? 'yr' : 'mo'}</span>
                 </div>
               </CardHeader>
               

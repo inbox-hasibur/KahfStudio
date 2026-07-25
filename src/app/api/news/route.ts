@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 
@@ -13,6 +14,7 @@ export async function GET(req: NextRequest) {
     let query = supabase
       .from('news_articles')
       .select('*')
+      .eq('status', 'published')
       .order('published_at', { ascending: false })
       .limit(limit);
 
@@ -59,3 +61,4 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+

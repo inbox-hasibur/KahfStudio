@@ -1,25 +1,65 @@
 "use client";
 
-import React, { useState } from "react";
-import { motion } from "framer-motion";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useSession } from "@/lib/auth-client";
+import { createClient } from "@/utils/supabase/client";
 
 export default function PreferencesPage() {
   const { data: session } = useSession();
+  const supabase = createClient();
   const categories = ["Technology", "Politics", "Sports", "Entertainment", "Science", "Business", "Health", "World"];
 
-  const [name, setName] = useState(session?.user?.name || "");
-  const [email, setEmail] = useState(session?.user?.email || "");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [interests, setInterests] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (session?.user) {
+      setEmail(session.user.email || "");
+      setName(session.user.name || "");
+      
+      if (session.user.id) {
+        supabase.from('profiles').select('full_name, interests').eq('id', session.user.id).single()
+          .then(({ data }) => {
+            if (data) {
+              if (data.full_name) setName(data.full_name);
+              if (data.interests) setInterests(data.interests);
+            }
+            setLoading(false);
+          });
+      }
+    }
+  }, [session, supabase]);
+
+  const toggleInterest = (category: string) => {
+    setInterests(prev => 
+      prev.includes(category) 
+        ? prev.filter(i => i !== category)
+        : [...prev, category]
+    );
+  };
+
+  const saveProfile = async () => {
+    if (!session?.user?.id) return;
+    const { error } = await supabase.from('profiles').update({ full_name: name }).eq('id', session.user.id);
+    if (!error) alert("Profile updated!");
+    else alert("Failed to update profile");
+  };
+
+  const saveInterests = async () => {
+    if (!session?.user?.id) return;
+    const { error } = await supabase.from('profiles').update({ interests }).eq('id', session.user.id);
+    if (!error) alert("Interests saved!");
+    else alert("Failed to save interests");
+  };
+
+  if (loading) return <div className="p-8 text-center text-muted-foreground">Loading preferences...</div>;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4 }}
-      className="space-y-6"
-    >
+    <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold">Preferences</h1>
         <p className="text-muted-foreground mt-1">
@@ -42,7 +82,7 @@ export default function PreferencesPage() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Your Name"
-              className="w-full bg-background border border-border rounded-xl py-2 px-3 text-[14px] focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors"
+              className="w-full bg-white/5 dark:bg-white/5 border border-white/10 hover:border-white/20 rounded-xl py-2 px-3 text-[14px] focus:outline-none focus:ring-2 focus:ring-white/30 transition-all text-foreground"
             />
           </div>
           <div className="space-y-2">
@@ -50,14 +90,13 @@ export default function PreferencesPage() {
             <input 
               type="email" 
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
-              className="w-full bg-background border border-border rounded-xl py-2 px-3 text-[14px] focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors"
+              disabled
+              className="w-full bg-white/5 dark:bg-white/5 border border-white/10 rounded-xl py-2 px-3 text-[14px] text-muted-foreground opacity-70"
             />
           </div>
         </CardContent>
         <CardFooter>
-          <Button className="bg-white text-zinc-900 hover:bg-zinc-100 font-bold border-0">Save Changes</Button>
+          <Button onClick={saveProfile} className="bg-white text-slate-900 hover:bg-slate-200 font-bold px-6">Save Changes</Button>
         </CardFooter>
       </Card>
 
@@ -70,11 +109,16 @@ export default function PreferencesPage() {
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-2">
-            {categories.map((category, index) => (
+            {categories.map((category) => (
               <Button 
                 key={category} 
                 variant="outline" 
-                className={`rounded-full ${index % 3 === 0 ? 'bg-white/20 dark:bg-slate-700/50 text-foreground border-border shadow-sm' : ''}`}
+                onClick={() => toggleInterest(category)}
+                className={`rounded-full transition-all ${
+                  interests.includes(category)
+                    ? "bg-primary text-primary-foreground border-primary shadow-sm" 
+                    : "bg-transparent text-foreground"
+                }`}
               >
                 {category}
               </Button>
@@ -82,7 +126,7 @@ export default function PreferencesPage() {
           </div>
         </CardContent>
         <CardFooter>
-          <Button className="bg-white text-zinc-900 hover:bg-zinc-100 font-bold border-0">Save Interests</Button>
+          <Button onClick={saveInterests} className="bg-white text-slate-900 hover:bg-slate-200 font-bold px-6">Save Interests</Button>
         </CardFooter>
       </Card>
 
@@ -142,6 +186,6 @@ export default function PreferencesPage() {
           </div>
         </CardContent>
       </Card>
-    </motion.div>
+    </div>
   );
 }

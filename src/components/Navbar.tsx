@@ -33,10 +33,36 @@ const Navbar = () => {
   const [scrolled, setScrolled] = useState(false);
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const [language, setLanguage] = useState("BN");
+  const [isLangDropdownOpen, setIsLangDropdownOpen] = useState(false);
+
+  const handleLanguageChange = (lang: string) => {
+    setLanguage(lang);
+    setIsLangDropdownOpen(false);
+    
+    // Set Google Translate cookie (translating from Bengali)
+    if (lang === "EN") {
+      document.cookie = `googtrans=/bn/en; path=/`;
+      document.cookie = `googtrans=/bn/en; path=/; domain=${window.location.hostname}`;
+    } else {
+      document.cookie = `googtrans=/bn/bn; path=/`;
+      document.cookie = `googtrans=/bn/bn; path=/; domain=${window.location.hostname}`;
+      // Also clear it to revert to default
+      document.cookie = `googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+    }
+    window.location.reload();
+  };
 
   // Avoid hydration mismatch
   useEffect(() => {
     setMounted(true);
+    
+    // Check initial language from cookie
+    if (document.cookie.includes('googtrans=/bn/en')) {
+      setLanguage('EN');
+    } else {
+      setLanguage('BN');
+    }
   }, []);
 
   // Track scroll for navbar appearance change
@@ -66,7 +92,7 @@ const Navbar = () => {
 
   return (
     <motion.div 
-      className="fixed top-2 md:top-6 left-1/2 -translate-x-1/2 z-[100] w-full max-w-[980px] px-2 md:px-6"
+      className="fixed top-2 md:top-6 left-1/2 -translate-x-1/2 z-[100] w-full max-w-[980px] px-2 md:px-6 notranslate"
       initial={{ y: -100, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
@@ -106,7 +132,7 @@ const Navbar = () => {
             </div>
 
             <div className="flex items-center gap-1 pr-2">
-              {/* Theme Toggle - Without animation */}
+              {/* Theme Toggle */}
               {mounted && (
                 <button 
                   onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
@@ -116,6 +142,45 @@ const Navbar = () => {
                   {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
                 </button>
               )}
+
+              {/* Language Toggle Dropdown */}
+              <div className="relative">
+                {mounted && (
+                  <button 
+                    onClick={() => setIsLangDropdownOpen(!isLangDropdownOpen)}
+                    className="px-2.5 py-1.5 text-[12px] font-bold text-muted-foreground hover:text-foreground transition-colors rounded-xl hover:bg-white dark:hover:bg-slate-800 flex items-center gap-1"
+                    aria-label="Toggle language"
+                  >
+                    {language}
+                    <ChevronDown className="w-3 h-3" />
+                  </button>
+                )}
+                
+                {/* Dropdown Menu */}
+                <AnimatePresence>
+                  {isLangDropdownOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 5 }}
+                      className="absolute right-0 mt-2 w-24 bg-white dark:bg-slate-900 border border-border rounded-xl shadow-lg overflow-hidden flex flex-col z-50 py-1"
+                    >
+                      <button
+                        onClick={() => handleLanguageChange("BN")}
+                        className={`text-left px-4 py-2 text-[12px] font-bold hover:bg-muted transition-colors ${language === "BN" ? "text-primary" : "text-muted-foreground"}`}
+                      >
+                        বাংলা (BN)
+                      </button>
+                      <button
+                        onClick={() => handleLanguageChange("EN")}
+                        className={`text-left px-4 py-2 text-[12px] font-bold hover:bg-muted transition-colors ${language === "EN" ? "text-primary" : "text-muted-foreground"}`}
+                      >
+                        English (EN)
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
 
               {/* Search Icon - With keyboard shortcut hint */}
               <motion.button 
@@ -174,12 +239,12 @@ const Navbar = () => {
               <div className="flex items-center gap-2">
                 <motion.button 
                   onClick={() => signOut()}
-                  className="px-4 py-2 bg-transparent text-muted-foreground rounded-full text-[13px] font-bold hover:bg-white dark:hover:bg-slate-800 hover:text-foreground transition-all flex items-center gap-2 h-9"
+                  className="px-2 md:px-4 py-2 bg-transparent text-muted-foreground rounded-full text-[13px] font-bold hover:bg-white dark:hover:bg-slate-800 hover:text-foreground transition-all flex items-center gap-1 md:gap-2 h-9"
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                 >
                   <LogOut className="w-4 h-4" />
-                  Logout
+                  <span className="hidden md:inline">Logout</span>
                 </motion.button>
                 
                 <div className="relative">
@@ -206,21 +271,48 @@ const Navbar = () => {
                           <p className="text-[12px] text-slate-400 truncate">{session?.user?.email}</p>
                         </div>
                         <div className="p-2 flex flex-col gap-1">
-                          <Link href="/profile" onClick={() => setIsProfileDropdownOpen(false)}>
-                            <div className="px-3 py-2 text-[13px] font-medium hover:bg-slate-800 rounded-xl cursor-pointer transition-colors text-slate-300 hover:text-white">
-                              Dashboard
-                            </div>
-                          </Link>
-                          <Link href="/profile/byok" onClick={() => setIsProfileDropdownOpen(false)}>
-                            <div className="px-3 py-2 text-[13px] font-medium hover:bg-slate-800 rounded-xl cursor-pointer transition-colors text-slate-300 hover:text-white">
-                              BYOK & API Management
-                            </div>
-                          </Link>
-                          <Link href="/profile/preferences" onClick={() => setIsProfileDropdownOpen(false)}>
-                            <div className="px-3 py-2 text-[13px] font-medium hover:bg-slate-800 rounded-xl cursor-pointer transition-colors text-slate-300 hover:text-white">
-                              Preferences
-                            </div>
-                          </Link>
+                          {(session?.user as any)?.role === "admin" ? (
+                            <>
+                              <Link href="/admin" onClick={() => setIsProfileDropdownOpen(false)}>
+                                <div className="px-3 py-2 text-[13px] font-medium hover:bg-slate-800 rounded-xl cursor-pointer transition-colors text-slate-300 hover:text-white">
+                                  Dashboard
+                                </div>
+                              </Link>
+                              <Link href="/admin/users" onClick={() => setIsProfileDropdownOpen(false)}>
+                                <div className="px-3 py-2 text-[13px] font-medium hover:bg-slate-800 rounded-xl cursor-pointer transition-colors text-slate-300 hover:text-white">
+                                  User Management
+                                </div>
+                              </Link>
+                              <Link href="/admin/scraping" onClick={() => setIsProfileDropdownOpen(false)}>
+                                <div className="px-3 py-2 text-[13px] font-medium hover:bg-slate-800 rounded-xl cursor-pointer transition-colors text-slate-300 hover:text-white">
+                                  Scraping Control
+                                </div>
+                              </Link>
+                              <Link href="/admin/library" onClick={() => setIsProfileDropdownOpen(false)}>
+                                <div className="px-3 py-2 text-[13px] font-medium hover:bg-slate-800 rounded-xl cursor-pointer transition-colors text-slate-300 hover:text-white">
+                                  News Library
+                                </div>
+                              </Link>
+                            </>
+                          ) : (
+                            <>
+                              <Link href="/profile" onClick={() => setIsProfileDropdownOpen(false)}>
+                                <div className="px-3 py-2 text-[13px] font-medium hover:bg-slate-800 rounded-xl cursor-pointer transition-colors text-slate-300 hover:text-white">
+                                  Dashboard
+                                </div>
+                              </Link>
+                              <Link href="/profile/byok" onClick={() => setIsProfileDropdownOpen(false)}>
+                                <div className="px-3 py-2 text-[13px] font-medium hover:bg-slate-800 rounded-xl cursor-pointer transition-colors text-slate-300 hover:text-white">
+                                  BYOK & API Management
+                                </div>
+                              </Link>
+                              <Link href="/profile/preferences" onClick={() => setIsProfileDropdownOpen(false)}>
+                                <div className="px-3 py-2 text-[13px] font-medium hover:bg-slate-800 rounded-xl cursor-pointer transition-colors text-slate-300 hover:text-white">
+                                  Preferences
+                                </div>
+                              </Link>
+                            </>
+                          )}
                         </div>
                       </motion.div>
                     )}
@@ -267,7 +359,7 @@ const Navbar = () => {
                 <input 
                   type="text" 
                   placeholder="Search news, categories, or updates..."
-                  className="w-full bg-muted/50 border border-border rounded-xl py-3 pl-11 pr-4 text-[14px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all"
+                  className="w-full bg-white/50 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-800 focus:bg-white dark:focus:bg-slate-800 border border-border rounded-xl py-3 pl-11 pr-4 text-[14px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   autoFocus
@@ -307,9 +399,19 @@ const Navbar = () => {
               <div className="flex gap-2 mt-1">
                 {status === "authenticated" ? (
                   <>
+                    {(session?.user as any)?.role === "admin" && (
+                      <Link href="/admin" className="flex-1" onClick={() => setIsMenuOpen(false)}>
+                        <motion.button 
+                          className="w-full py-3 text-[13px] font-bold text-white hover:text-white transition-colors rounded-xl bg-primary hover:bg-primary/90 min-h-[44px]"
+                          whileTap={{ scale: 0.98 }}
+                        >
+                          Admin Panel
+                        </motion.button>
+                      </Link>
+                    )}
                     <Link href="/profile" className="flex-1" onClick={() => setIsMenuOpen(false)}>
                       <motion.button 
-                        className="w-full py-3 text-[13px] font-bold text-muted-foreground hover:text-foreground transition-colors rounded-xl hover:bg-white dark:hover:bg-slate-800 min-h-[44px]"
+                        className="w-full py-3 text-[13px] font-bold text-muted-foreground hover:text-foreground transition-colors rounded-xl hover:bg-muted min-h-[44px]"
                         whileTap={{ scale: 0.98 }}
                       >
                         Profile
@@ -318,7 +420,7 @@ const Navbar = () => {
                     <div className="flex-1">
                       <motion.button 
                         onClick={() => { signOut(); setIsMenuOpen(false); }}
-                        className="w-full py-3 bg-transparent text-muted-foreground rounded-xl text-[13px] font-bold hover:bg-white dark:hover:bg-slate-800 hover:text-foreground transition-all min-h-[44px]"
+                        className="w-full py-3 bg-destructive/10 text-destructive rounded-xl text-[13px] font-bold hover:bg-destructive hover:text-destructive-foreground transition-all min-h-[44px]"
                         whileTap={{ scale: 0.98 }}
                       >
                         Logout
@@ -329,7 +431,7 @@ const Navbar = () => {
                   <>
                     <Link href="/login" className="flex-1" onClick={() => setIsMenuOpen(false)}>
                       <motion.button 
-                        className="w-full py-3 text-[13px] font-bold text-muted-foreground hover:text-foreground transition-colors rounded-xl hover:bg-white dark:hover:bg-slate-800 min-h-[44px]"
+                        className="w-full py-3 text-[13px] font-bold text-muted-foreground hover:text-foreground transition-colors rounded-xl hover:bg-muted min-h-[44px]"
                         whileTap={{ scale: 0.98 }}
                       >
                         Login
@@ -374,13 +476,13 @@ const NavLink = ({
     className="relative group"
   >
     <div
-      className={`flex items-center gap-2 px-4 py-3 md:py-2.5 rounded-xl text-[13px] md:text-[12px] font-bold transition-all duration-300 w-full md:w-auto min-h-[44px] md:min-h-0 hover:bg-white dark:hover:bg-slate-800 ${
+      className={`flex items-center gap-2 px-4 py-3 md:py-2.5 rounded-xl text-[13px] md:text-[12px] font-bold transition-all duration-300 w-full md:w-auto min-h-[44px] md:min-h-0 whitespace-nowrap ${
         active 
-          ? "text-primary" 
-          : "text-muted-foreground hover:text-foreground"
+          ? "bg-white dark:bg-slate-800 text-foreground shadow-sm" 
+          : "text-muted-foreground hover:text-foreground hover:bg-white dark:hover:bg-slate-800"
       }`}
     >
-      <span className={active ? "text-primary" : "group-hover:text-primary transition-colors"}>
+      <span className={active ? "text-foreground" : "group-hover:text-foreground transition-colors"}>
         {icon}
       </span>
       {label}

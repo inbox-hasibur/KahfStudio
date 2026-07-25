@@ -5,9 +5,11 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import HeadlineSlider from "@/components/HeadlineSlider";
 import MainFeed from "@/components/MainFeed";
+import AudioPlayer from "@/components/AudioPlayer";
 import BreakingNewsTicker from "@/components/BreakingNewsTicker";
 import { useNews, useWeather } from "@/hooks/useNews";
-import { Newspaper, Loader2, Radio, TrendingUp, Calendar, Sparkles, CloudSun, Play, FileText } from "lucide-react";
+import { Newspaper, Loader2, Calendar, Sparkles, CloudSun, Play, FileText } from "lucide-react";
+
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -20,13 +22,14 @@ const containerVariants = {
   },
 };
 
-const itemVariants: any = {
+const itemVariants = {
   hidden: { opacity: 0, y: 30 },
   visible: {
     opacity: 1,
     y: 0,
     transition: {
       duration: 0.6,
+      ease: [0.16, 1, 0.3, 1],
     },
   },
 };
@@ -55,69 +58,25 @@ export default function Home() {
     return () => clearTimeout(timer);
   }, []);
 
-  // Fallback dummy news if API fails or returns empty
-  const displayNews = news.length > 0 ? news : [
-    {
-      _id: "1",
-      title: "স্মার্ট সিটি প্রকল্প: যানজট নিরসনে নতুন উদ্যোগ",
-      category: "জাতীয়",
-      source: "প্রথম আলো",
-      summary: "রাজধানীর যানজট নিরসনে সরকার নতুন 'স্মার্ট ট্রাফিক ম্যানেজমেন্ট' সিস্টেম চালু করেছে, যা এআই ব্যবহার করে সিগন্যাল নিয়ন্ত্রণ করবে।",
-      imageUrl: "https://images.unsplash.com/photo-1590644365607-1c5a519a7a37?q=80&w=2070&auto=format&fit=crop",
-      priority: "high",
-      publishedAt: new Date().toISOString()
-    },
-    {
-      _id: "2",
-      title: "বিশ্ব অর্থনীতি: মুদ্রাস্ফীতি নিয়ন্ত্রণে নতুন পলিসি",
-      category: "অর্থনীতি",
-      source: "ডেইলি স্টার",
-      summary: "কেন্দ্রীয় ব্যাংক মুদ্রাস্ফীতি নিয়ন্ত্রণে সুদের হার আরও ০.৫% বাড়ানোর সিদ্ধান্ত নিয়েছে, যা আগামী মাস থেকে কার্যকর হবে।",
-      imageUrl: "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?q=80&w=2070&auto=format&fit=crop",
-      priority: "medium",
-      publishedAt: new Date(Date.now() - 3600000).toISOString()
-    },
-    {
-      _id: "3",
-      title: "প্রযুক্তির বিশ্ব: এআই কীভাবে আমাদের ভবিষ্যৎ বদলাচ্ছে",
-      category: "প্রযুক্তি",
-      source: "ইত্তেফাক",
-      summary: "কৃত্রিম বুদ্ধিমত্তার নতুন মডেলগুলো স্বাস্থ্যসেবা থেকে শুরু করে শিক্ষা খাতে যুগান্তকারী পরিবর্তন আনছে বলে জানিয়েছেন বিশেষজ্ঞরা।",
-      imageUrl: "https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=2070&auto=format&fit=crop",
-      priority: "high",
-      publishedAt: new Date(Date.now() - 7200000).toISOString()
-    },
-    {
-      _id: "4",
-      title: "টি-টোয়েন্টি বিশ্বকাপ: ফাইনালে উত্তেজনা",
-      category: "খেলাধুলা",
-      source: "যুগান্তর",
-      summary: "রুদ্ধশ্বাস ম্যাচে শেষ বলে জয় পেল বাংলাদেশ। গ্যালারি জুড়ে দর্শকদের উল্লাস।",
-      imageUrl: "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=2067&auto=format&fit=crop",
-      priority: "low",
-      publishedAt: new Date(Date.now() - 86400000).toISOString()
-    }
-  ];
-
   // Transform news for headlines (top 3 with images)
-  const headlines = displayNews.slice(0, 3).map((item: any) => ({
+  const headlines = news.slice(0, 3).map((item: any) => ({
     id: item._id || item.id,
-    title: item.title,
+    title: item.headline || item.title,
     category: item.category,
     imageUrl: item.imageUrl || "https://images.unsplash.com/photo-1590644365607-1c5a519a7a37?q=80&w=2070&auto=format&fit=crop",
     source: item.source,
   }));
 
   // Transform news for main feed
-  const feedItems = displayNews.map((item: any, index: number) => ({
-    id: item._id || `news-${index}`,
-    title: item.title,
-    summary: item.summary || "সংক্ষিপ্ত বিবরণ পাওয়া যায়নি।",
+  const feedItems = news.map((item: any, index: number) => ({
+    id: item._id || item.id || `news-${index}`,
+    title: item.headline || item.title,
+    summary: item.ai_summary || item.summary || "সংক্ষিপ্ত বিবরণ পাওয়া যায়নি।",
     source: item.source || "KahfNews",
     category: item.category || "General",
-    priority: item.priority || "medium" as const,
-    publishedAt: item.publishedAt 
-      ? new Date(item.publishedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+    priority: item.priority || "medium",
+    publishedAt: item.published_at || item.publishedAt 
+      ? new Date(item.published_at || item.publishedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
       : "Today",
     imageUrl: item.imageUrl || "https://images.unsplash.com/photo-1590644365607-1c5a519a7a37?q=80&w=2070&auto=format&fit=crop",
   }));
@@ -147,7 +106,7 @@ export default function Home() {
     >
       {/* Welcome Header - Visual Hierarchy */}
       <motion.section variants={itemVariants} className="mb-10 md:mb-14">
-        <BreakingNewsTicker />
+        <BreakingNewsTicker items={headlines.map((h: any) => h.title)} />
         
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
           <div>
@@ -155,10 +114,10 @@ export default function Home() {
               <Calendar className="w-4 h-4" />
               <span className="text-[13px] font-medium">{currentDate}</span>
             </div>
-            <h1 className="text-3xl md:text-4xl lg:text-[2.5rem] text-foreground font-serif leading-tight">
+            <h1 className="text-3xl md:text-4xl lg:text-[2.5rem] text-foreground font-serif leading-tight notranslate">
               আপনার <span className="text-primary">দৈনিক সারসংক্ষেপ</span>
             </h1>
-            <p className="text-body text-muted-foreground mt-2 max-w-lg">
+            <p className="text-body text-muted-foreground mt-2 max-w-lg notranslate">
               এআই দ্বারা বাছাইকৃত খবরের সাথে আপডেট থাকুন। আজ 
               <span className="text-foreground font-medium"> {totalStories}টি খবর</span> রয়েছে।
             </p>
@@ -169,9 +128,9 @@ export default function Home() {
             <div className="flex items-center gap-3">
               {/* Premium CTA */}
               <Link href="/pricing" className="group hidden sm:block">
-                <div className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-primary/10 to-primary/20 hover:from-primary/20 hover:to-primary/30 rounded-full border border-primary/20 shadow-sm transition-all cursor-pointer">
-                  <Sparkles className="w-4 h-4 text-primary" />
-                  <span className="text-[12px] font-bold text-primary group-hover:text-primary/80 transition-colors">
+                <div className="flex items-center gap-2 px-4 py-2 bg-white text-zinc-900 hover:bg-zinc-100 rounded-full border border-zinc-200 shadow-sm transition-all cursor-pointer">
+                  <Sparkles className="w-4 h-4 text-zinc-900" />
+                  <span className="text-[12px] font-bold text-zinc-900 transition-colors">
                     Upgrade to premium for personalized news
                   </span>
                 </div>
@@ -187,17 +146,6 @@ export default function Home() {
                   </div>
                 </div>
               )}
-            </div>
-            
-            <div className="flex items-center gap-4 md:gap-6">
-              <div className="flex items-center gap-2 px-4 py-2 glass rounded-full shadow-sm">
-                <Radio className="w-4 h-4 text-primary" />
-                <span className="text-[12px] font-semibold">লাইভ আপডেট</span>
-              </div>
-              <div className="flex items-center gap-2 px-4 py-2 glass rounded-full shadow-sm">
-                <TrendingUp className="w-4 h-4 text-primary" />
-                <span className="text-[12px] font-semibold">ট্রেন্ডিং</span>
-              </div>
             </div>
           </div>
         </div>
@@ -222,7 +170,7 @@ export default function Home() {
               
               <div className="text-center md:text-left">
                 <div className="flex items-center justify-center md:justify-start gap-2 mb-2">
-                  <span className="px-2.5 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-wider border border-primary/20">
+                  <span className="px-2.5 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-wider border border-primary/20 notranslate">
                     আজকের সারসংক্ষেপ
                   </span>
                   <span className="text-[10px] text-muted-foreground font-medium flex items-center gap-1">
@@ -230,10 +178,10 @@ export default function Home() {
                     {currentDate}
                   </span>
                 </div>
-                <h2 className="text-xl md:text-2xl font-serif font-bold text-foreground mb-2 leading-tight">
+                <h2 className="text-xl md:text-2xl font-serif font-bold text-foreground mb-2 leading-tight notranslate">
                   এআই পডকাস্ট: আজকের খবরের সম্পূর্ণ বিশ্লেষণ
                 </h2>
-                <p className="text-muted-foreground text-sm max-w-2xl">
+                <p className="text-muted-foreground text-sm max-w-2xl notranslate">
                   আজকের প্রধান খবরগুলোতে থাকছে স্মার্ট সিটি প্রকল্পের নতুন উদ্যোগ, বিশ্ব অর্থনীতিতে মুদ্রাস্ফীতির প্রভাব এবং প্রযুক্তিতে এআই এর নতুন দিগন্ত।
                 </p>
               </div>
@@ -242,7 +190,7 @@ export default function Home() {
           <div className="flex-shrink-0 z-10 mt-4 md:mt-0">
              <Link href="/news/daily-summary" className="px-6 py-3 bg-secondary text-secondary-foreground hover:bg-secondary/80 hover:text-foreground font-semibold text-sm rounded-xl transition-all shadow-sm flex items-center gap-2 border border-border">
                <FileText className="w-4 h-4" />
-               পড়ুন
+               <span className="notranslate">পড়ুন</span>
              </Link>
           </div>
         </div>
@@ -261,7 +209,7 @@ export default function Home() {
       </motion.div>
 
       {/* 3. FLOATING AUDIO PLAYER */}
-
+      <AudioPlayer storiesCount={totalStories || 7} newsItems={feedItems} />
     </motion.main>
   );
 }
