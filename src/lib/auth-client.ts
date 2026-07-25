@@ -58,9 +58,8 @@ export async function signIn(provider: string, options: any) {
   
   if (data?.user && options.role) {
     if (data.user.user_metadata?.role !== options.role) {
-      await supabase.auth.updateUser({
-        data: { role: options.role }
-      });
+      await supabase.auth.signOut();
+      return { ok: false, error: "Invalid credentials or role mismatch" };
     }
   }
   
