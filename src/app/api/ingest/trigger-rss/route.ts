@@ -60,15 +60,20 @@ export async function GET(req: Request) {
 
         const parser = new Parser();
         let totalProcessed = 0;
+        const TARGET_SUCCESSFUL = 5;
 
         for (const source of sources) {
+          if (totalProcessed >= TARGET_SUCCESSFUL) break;
           sendLog(`Parsing RSS feed: ${source.name}...`);
           try {
             const feed = await parser.parseURL(source.url);
-            const topItems = feed.items.slice(0, 5); // Limit to 5 per source
-            sendLog(`Found ${topItems.length} recent articles in ${source.name}. Processing top items...`);
+            sendLog(`Found ${feed.items.length} recent articles in ${source.name}. Processing until we hit our target...`);
 
-            for (const item of topItems) {
+            for (const item of feed.items) {
+              if (totalProcessed >= TARGET_SUCCESSFUL) {
+                sendLog(`Reached target of ${TARGET_SUCCESSFUL} successful articles.`);
+                break;
+              }
               if (!item.link) continue;
               
               // Check if exists
@@ -92,39 +97,75 @@ export async function GET(req: Request) {
 
               if (!markdown) continue;
 
-              // Use the first valid API key
-              const genAI = new GoogleGenerativeAI(keys[0] || process.env.GEMINI_API_KEY!);
-              const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+              let retries = 0;
+              let success = false;
+              let currentKeyIdx = 0;
 
-              // 2. Evaluator
-              sendLog(`[AI Evaluator] Checking if article is valid news...`);
-              const evalRes = await model.generateContent(`${ePrompt}\n\nArticle:\n${markdown}`);
-              const isGood = evalRes.response.text().trim().toUpperCase().includes("YES");
+              while (retries < 3 && !success) {
+                try {
+                  // Use the current valid API key
+                  const genAI = new GoogleGenerativeAI(keys[currentKeyIdx] || process.env.GEMINI_API_KEY!);
+                  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-              if (!isGood) {
-                sendLog(`[Dropped] AI Evaluator rejected article.`);
-                continue;
+                  // 2. Evaluator
+                  sendLog(`[AI Evaluator] Checking if article is valid news... (Attempt ${retries + 1})`);
+                  const evalRes = await model.generateContent(`${ePrompt}\n\nArticle:\n${markdown}`);
+                  const isGood = evalRes.response.text().trim().toUpperCase().includes("YES");
+
+                  if (!isGood) {
+                    sendLog(`[Dropped] AI Evaluator rejected article.`);
+                    success = true; // Handled as dropped
+                    break;
+                  }
+
+                  // 3. Synthesizer
+                  sendLog(`[AI Synthesizer] Generating Bangla summary...`);
+                  const syncRes = await model.generateContent(`${sPrompt}\n\nTitle: ${item.title}\nCategory: ${source.category}\n\nArticle:\n${markdown}`);
+                  const summary = syncRes.response.text();
+
+                  // 4. Save
+                  sendLog(`[Database] Saving to Supabase...`);
+                  await supabase.from("news_articles").insert({
+                    headline: item.title,
+                    raw_content: markdown,
+                    ai_summary: summary,
+                    status: autoApp ? "published" : "draft",
+                    original_url: item.link,
+                    source: source.name || item.link,
+                    category: source.category || "General",
+                    published_at: new Date().toISOString()
+                  });
+
+                  sendLog(`[Success] Saved article successfully!`);
+                  totalProcessed++;
+                  success = true;
+                } catch (aiError: any) {
+                  const errMsg = aiError.message || "";
+                  sendLog(`[Error] AI Processing failed: ${errMsg.slice(0, 150)}...`);
+                  
+                  if (errMsg.includes("429") || errMsg.includes("Quota")) {
+                    currentKeyIdx++;
+                    if (currentKeyIdx < keys.length) {
+                      sendLog(`[Retry] Rotating to API key #${currentKeyIdx + 1}...`);
+                      continue; // immediately retry with new key
+                    } else {
+                      currentKeyIdx = 0; // reset to first key
+                      let waitSecs = 15; // default wait
+                      const match1 = errMsg.match(/retry in ([\d\.]+)s/i);
+                      const match2 = errMsg.match(/"retryDelay":"(\d+)s"/i);
+                      if (match1 && match1[1]) waitSecs = Math.ceil(parseFloat(match1[1])) + 2;
+                      else if (match2 && match2[1]) waitSecs = Math.ceil(parseFloat(match2[1])) + 2;
+                      
+                      sendLog(`[Rate Limit] All keys exhausted. Waiting ${waitSecs} seconds...`);
+                      await new Promise(resolve => setTimeout(resolve, waitSecs * 1000));
+                      retries++;
+                    }
+                  } else {
+                    sendLog(`[Error] Non-rate-limit error. Skipping this article.`);
+                    break;
+                  }
+                }
               }
-
-              // 3. Synthesizer
-              sendLog(`[AI Synthesizer] Generating Bangla summary...`);
-              const syncRes = await model.generateContent(`${sPrompt}\n\nTitle: ${item.title}\nCategory: ${source.category}\n\nArticle:\n${markdown}`);
-              const summary = syncRes.response.text();
-
-              // 4. Save
-              sendLog(`[Database] Saving to Supabase...`);
-              await supabase.from("news_articles").insert({
-                headline: item.title,
-                raw_content: markdown,
-                ai_summary: summary,
-                status: autoApp ? "published" : "draft",
-                original_url: item.link,
-                source: source.name || item.link,
-                published_at: new Date().toISOString()
-              });
-
-              sendLog(`[Success] Saved article successfully!`);
-              totalProcessed++;
             }
           } catch (e: any) {
             sendLog(`[Error] Source ${source.name} failed: ${e.message}`);

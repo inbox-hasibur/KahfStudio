@@ -12,7 +12,8 @@ export function useSession(options?: any) {
       ...user,
       name: user.user_metadata?.full_name || user.email?.split('@')[0],
       image: user.user_metadata?.avatar_url,
-      role: user.user_metadata?.role || "user"
+      role: user.user_metadata?.role || "user",
+      tier: user.user_metadata?.tier || "free"
     });
     const fetchSession = async () => {
       const { data: { session: activeSession } } = await supabase.auth.getSession();

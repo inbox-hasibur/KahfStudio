@@ -29,6 +29,9 @@ export default function AdminScrapingPage() {
   const [summarizeAfter, setSummarizeAfter] = useState("60");
   const [ingestKeyword, setIngestKeyword] = useState("");
   
+  const [isScheduleEnabled, setIsScheduleEnabled] = useState(true);
+  const [isSummarizeEnabled, setIsSummarizeEnabled] = useState(true);
+  
   const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
   const [apiKeys, setApiKeys] = useState<string[]>([""]);
   const [isTriggeringRss, setIsTriggeringRss] = useState(false);
@@ -267,13 +270,17 @@ export default function AdminScrapingPage() {
             </div>
             
             {/* Scraping Schedule */}
-            <div className="space-y-3 md:border-l border-border md:pl-6">
-              <Label className="text-sm font-semibold">Scraping Schedule</Label>
+            <div className={`space-y-3 md:border-l border-border md:pl-6 transition-opacity ${isScheduleEnabled ? "opacity-100" : "opacity-50"}`}>
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-semibold">Scraping Schedule</Label>
+                <Switch checked={isScheduleEnabled} onCheckedChange={setIsScheduleEnabled} />
+              </div>
               <div className="flex flex-wrap gap-2">
                 <select 
-                  className="flex h-9 min-w-[100px] flex-1 rounded-md border border-input bg-background px-2 py-1 text-xs shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  className="flex h-9 min-w-[100px] flex-1 rounded-md border border-input bg-background px-2 py-1 text-xs shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
                   value={scrapFrequency} 
                   onChange={e => setScrapFrequency(e.target.value)}
+                  disabled={!isScheduleEnabled}
                 >
                   <option value="Daily">Daily</option>
                   <option value="Weekly">Weekly</option>
@@ -281,8 +288,9 @@ export default function AdminScrapingPage() {
                 
                 {scrapFrequency === "Daily" && (
                   <select 
-                    className="flex h-9 min-w-[100px] flex-1 rounded-md border border-input bg-background px-2 py-1 text-xs shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    className="flex h-9 min-w-[100px] flex-1 rounded-md border border-input bg-background px-2 py-1 text-xs shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
                     value={dailyTimesCount} 
+                    disabled={!isScheduleEnabled}
                     onChange={e => {
                       setDailyTimesCount(e.target.value);
                       const count = parseInt(e.target.value);
@@ -304,6 +312,7 @@ export default function AdminScrapingPage() {
                       size="sm" 
                       variant={weeklyDays.includes(d) ? "default" : "outline"}
                       className="h-7 text-[10px] px-2 rounded-full"
+                      disabled={!isScheduleEnabled}
                       onClick={() => setWeeklyDays(prev => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d])}
                     >
                       {d}
@@ -317,8 +326,9 @@ export default function AdminScrapingPage() {
                   <Input 
                     key={i} 
                     type="time" 
-                    className="w-[100px] h-9 text-xs" 
+                    className="w-[100px] h-9 text-xs disabled:opacity-50" 
                     value={t} 
+                    disabled={!isScheduleEnabled}
                     onChange={e => {
                       const newT = [...scrapTimes];
                       newT[i] = e.target.value;
@@ -330,17 +340,21 @@ export default function AdminScrapingPage() {
             </div>
 
             {/* Summarization Delay */}
-            <div className="space-y-3 md:border-l border-border md:pl-6">
-              <Label className="text-sm font-semibold">Summarization Delay</Label>
+            <div className={`space-y-3 md:border-l border-border md:pl-6 transition-opacity ${isSummarizeEnabled ? "opacity-100" : "opacity-50"}`}>
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-semibold">Summarization Delay</Label>
+                <Switch checked={isSummarizeEnabled} onCheckedChange={setIsSummarizeEnabled} />
+              </div>
               <div className="flex items-center gap-2">
                 <Input 
                   type="number" 
-                  value={summarizeAfter} 
+                  value={summarizeAfter}
+                  disabled={!isSummarizeEnabled}
                   onChange={e => {
                     setSummarizeAfter(e.target.value);
                     saveSetting("summarize_after_mins", e.target.value);
                   }}
-                  className="w-[90px] h-9" 
+                  className="w-[90px] h-9 disabled:opacity-50" 
                 />
                 <span className="text-xs text-muted-foreground">minutes</span>
               </div>

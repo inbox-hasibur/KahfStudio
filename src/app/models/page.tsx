@@ -112,16 +112,33 @@ export default function AIModelsPage() {
                 </span>
               </div>
 
-              <div className="hidden md:flex flex-1 max-w-[100px] h-0.5 bg-gradient-to-r from-zinc-300 to-emerald-500 dark:from-zinc-700 dark:to-emerald-500 relative">
-                <div />
+              <div className="hidden md:flex flex-1 max-w-[100px] h-0.5 bg-zinc-200 dark:bg-zinc-700 relative overflow-hidden">
+                <motion.div 
+                  className="absolute inset-y-0 left-0 w-1/3 bg-emerald-500 rounded-full"
+                  animate={{ x: ["-100%", "300%"] }}
+                  transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+                />
               </div>
-              <div className="md:hidden w-0.5 h-10 bg-gradient-to-b from-zinc-300 to-emerald-500 dark:from-zinc-700 dark:to-emerald-500 my-2" />
+              <div className="md:hidden w-0.5 h-10 bg-zinc-200 dark:bg-zinc-700 my-2 relative overflow-hidden">
+                <motion.div 
+                  className="absolute inset-x-0 top-0 h-1/3 bg-emerald-500 rounded-full"
+                  animate={{ y: ["-100%", "300%"] }}
+                  transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+                />
+              </div>
 
               {/* Neural Network Core */}
               <div className="relative group">
                 {/* 3D-like layered effect */}
                 <div className="absolute inset-0 bg-emerald-600/20 translate-x-2 translate-y-2 rounded-2xl blur-sm transition-transform group-hover:translate-x-3 group-hover:translate-y-3" />
                 <div className="absolute inset-0 bg-emerald-500/30 translate-x-1 translate-y-1 rounded-2xl transition-transform group-hover:translate-x-1.5 group-hover:translate-y-1.5" />
+
+                {/* Ripple/Ping Effect (Live Location style) */}
+                <motion.div 
+                  className="absolute inset-0 bg-emerald-500 rounded-2xl z-0"
+                  animate={{ scale: [1, 1.3], opacity: [0.5, 0] }}
+                  transition={{ duration: 2, repeat: Infinity, ease: "easeOut" }}
+                />
 
                 <div className="w-40 h-40 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-2xl flex flex-col items-center justify-center shadow-2xl relative z-10 border border-emerald-300 dark:border-emerald-700 text-white p-4">
                   <Layers className="w-12 h-12 mb-3" />
@@ -131,15 +148,22 @@ export default function AIModelsPage() {
                     Music Remover Model
                   </span>
                 </div>
-
-                {/* Scanning line animation */}
-                <div />
               </div>
 
-              <div className="hidden md:flex flex-1 max-w-[100px] h-0.5 bg-gradient-to-r from-emerald-500 to-zinc-300 dark:from-emerald-500 dark:to-zinc-700 relative">
-                <div />
+              <div className="hidden md:flex flex-1 max-w-[100px] h-0.5 bg-zinc-200 dark:bg-zinc-700 relative overflow-hidden">
+                <motion.div 
+                  className="absolute inset-y-0 left-0 w-1/3 bg-emerald-500 rounded-full"
+                  animate={{ x: ["-100%", "300%"] }}
+                  transition={{ duration: 1.5, repeat: Infinity, ease: "linear", delay: 0.75 }}
+                />
               </div>
-              <div className="md:hidden w-0.5 h-10 bg-gradient-to-b from-emerald-500 to-zinc-300 dark:from-emerald-500 dark:to-zinc-700 my-2" />
+              <div className="md:hidden w-0.5 h-10 bg-zinc-200 dark:bg-zinc-700 my-2 relative overflow-hidden">
+                <motion.div 
+                  className="absolute inset-x-0 top-0 h-1/3 bg-emerald-500 rounded-full"
+                  animate={{ y: ["-100%", "300%"] }}
+                  transition={{ duration: 1.5, repeat: Infinity, ease: "linear", delay: 0.75 }}
+                />
+              </div>
 
               {/* Output Nodes */}
               <div className="flex flex-col gap-6">

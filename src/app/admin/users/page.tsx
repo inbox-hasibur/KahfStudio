@@ -13,13 +13,14 @@ export default function AdminUsersPage() {
 
   useEffect(() => {
     async function fetchUsers() {
-      const { data } = await supabase
-        .from('profiles')
-        .select('*')
-        .order('created_at', { ascending: false });
-      
-      if (data) {
-        setUsers(data);
+      try {
+        const res = await fetch("/api/admin/users");
+        if (res.ok) {
+          const { data } = await res.json();
+          if (data) setUsers(data);
+        }
+      } catch (e) {
+        console.error(e);
       }
       setLoading(false);
     }

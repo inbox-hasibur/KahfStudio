@@ -5,37 +5,76 @@ import { motion } from "framer-motion";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { FileText, CheckCircle, Trash2, Edit3, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 import { createClient } from "@/utils/supabase/client";
 
 export default function AdminLibraryPage() {
   const [activeTab, setActiveTab] = useState("pending");
   const [articles, setArticles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [autoApprove, setAutoApprove] = useState(false);
 
   const supabase = createClient();
 
   const fetchArticles = async () => {
     setLoading(true);
-    const { data } = await supabase.from("news_articles").select("*").order("created_at", { ascending: false });
-    if (data) setArticles(data);
+    try {
+      const res = await fetch("/api/admin/articles");
+      if (res.ok) {
+        const { data } = await res.json();
+        if (data) setArticles(data);
+      }
+    } catch (e) {
+      console.error(e);
+    }
     setLoading(false);
   };
 
   useEffect(() => {
     fetchArticles();
+    fetchSettings();
   }, []);
+
+  const fetchSettings = async () => {
+    try {
+      const res = await fetch("/api/settings");
+      if (res.ok) {
+        const { settings } = await res.json();
+        const autoSetting = settings?.find((s: any) => s.setting_key === "auto_approve_news");
+        if (autoSetting) setAutoApprove(autoSetting.setting_value === "true");
+      }
+    } catch(e) {}
+  };
+
+  const handleToggleAutoApprove = async () => {
+    const newVal = !autoApprove;
+    setAutoApprove(newVal);
+    await fetch("/api/settings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key: "auto_approve_news", value: newVal.toString() })
+    });
+  };
 
   const pendingArticles = articles.filter(a => a.status !== "published");
   const publishedArticles = articles.filter(a => a.status === "published");
 
   const handleApprove = async (id: string) => {
-    await supabase.from("news_articles").update({ status: "published" }).eq("id", id);
+    await fetch("/api/admin/articles", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, status: "published" }),
+    });
     fetchArticles();
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to delete this article?")) return;
-    await supabase.from("news_articles").delete().eq("id", id);
+    await fetch("/api/admin/articles", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
     fetchArticles();
   };
 
@@ -51,11 +90,29 @@ export default function AdminLibraryPage() {
       transition={{ duration: 0.4 }}
       className="space-y-6"
     >
-      <div>
-        <h1 className="text-3xl font-bold">News Library & Review</h1>
-        <p className="text-muted-foreground mt-1">
-          Review scraped articles, approve them for the main feed, or manage published content.
-        </p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold">News Library & Review</h1>
+          <p className="text-muted-foreground mt-1">
+            Review scraped articles, approve them for the main feed, or manage published content.
+          </p>
+        </div>
+        <div className="flex items-center gap-3 bg-card/40 p-3 rounded-xl border border-border">
+          <div 
+            onClick={handleToggleAutoApprove}
+            className={`relative w-12 h-6 rounded-full cursor-pointer transition-colors duration-300 border ${autoApprove ? "bg-green-500 border-green-500" : "bg-muted border-muted-foreground/30"}`}
+          >
+            <motion.div
+              className="w-5 h-5 bg-white rounded-full shadow-sm mt-0.5 ml-0.5"
+              initial={false}
+              animate={{ x: autoApprove ? 22 : 0 }}
+              transition={{ type: "spring", stiffness: 500, damping: 30 }}
+            />
+          </div>
+          <div>
+            <Label className="text-sm font-semibold cursor-pointer" onClick={handleToggleAutoApprove}>Auto-Approve Scraped News</Label>
+          </div>
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-2 mb-6 border-b border-border pb-2">

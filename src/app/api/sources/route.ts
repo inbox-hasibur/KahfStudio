@@ -40,7 +40,11 @@ export async function POST(req: Request) {
       const defaults = [
         { name: "Prothom Alo (RSS)", url: "https://www.prothomalo.com/feed", category: "General", is_active: true },
         { name: "BBC Bangla", url: "https://feeds.bbci.co.uk/bengali/rss.xml", category: "General", is_active: true },
-        { name: "VOA Bangla", url: "https://www.voabangla.com/api/z--r-rymqv", category: "General", is_active: true }
+        { name: "VOA Bangla", url: "https://www.voabangla.com/api/z--r-rymqv", category: "General", is_active: true },
+        { name: "Daily Star", url: "https://www.thedailystar.net/frontpage/rss.xml", category: "General", is_active: true },
+        { name: "Dhaka Tribune", url: "https://www.dhakatribune.com/feed", category: "General", is_active: true },
+        { name: "Bdnews24 Bangla", url: "https://bangla.bdnews24.com/?widgetName=rssfeed&widgetId=1150&getXmlFeed=true", category: "General", is_active: true },
+        { name: "Kaler Kantho", url: "https://www.kalerkantho.com/rss.xml", category: "General", is_active: true }
       ];
       for (const src of defaults) {
         await supabase.from("scraping_sources").insert(src);
