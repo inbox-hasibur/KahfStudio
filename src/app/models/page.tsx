@@ -129,25 +129,18 @@ export default function AIModelsPage() {
 
               {/* Neural Network Core */}
               <div className="relative group">
-                {/* 3D-like layered effect */}
-                <div className="absolute inset-0 bg-emerald-600/20 translate-x-2 translate-y-2 rounded-2xl blur-sm transition-transform group-hover:translate-x-3 group-hover:translate-y-3" />
-                <div className="absolute inset-0 bg-emerald-500/30 translate-x-1 translate-y-1 rounded-2xl transition-transform group-hover:translate-x-1.5 group-hover:translate-y-1.5" />
-
-                {/* Ripple/Ping Effect (Live Location style) */}
                 <motion.div 
-                  className="absolute inset-0 bg-emerald-500 rounded-2xl z-0"
-                  animate={{ scale: [1, 1.3], opacity: [0.5, 0] }}
+                  className="w-40 h-40 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-2xl flex flex-col items-center justify-center shadow-2xl relative z-10 border border-emerald-300 dark:border-emerald-700 text-white p-4"
+                  animate={{ boxShadow: ["0 0 0 0 rgba(16, 185, 129, 0)", "0 0 0 15px rgba(16, 185, 129, 0.2)", "0 0 0 30px rgba(16, 185, 129, 0)"] }}
                   transition={{ duration: 2, repeat: Infinity, ease: "easeOut" }}
-                />
-
-                <div className="w-40 h-40 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-2xl flex flex-col items-center justify-center shadow-2xl relative z-10 border border-emerald-300 dark:border-emerald-700 text-white p-4">
+                >
                   <Layers className="w-12 h-12 mb-3" />
                   <span className="font-bold text-center leading-tight">
                     KahfNews
                     <br />
-                    Music Remover Model
+                    Music Remover
                   </span>
-                </div>
+                </motion.div>
               </div>
 
               <div className="hidden md:flex flex-1 max-w-[100px] h-0.5 bg-zinc-200 dark:bg-zinc-700 relative overflow-hidden">

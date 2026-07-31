@@ -21,6 +21,7 @@
     "duck-duck-scrape": "^2.2.7",
     "embla-carousel-react": "^8.6.0",
     "framer-motion": "^11.0.0",
+    "google-tts-api": "^2.0.2",
     "howler": "^2.2.4",
     "inngest": "^4.13.0",
     "lucide-react": "^0.563.0",

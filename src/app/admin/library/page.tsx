@@ -13,6 +13,8 @@ export default function AdminLibraryPage() {
   const [articles, setArticles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [autoApprove, setAutoApprove] = useState(false);
+  const [editingArticle, setEditingArticle] = useState<any>(null);
+  const [editForm, setEditForm] = useState({ headline: "", ai_summary: "" });
 
   const supabase = createClient();
 
@@ -75,6 +77,22 @@ export default function AdminLibraryPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id }),
     });
+    fetchArticles();
+  };
+
+  const handleEditClick = (article: any) => {
+    setEditingArticle(article);
+    setEditForm({ headline: article.headline, ai_summary: article.ai_summary || "" });
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingArticle) return;
+    await fetch("/api/admin/articles", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: editingArticle.id, headline: editForm.headline, ai_summary: editForm.ai_summary }),
+    });
+    setEditingArticle(null);
     fetchArticles();
   };
 
@@ -170,7 +188,7 @@ export default function AdminLibraryPage() {
                           </Button>
                         )}
                         <div className="flex gap-2">
-                          <Button size="sm" variant="outline">
+                          <Button size="sm" variant="outline" onClick={() => handleEditClick(article)}>
                             <Edit3 className="w-4 h-4" />
                           </Button>
                           <Button size="sm" variant="destructive" onClick={() => handleDelete(article.id)}>
@@ -186,6 +204,50 @@ export default function AdminLibraryPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Edit Modal */}
+      {editingArticle && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <motion.div 
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="bg-card w-full max-w-2xl rounded-2xl p-6 shadow-2xl border border-border"
+          >
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold">Edit Article</h2>
+              <button onClick={() => setEditingArticle(null)} className="text-muted-foreground hover:text-foreground">
+                <XCircle className="w-6 h-6" />
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <Label className="text-sm font-semibold mb-1 block">Headline</Label>
+                <input 
+                  type="text" 
+                  value={editForm.headline}
+                  onChange={(e) => setEditForm({...editForm, headline: e.target.value})}
+                  className="w-full bg-background border border-border rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                />
+              </div>
+              <div>
+                <Label className="text-sm font-semibold mb-1 block">AI Summary (Body)</Label>
+                <textarea 
+                  rows={8}
+                  value={editForm.ai_summary}
+                  onChange={(e) => setEditForm({...editForm, ai_summary: e.target.value})}
+                  className="w-full bg-background border border-border rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none"
+                />
+              </div>
+            </div>
+            
+            <div className="flex justify-end gap-3 mt-6">
+              <Button variant="outline" onClick={() => setEditingArticle(null)}>Cancel</Button>
+              <Button onClick={handleSaveEdit}>Save Changes</Button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </motion.div>
   );
 }

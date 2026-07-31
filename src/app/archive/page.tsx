@@ -8,68 +8,10 @@ import Link from "next/link";
 import { Archive as ArchiveIcon, ArrowLeft, Clock, Search, Calendar, Filter, Sparkles, Lock, LayoutGrid, List } from "lucide-react";
 import NewsCard from "@/components/NewsCard";
 
-const MOCK_ARCHIVE = [
-  {
-    id: "4",
-    title: "Government Announces New Infrastructure Projects for 2025",
-    summary: "Major development initiatives including highway expansion and bridge construction are set to begin early next year.",
-    source: "Daily Star",
-    category: "National",
-    priority: "high" as const,
-    publishedAt: "Apr 22, 2026",
-    imageUrl: "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?q=80&w=2070&auto=format&fit=crop",
-  },
-  {
-    id: "5",
-    title: "AI Revolution: How Local Businesses Are Adapting",
-    summary: "Small and medium enterprises across Bangladesh are increasingly adopting artificial intelligence tools.",
-    source: "Business Standard",
-    category: "Technology",
-    priority: "medium" as const,
-    publishedAt: "Apr 21, 2026",
-    imageUrl: "https://images.unsplash.com/photo-1677442136019-21780ecad995?q=80&w=2070&auto=format&fit=crop",
-  },
-  {
-    id: "6",
-    title: "Weather Alert: Heavy Rain Expected in Coastal Regions",
-    summary: "Meteorological Department forecasts significant rainfall in the southern districts over the next 48 hours.",
-    source: "Weather BD",
-    category: "Weather",
-    priority: "medium" as const,
-    publishedAt: "Apr 20, 2026",
-    imageUrl: "https://images.unsplash.com/photo-1525088553748-01d6e210e00b?q=80&w=2070&auto=format&fit=crop",
-  },
-  {
-    id: "7",
-    title: "Education Ministry Reforms Curriculum for Digital Age",
-    summary: "New educational framework emphasizes coding, digital literacy, and critical thinking skills.",
-    source: "Education Today",
-    category: "Education",
-    priority: "low" as const,
-    publishedAt: "Apr 19, 2026",
-    imageUrl: "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?q=80&w=2070&auto=format&fit=crop",
-  },
-  {
-    id: "1",
-    title: "Bangladesh Economy Shows Strong Growth in Q3 2024",
-    summary: "GDP growth reaching 7.2%, surpassing earlier projections. Manufacturing sector led the charge.",
-    source: "Financial Express",
-    category: "Economy",
-    priority: "high" as const,
-    publishedAt: "Apr 18, 2026",
-    imageUrl: "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?q=80&w=2070&auto=format&fit=crop",
-  },
-  {
-    id: "3",
-    title: "National Cricket Team Prepares for International Series",
-    summary: "Bangladesh cricket team announces squad for upcoming bilateral series against Sri Lanka.",
-    source: "Sports Daily",
-    category: "Sports",
-    priority: "medium" as const,
-    publishedAt: "Apr 17, 2026",
-    imageUrl: "https://images.unsplash.com/photo-1531415074968-036ba1b575da?q=80&w=2070&auto=format&fit=crop",
-  },
-];
+const getPlaceholderImage = (category: string) => {
+  const cat = category?.toLowerCase() || 'news';
+  return `https://source.unsplash.com/800x600/?${cat},bangladesh`;
+};
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -93,6 +35,37 @@ export default function ArchivePage() {
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
   const [savedIds, setSavedIds] = useState<string[]>([]);
 
+  const [articles, setArticles] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  React.useEffect(() => {
+    async function fetchArchive() {
+      try {
+        const res = await fetch("/api/news?limit=100");
+        const data = await res.json();
+        if (data.success && data.data) {
+          const mapped = data.data.map((item: any) => ({
+            id: item.id,
+            title: item.headline,
+            summary: item.ai_summary || item.raw_content,
+            category: item.category || "General",
+            source: item.source || "Unknown",
+            priority: "medium", // You can calculate this based on some logic if needed
+            publishedAt: new Date(item.published_at || item.created_at).toLocaleDateString(),
+            imageUrl: item.image_url || getPlaceholderImage(item.category),
+            rawDate: new Date(item.published_at || item.created_at)
+          }));
+          setArticles(mapped);
+        }
+      } catch (error) {
+        console.error("Failed to fetch archive:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchArchive();
+  }, []);
+
   React.useEffect(() => {
     if (status === "unauthenticated") {
       router.push("/register"); // Or /login if it exists
@@ -105,12 +78,12 @@ export default function ArchivePage() {
     );
   };
 
-  const filteredArchive = MOCK_ARCHIVE.filter(
+  const filteredArchive = articles.filter(
     (item) => {
       const matchesSearch = item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                             item.category.toLowerCase().includes(searchQuery.toLowerCase());
       // Just simulate filtering for personalized vs general for demo purposes
-      const matchesTab = activeTab === "general" || (activeTab === "personalized" && item.priority === "high");
+      const matchesTab = activeTab === "general" || (activeTab === "personalized" && item.category !== "Politics");
       return matchesSearch && matchesTab;
     }
   );
@@ -151,7 +124,7 @@ export default function ArchivePage() {
             <div>
               <h1 className="text-2xl md:text-3xl font-bold text-foreground">Archive</h1>
               <p className="text-muted-foreground text-[14px]">
-                {MOCK_ARCHIVE.length} stories saved
+                {articles.length} stories saved
               </p>
             </div>
           </div>

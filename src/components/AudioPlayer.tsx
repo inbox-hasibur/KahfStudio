@@ -17,17 +17,18 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
   const [progress, setProgress] = useState(0);
   const [volume, setVolume] = useState(0.8);
   const [isMuted, setIsMuted] = useState(false);
+  const [dynamicPlaylist, setDynamicPlaylist] = useState<any[]>([]);
 
   const howlRef = useRef<Howl | null>(null);
   const progressRef = useRef<NodeJS.Timeout | null>(null);
 
-  const playlist = newsItems.length > 0 ? newsItems.map(item => ({
+  const playlist = dynamicPlaylist.length > 0 ? dynamicPlaylist : (newsItems.length > 0 ? newsItems.map(item => ({
     title: item.title || item.headline,
-    src: `/api/audio/tts?text=${encodeURIComponent(item.title || "")}`,
+    src: `/api/audio/tts?text=${encodeURIComponent((item.title || item.headline || "") + ". " + (item.ai_summary || ""))}`,
   })) : [
     { title: "Demo Audio 1", src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" },
     { title: "Demo Audio 2", src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3" }
-  ];
+  ]);
 
   const currentTrack = playlist[currentIndex];
 
@@ -61,7 +62,24 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
       if (howlRef.current) howlRef.current.unload();
       if (progressRef.current) clearInterval(progressRef.current);
     };
-  }, [currentIndex, isOpen]);
+  }, [currentIndex, isOpen, dynamicPlaylist]);
+
+  useEffect(() => {
+    const handlePlayAudio = (e: any) => {
+      const { title, summary } = e.detail;
+      const textToPlay = `${title}. ${summary || ''}`;
+      
+      setDynamicPlaylist([{
+        title: title,
+        src: `/api/audio/tts?text=${encodeURIComponent(textToPlay)}`
+      }]);
+      setCurrentIndex(0);
+      setIsOpen(true);
+    };
+
+    window.addEventListener('play-audio', handlePlayAudio);
+    return () => window.removeEventListener('play-audio', handlePlayAudio);
+  }, []);
 
   useEffect(() => {
     if (howlRef.current) howlRef.current.volume(isMuted ? 0 : volume);

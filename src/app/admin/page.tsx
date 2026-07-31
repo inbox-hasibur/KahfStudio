@@ -20,39 +20,15 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     async function fetchAdminData() {
-      const [usersRes, premiumRes, scrapersRes, newsRes, settingsRes] = await Promise.all([
-        supabase.from('profiles').select('*', { count: 'exact', head: true }),
-        supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('tier', 'premium'),
-        supabase.from('scraping_sources').select('*', { count: 'exact', head: true }).eq('is_active', true),
-        supabase.from('news_articles').select('*', { count: 'exact', head: true }),
-        supabase.from('system_settings').select('setting_value').eq('setting_key', 'global_gemini_api_keys').single(),
-      ]);
-      
-      const logsRes = await supabase.from('news_articles')
-        .select('headline, published_at, source')
-        .order('published_at', { ascending: false })
-        .limit(5);
-
-      let apiCount = 0;
-      if (settingsRes.data) {
-        try {
-          const keys = JSON.parse(settingsRes.data.setting_value);
-          if (Array.isArray(keys)) apiCount = keys.length;
-        } catch(e) {}
-      }
-
-      // Update stats dynamically from the database queries
-      setStats({
-        totalUsers: usersRes.count || 0,
-        premiumUsers: premiumRes.count || 0,
-        activeScrapers: scrapersRes.count || 0,
-        newsLibrary: newsRes.count || 0,
-        activeApis: apiCount,
-        onlineUsers: Math.floor((usersRes.count || 0) * 0.2) // Estimate online users ~20%
-      });
-
-      if (logsRes.data) {
-        setRecentLogs(logsRes.data);
+      try {
+        const res = await fetch('/api/admin/stats');
+        const data = await res.json();
+        if (data.success) {
+          setStats(data.stats);
+          setRecentLogs(data.recentLogs);
+        }
+      } catch (error) {
+        console.error("Failed to fetch admin stats:", error);
       }
     }
     
