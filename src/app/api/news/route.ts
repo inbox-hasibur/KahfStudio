@@ -5,9 +5,15 @@ import { createClient } from '@supabase/supabase-js';
 // GET — Frontend এ news পাঠাও
 export async function GET(req: NextRequest) {
   try {
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!serviceRoleKey) {
+      console.error("CRITICAL: SUPABASE_SERVICE_ROLE_KEY is missing in environment variables!");
+      throw new Error("Server configuration error");
+    }
+
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
+      serviceRoleKey
     );
 
     const { searchParams } = new URL(req.url);
@@ -35,9 +41,10 @@ export async function GET(req: NextRequest) {
       count: news?.length || 0
     });
 
-  } catch (error) {
+  } catch (error: any) {
+    console.error("API /news GET Error:", error);
     return NextResponse.json(
-      { success: false, error: 'Failed to fetch news' },
+      { success: false, error: error.message || 'Failed to fetch news' },
       { status: 500 }
     );
   }
