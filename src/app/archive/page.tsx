@@ -28,7 +28,7 @@ const itemVariants = {
 
 export default function ArchivePage() {
   const { data: session, status } = useSession();
-  const isPremium = session?.user?.tier === "premium" || session?.user?.role === "admin";
+  const isPremium = (session?.user as any)?.tier === "premium" || (session?.user as any)?.role === "admin";
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState<"general" | "personalized">("general");

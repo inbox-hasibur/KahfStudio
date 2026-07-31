@@ -36,7 +36,7 @@ const mockVideos = [
 
 export default function MediaPage() {
     const { data: session } = useSession();
-    const isPremium = session?.user?.tier === "premium" || session?.user?.role === "admin";
+    const isPremium = (session?.user as any)?.tier === "premium" || (session?.user as any)?.role === "admin";
     
     const [currentIndex, setCurrentIndex] = useState(0);
     const [isPlaying, setIsPlaying] = useState(false);
