@@ -53,7 +53,8 @@ export default function ArchivePage() {
             priority: "medium", // You can calculate this based on some logic if needed
             publishedAt: new Date(item.published_at || item.created_at).toLocaleDateString(),
             imageUrl: item.image_url || getPlaceholderImage(item.category),
-            rawDate: new Date(item.published_at || item.created_at)
+            rawDate: new Date(item.published_at || item.created_at),
+            isPersonalized: item.is_personalized || item.type === 'personalized' || false
           }));
           setArticles(mapped);
         }
@@ -82,8 +83,10 @@ export default function ArchivePage() {
     (item) => {
       const matchesSearch = item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                             item.category.toLowerCase().includes(searchQuery.toLowerCase());
-      // Just simulate filtering for personalized vs general for demo purposes
-      const matchesTab = activeTab === "general" || (activeTab === "personalized" && item.category !== "Politics");
+      // Show only personalized news in the personalized tab, and general news in the general tab
+      const matchesTab = activeTab === "general" 
+        ? !item.isPersonalized 
+        : !!item.isPersonalized;
       return matchesSearch && matchesTab;
     }
   );

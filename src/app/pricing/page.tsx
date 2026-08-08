@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { Check, Star, Zap, Shield, Headphones, Archive } from "lucide-react";
+import { Check, Star, Zap, Shield, Headphones, Archive, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useSession } from "@/lib/auth-client";
@@ -10,9 +10,33 @@ import Link from "next/link";
 import Navbar from "@/components/Navbar";
 
 export default function PricingPage() {
-  const { status } = useSession();
-
+  const { data: sessionData, status } = useSession();
   const [isAnnual, setIsAnnual] = useState(false);
+  const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
+
+  const handleCheckout = async () => {
+    if (!sessionData?.user?.id) return;
+    setIsCheckoutLoading(true);
+    try {
+      const response = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ userId: sessionData.user.id }),
+      });
+      const data = await response.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        console.error("Checkout error:", data.error);
+        setIsCheckoutLoading(false);
+      }
+    } catch (err) {
+      console.error("Checkout request failed:", err);
+      setIsCheckoutLoading(false);
+    }
+  };
 
   const fadeIn = {
     initial: { opacity: 0, y: 20 },
@@ -153,11 +177,25 @@ export default function PricingPage() {
                 </ul>
               </CardContent>
               <CardFooter className="px-8 pb-8 pt-4">
-                <Link href={status === "authenticated" ? "/profile" : "/register"} className="w-full">
-                  <Button className="w-full bg-white text-black hover:bg-slate-200 h-12 rounded-xl font-bold text-[15px]">
-                    {status === "authenticated" ? "Upgrade Now" : "Get Premium"}
+                {status === "authenticated" ? (
+                  <Button 
+                    onClick={handleCheckout} 
+                    disabled={isCheckoutLoading}
+                    className="w-full bg-white text-black hover:bg-slate-200 h-12 rounded-xl font-bold text-[15px]"
+                  >
+                    {isCheckoutLoading ? (
+                      <span className="flex items-center gap-2">
+                        <Loader2 className="w-4 h-4 animate-spin" /> Processing...
+                      </span>
+                    ) : "Upgrade Now"}
                   </Button>
-                </Link>
+                ) : (
+                  <Link href="/register" className="w-full">
+                    <Button className="w-full bg-white text-black hover:bg-slate-200 h-12 rounded-xl font-bold text-[15px]">
+                      Get Premium
+                    </Button>
+                  </Link>
+                )}
               </CardFooter>
             </Card>
           </motion.div>

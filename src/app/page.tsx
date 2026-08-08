@@ -9,6 +9,7 @@ import AudioPlayer from "@/components/AudioPlayer";
 import BreakingNewsTicker from "@/components/BreakingNewsTicker";
 import { useNews, useWeather } from "@/hooks/useNews";
 import { Newspaper, Loader2, Calendar, Sparkles, CloudSun, Play, FileText } from "lucide-react";
+import { useSession } from "@/lib/auth-client";
 
 
 const containerVariants = {
@@ -39,6 +40,9 @@ export default function Home() {
   const [currentDate, setCurrentDate] = useState("");
   const { news, loading: newsLoading } = useNews();
   const { weather } = useWeather();
+  const { data: sessionData } = useSession();
+  
+  const isPremium = (sessionData?.user as any)?.tier === "premium" || (sessionData?.user as any)?.role === "admin";
 
   useEffect(() => {
     // Simulate loading
@@ -127,14 +131,16 @@ export default function Home() {
           <div className="flex flex-col items-end gap-3 md:gap-4">
             <div className="flex items-center gap-3">
               {/* Premium CTA */}
-              <Link href="/pricing" className="group hidden sm:block">
-                <div className="flex items-center gap-2 px-4 py-2 bg-white text-zinc-900 hover:bg-zinc-100 rounded-full border border-zinc-200 shadow-sm transition-all cursor-pointer">
-                  <Sparkles className="w-4 h-4 text-zinc-900" />
-                  <span className="text-[12px] font-bold text-zinc-900 transition-colors">
-                    Upgrade to premium for personalized news
-                  </span>
-                </div>
-              </Link>
+              {!isPremium && (
+                <Link href="/pricing" className="group hidden sm:block">
+                  <div className="flex items-center gap-2 px-4 py-2 bg-white text-zinc-900 hover:bg-zinc-100 rounded-full border border-zinc-200 shadow-sm transition-all cursor-pointer">
+                    <Sparkles className="w-4 h-4 text-zinc-900" />
+                    <span className="text-[12px] font-bold text-zinc-900 transition-colors">
+                      Upgrade to premium for personalized news
+                    </span>
+                  </div>
+                </Link>
+              )}
               
               {/* Weather widget */}
               {weather && (

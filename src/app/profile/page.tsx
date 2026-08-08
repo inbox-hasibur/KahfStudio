@@ -59,12 +59,14 @@ export default function ProfileDashboard() {
             Welcome back, {session?.user?.name || "User"}. Here's an overview of your activity.
           </p>
         </div>
-        <Link href="/pricing">
-          <Button className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white border-0 shadow-[0_0_15px_rgba(16,185,129,0.5)] transition-all duration-300 hover:scale-105">
-            <Star className="w-4 h-4 mr-2 fill-white" />
-            Upgrade to Premium
-          </Button>
-        </Link>
+        {stats.tier.toLowerCase() !== 'premium' && (
+          <Link href="/pricing">
+            <Button className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white border-0 shadow-[0_0_15px_rgba(16,185,129,0.5)] transition-all duration-300 hover:scale-105">
+              <Star className="w-4 h-4 mr-2 fill-white" />
+              Upgrade to Premium
+            </Button>
+          </Link>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
