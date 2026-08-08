@@ -7,7 +7,11 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
 
 export async function POST(req: Request) {
   try {
-    const origin = req.headers.get('origin') || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    const host = req.headers.get('x-forwarded-host') || req.headers.get('host');
+    const protocol = req.headers.get('x-forwarded-proto') || 'http';
+    const origin = req.headers.get('origin') || 
+                   (host ? `${protocol}://${host}` : process.env.NEXT_PUBLIC_APP_URL) || 
+                   'http://localhost:3000';
     
     // Parse the request body for user id
     const body = await req.json().catch(() => ({}));
