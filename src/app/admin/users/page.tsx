@@ -91,7 +91,11 @@ export default function AdminUsersPage() {
                       return true;
                     })
                     .map(user => (
-                    <tr key={user.id} className="hover:bg-muted/30 transition-colors">
+                    <tr 
+                      key={user.id} 
+                      className="hover:bg-muted/30 transition-colors cursor-pointer"
+                      onClick={() => window.location.href = `/admin/users/${user.id}`}
+                    >
                       <td className="px-4 py-3 font-mono text-xs max-w-[120px] truncate" title={user.id}>{user.id}</td>
                       <td className="px-4 py-3 font-medium flex items-center gap-2">
                         {user.full_name || "Unknown User"}

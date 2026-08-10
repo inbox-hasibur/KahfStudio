@@ -108,43 +108,48 @@ export default function AdminLibraryPage() {
       transition={{ duration: 0.4 }}
       className="space-y-6"
     >
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="text-3xl font-bold">News Library & Review</h1>
           <p className="text-muted-foreground mt-1">
             Review scraped articles, approve them for the main feed, or manage published content.
           </p>
         </div>
-        <div className="flex items-center gap-3 bg-card/40 p-3 rounded-xl border border-border">
-          <div 
-            onClick={handleToggleAutoApprove}
-            className={`relative w-12 h-6 rounded-full cursor-pointer transition-colors duration-300 border ${autoApprove ? "bg-green-500 border-green-500" : "bg-muted border-muted-foreground/30"}`}
-          >
-            <motion.div
-              className="w-5 h-5 bg-white rounded-full shadow-sm mt-0.5 ml-0.5"
-              initial={false}
-              animate={{ x: autoApprove ? 22 : 0 }}
-              transition={{ type: "spring", stiffness: 500, damping: 30 }}
-            />
-          </div>
-          <div>
-            <Label className="text-sm font-semibold cursor-pointer" onClick={handleToggleAutoApprove}>Auto-Approve Scraped News</Label>
-          </div>
-        </div>
       </div>
 
-      <div className="flex flex-wrap gap-2 mb-6 border-b border-border pb-2">
-        {tabs.map((tab) => (
-          <Button 
-            key={tab.id}
-            variant={activeTab === tab.id ? "default" : "ghost"}
-            onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-2 ${activeTab === tab.id ? "bg-white text-black hover:bg-slate-200" : ""}`}
+      <div className="flex flex-wrap items-center justify-between gap-4 mb-6 border-b border-border pb-2">
+        <div className="flex flex-wrap gap-2">
+          {tabs.map((tab) => (
+            <Button 
+              key={tab.id}
+              variant={activeTab === tab.id ? "default" : "ghost"}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-2 ${activeTab === tab.id ? "bg-white text-black hover:bg-slate-200" : ""}`}
+            >
+              <tab.icon className="w-4 h-4" />
+              {tab.label}
+            </Button>
+          ))}
+        </div>
+        
+        <div className="flex flex-col items-end gap-1">
+          <div 
+            onClick={handleToggleAutoApprove}
+            className={`relative w-20 h-8 shrink-0 rounded-full p-1 cursor-pointer transition-colors duration-300 ${autoApprove ? "bg-green-500" : "bg-[#0f172a]"}`}
           >
-            <tab.icon className="w-4 h-4" />
-            {tab.label}
-          </Button>
-        ))}
+            <motion.div
+              className="w-9 h-6 bg-white rounded-full shadow-sm flex items-center justify-center"
+              initial={false}
+              animate={{ x: autoApprove ? 36 : 0 }}
+              transition={{ type: "spring", stiffness: 500, damping: 30 }}
+            >
+              <span className={`text-[10px] font-bold leading-none ${autoApprove ? "text-green-600" : "text-[#0f172a]"}`}>
+                {autoApprove ? "ON" : "OFF"}
+              </span>
+            </motion.div>
+          </div>
+          <Label className="text-[10px] text-muted-foreground cursor-pointer" onClick={handleToggleAutoApprove}>Auto-Approve Scraped News</Label>
+        </div>
       </div>
 
       <Card className="bg-card/50 backdrop-blur-sm border-border">

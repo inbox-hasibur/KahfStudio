@@ -250,7 +250,7 @@ export default function AdminScrapingPage() {
           <div className="grid md:grid-cols-3 gap-6">
             
             {/* Auto Approve */}
-            <div className="space-y-4">
+            <div className="space-y-3">
               <div className="flex flex-col gap-3">
                 <div 
                   onClick={() => {
@@ -258,31 +258,43 @@ export default function AdminScrapingPage() {
                     setAutoApprove(val);
                     saveSetting("auto_approve_news", val.toString());
                   }}
-                  className={`relative w-28 h-10 rounded-full p-1 cursor-pointer transition-colors duration-300 border ${autoApprove ? "bg-green-500 border-green-500" : "bg-[#0f172a] border-[#0f172a]"}`}
+                  className={`relative w-24 h-9 shrink-0 rounded-full p-1 cursor-pointer transition-colors duration-300 ${autoApprove ? "bg-green-500" : "bg-[#0f172a]"}`}
                 >
                   <motion.div
-                    className="w-12 h-8 bg-white rounded-full shadow-sm flex items-center justify-center"
+                    className="w-11 h-7 bg-white rounded-full shadow-sm flex items-center justify-center"
                     initial={false}
-                    animate={{ x: autoApprove ? 56 : 0 }}
+                    animate={{ x: autoApprove ? 44 : 0 }}
                     transition={{ type: "spring", stiffness: 500, damping: 30 }}
                   >
-                    <span className={`text-[11px] font-bold -mt-px ${autoApprove ? "text-green-600" : "text-[#0f172a]"}`}>
+                    <span className={`text-[11px] font-bold leading-none ${autoApprove ? "text-green-600" : "text-[#0f172a]"}`}>
                       {autoApprove ? "ON" : "OFF"}
                     </span>
                   </motion.div>
                 </div>
-                <div>
-                  <Label className="text-sm font-semibold block">Auto-Approve Scraped News</Label>
-                  <span className="text-xs text-muted-foreground mt-1">If enabled, news is published automatically. If disabled, it goes to review.</span>
-                </div>
+                <Label className="text-sm font-semibold">Auto-Approve<br/>Scraped News</Label>
+                <p className="text-[11px] text-muted-foreground leading-snug">Automatically publish scraped news without manual review. This will bypass the pending queue.</p>
               </div>
             </div>
 
             {/* Scraping Schedule */}
             <div className={`space-y-3 md:border-l border-border md:pl-6 transition-opacity ${isScheduleEnabled ? "opacity-100" : "opacity-50"}`}>
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col gap-3">
+                <div 
+                  onClick={() => setIsScheduleEnabled(!isScheduleEnabled)}
+                  className={`relative w-14 h-7 shrink-0 rounded-full p-1 cursor-pointer transition-colors duration-300 ${isScheduleEnabled ? "bg-green-500" : "bg-[#0f172a]"}`}
+                >
+                  <motion.div
+                    className="w-6 h-5 bg-white rounded-full shadow-sm flex items-center justify-center"
+                    initial={false}
+                    animate={{ x: isScheduleEnabled ? 24 : 0 }}
+                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                  >
+                    <span className={`text-[8px] font-bold leading-none ${isScheduleEnabled ? "text-green-600" : "text-[#0f172a]"}`}>
+                      {isScheduleEnabled ? "ON" : "OFF"}
+                    </span>
+                  </motion.div>
+                </div>
                 <Label className="text-sm font-semibold">Scraping Schedule</Label>
-                <Switch checked={isScheduleEnabled} onCheckedChange={setIsScheduleEnabled} />
               </div>
               <div className="flex flex-wrap gap-2">
                 <select 
@@ -350,9 +362,24 @@ export default function AdminScrapingPage() {
 
             {/* Summarization Delay */}
             <div className={`space-y-3 md:border-l border-border md:pl-6 transition-opacity ${isSummarizeEnabled ? "opacity-100" : "opacity-50"}`}>
-              <div className="flex items-center justify-between">
-                <Label className="text-sm font-semibold">Summarization Delay</Label>
-                <Switch checked={isSummarizeEnabled} onCheckedChange={setIsSummarizeEnabled} />
+              <div className="flex flex-col gap-3">
+                <div 
+                  onClick={() => setIsSummarizeEnabled(!isSummarizeEnabled)}
+                  className={`relative w-14 h-7 shrink-0 rounded-full p-1 cursor-pointer transition-colors duration-300 ${isSummarizeEnabled ? "bg-green-500" : "bg-[#0f172a]"}`}
+                >
+                  <motion.div
+                    className="w-6 h-5 bg-white rounded-full shadow-sm flex items-center justify-center"
+                    initial={false}
+                    animate={{ x: isSummarizeEnabled ? 24 : 0 }}
+                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                  >
+                    <span className={`text-[8px] font-bold leading-none ${isSummarizeEnabled ? "text-green-600" : "text-[#0f172a]"}`}>
+                      {isSummarizeEnabled ? "ON" : "OFF"}
+                    </span>
+                  </motion.div>
+                </div>
+                <Label className="text-sm font-semibold">Podcast Summarization</Label>
+                <p className="text-[11px] text-muted-foreground leading-snug">Generate a daily audio summary including news, weather, and traffic.</p>
               </div>
               <div className="flex items-center gap-2">
                 <Input 
@@ -367,7 +394,6 @@ export default function AdminScrapingPage() {
                 />
                 <span className="text-xs text-muted-foreground">minutes</span>
               </div>
-              <p className="text-xs text-muted-foreground">Time to wait before AI summarizes content.</p>
             </div>
             
           </div>
@@ -434,8 +460,8 @@ export default function AdminScrapingPage() {
       </Card>
 
       {/* Live Scraping Status */}
-      <Card className={`bg-card/50 backdrop-blur-sm border-border mb-6 transition-all duration-300 ${isTerminalFullscreen ? "fixed inset-4 z-50 overflow-hidden flex flex-col bg-black/95" : ""}`}>
-        <CardHeader className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border pb-4">
+      <Card className={`bg-card/50 backdrop-blur-sm border-border mb-6 transition-all duration-300 ${isTerminalFullscreen ? "fixed bottom-4 left-4 right-4 top-24 z-50 overflow-hidden flex flex-col bg-black/95 shadow-2xl ring-1 ring-border" : ""}`}>
+        <CardHeader className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 border-b border-border pb-4">
           <div>
             <CardTitle className="flex items-center gap-2">
               <Play className="w-5 h-5 text-primary" />
@@ -445,22 +471,22 @@ export default function AdminScrapingPage() {
             <CardDescription>Manually trigger scraping and view real-time logs.</CardDescription>
           </div>
           
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-2 bg-background border border-border px-3 py-1 rounded-md">
-              <Label className="text-xs whitespace-nowrap">Target Count:</Label>
+          <div className="flex flex-wrap items-center gap-3 bg-black/20 p-2 rounded-xl border border-white/5">
+            <div className="flex items-center gap-2 px-1">
+              <Label className="text-xs text-muted-foreground whitespace-nowrap">Target Count:</Label>
               <Input 
                 type="number" 
                 min="1" max="20" 
                 value={targetCount}
                 onChange={(e) => setTargetCount(e.target.value)}
-                className="w-16 h-7 text-xs border-none p-0 focus-visible:ring-0" 
+                className="w-16 h-8 text-xs bg-black/40 border-white/10 focus-visible:ring-1" 
               />
             </div>
             
-            <div className="flex items-center gap-2 bg-background border border-border px-3 py-1 rounded-md">
-              <Label className="text-xs whitespace-nowrap">Category:</Label>
+            <div className="flex items-center gap-2 px-1 sm:border-l sm:border-white/10 sm:pl-3">
+              <Label className="text-xs text-muted-foreground whitespace-nowrap">Category:</Label>
               <select 
-                className="flex h-7 w-28 bg-transparent text-xs focus-visible:outline-none"
+                className="flex h-8 w-28 bg-black/40 rounded-md border border-white/10 text-xs focus-visible:outline-none px-2"
                 value={selectedCategory}
                 onChange={(e) => setSelectedCategory(e.target.value)}
               >
@@ -469,12 +495,12 @@ export default function AdminScrapingPage() {
               </select>
             </div>
 
-            <Button size="sm" onClick={handleTriggerEmergencyScrape} disabled={isTriggeringRss} className="bg-primary text-primary-foreground hover:bg-primary/90 h-9">
-              <Play className="w-4 h-4 mr-1" /> 
+            <Button size="sm" onClick={handleTriggerEmergencyScrape} disabled={isTriggeringRss} className="bg-primary text-primary-foreground hover:bg-primary/90 h-8 ml-1">
+              <Play className="w-3.5 h-3.5 mr-1" /> 
               {isTriggeringRss ? "Scraping..." : "Scrap Now"}
             </Button>
             
-            <Button variant="outline" size="sm" onClick={() => setIsTerminalFullscreen(!isTerminalFullscreen)} className="h-9 px-2 hidden md:flex">
+            <Button variant="ghost" size="icon" onClick={() => setIsTerminalFullscreen(!isTerminalFullscreen)} className="h-8 w-8 hidden md:flex hover:bg-white/10">
               {isTerminalFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
             </Button>
           </div>
