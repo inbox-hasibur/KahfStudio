@@ -4,7 +4,7 @@ import Parser from "rss-parser";
 import axios from "axios";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-export const maxDuration = 60; // Allow up to 60 seconds (safe for Vercel Hobby tier)
+export const maxDuration = 300; // Allow up to 5 minutes on Vercel Pro (Max limit)
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: Request) {
