@@ -1,4 +1,4 @@
-# 🎙️ KahfNews (খবর এআই)
+# 🎙️ KahfNews
 > **Your Smart, Audio-First Daily News Companion for Bangladesh.**
 
 [![Live Demo](https://img.shields.io/badge/Live-Demo-brightgreen)](https://kahfnews.vercel.app) 
@@ -9,10 +9,10 @@ Whether you are walking to your office, stuck in Dhaka's legendary traffic, or p
 
 ---
 
-## 🌟 The Vision: "Listen, Don't Just Read"
+## The Vision: "Listen, Don't Just Read"
 In Bangladesh, missing a sudden holiday notice or a road-block update can ruin your entire day. Traditional news apps are cluttered with noise and bias. **KahfNews** acts as your personal "AI Editor-in-Chief," filtering out the noise and prioritizing utility news (Traffic, Holidays, National Alerts) over everything else.
 
-### 🎯 Key Problems We Solve:
+### Key Problems We Solve:
 1. **Safety First:** Reading news while walking is dangerous. We provide a **Podcast-style briefing**.
 2. **Time Saver:** We summarize long articles into 1-minute audio clips.
 3. **Hyper-Local Utility:** Real-time updates on traffic, strikes, and government notices.
@@ -20,29 +20,29 @@ In Bangladesh, missing a sudden holiday notice or a road-block update can ruin y
 
 ---
 
-## 🚀 Core Features
+## Core Features
 
-### 🎧 1. Smart Audio Playlist (The "Walking" Mode)
+### 1. Smart Audio Playlist (The "Walking" Mode)
 Instead of one long boring file, KahfNews generates separate audio tracks for each news item. 
 - **Auto-play:** Just hit play and put your phone in your pocket.
 - **Skip Control:** Don't like a topic? Skip to the next one using your earphone buttons.
 
-### 🧠 2. AI Editor (Powered by Gemini 1.5 Flash)
+### 2. AI Editor (Powered by Gemini 1.5 Flash)
 Our AI doesn't just copy-paste; it understands.
 - **Intelligent Summarization:** Converts complex reports into conversational Bangla.
 - **Priority Engine:** High-impact news (like a sudden road block) is automatically moved to the top of your morning brief.
 - **Lifecycle Management:** Ephemeral news (like traffic jams) is auto-deleted after 4 hours to keep your feed clean.
 
-### 📰 3. Unbiased & Trusted Sources
+### 3. Unbiased & Trusted Sources
 We aggregate news from verified and credible Bangladeshi outlets, ensuring a balanced perspective.
 - **Sources include:** Jamuna TV, BDNews24, Bangladesh Pratidin, Jugantor, Kaler Kantho, Ittefaq, Samakal, and more.
 
-### 🎙️ 4. Natural Bangla TTS
+### 4. Natural Bangla TTS
 Using advanced Neural TTS technology (Microsoft Edge TTS), our news doesn't sound like a robot. It feels like a human newsreader is speaking directly to you.
 
 ---
 
-## 🏗️ Technical Architecture
+## Technical Architecture
 
 - **Frontend:** Next.js 15 (App Router) with TypeScript.
 - **Styling:** Tailwind CSS + Shadcn UI (Futuristic & Minimalist).
@@ -53,7 +53,7 @@ Using advanced Neural TTS technology (Microsoft Edge TTS), our news doesn't soun
 
 ---
 
-## 🗺️ Roadmap & Future Goals
+## Roadmap & Future Goals
 
 - [ ] **Personalized Deep-Dives:** Users can set interests (e.g., "Tech" or "Economy").
 - [ ] **Crowdsourced Validation:** Integrating real-time user feedback for traffic news.
@@ -62,9 +62,9 @@ Using advanced Neural TTS technology (Microsoft Edge TTS), our news doesn't soun
 
 ---
 
-## 🔗 Project Links
+## Project Links
 - **Secondary Domain:** [kahfnews.vercel.app](https://kahfnews.vercel.app)
 
 ---
 
-Developed with ❤️ for the people of Bangladesh. 🇧🇩
+Developed by Hasibur Rahman for the people of Bangladesh. 🇧🇩
