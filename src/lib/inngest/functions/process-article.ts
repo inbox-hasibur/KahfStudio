@@ -112,6 +112,7 @@ export const processArticle = inngest.createFunction(
           status: autoApprove ? "published" : "draft", // Depends on auto_approve_news setting
           original_url: url,
           source: sourceName || url, 
+          category: category || "General",
           published_at: new Date().toISOString()
         });
       

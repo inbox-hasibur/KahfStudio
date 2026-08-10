@@ -175,12 +175,15 @@ export default function AdminScrapingPage() {
     setTimeout(() => setSaveSuccess(false), 2000);
   };
 
+  const [targetCount, setTargetCount] = useState("5");
+  const [selectedCategory, setSelectedCategory] = useState("All");
+
   const handleTriggerEmergencyScrape = async () => {
     setIsTriggeringRss(true);
     setScrapeLogs(["Connecting to scraping pipeline..."]);
     
     try {
-      const response = await fetch("/api/ingest/trigger-rss");
+      const response = await fetch(`/api/ingest/trigger-rss?limit=${targetCount}&category=${encodeURIComponent(selectedCategory)}`);
       if (!response.body) throw new Error("No response body");
 
       const reader = response.body.getReader();
@@ -264,11 +267,36 @@ export default function AdminScrapingPage() {
                 </div>
                 <div>
                   <Label className="text-sm font-semibold block">Auto-Approve Scraped News</Label>
-                  <p className="text-xs text-muted-foreground mt-1">If disabled, news will be saved as Draft and require manual review.</p>
+                  <span className="text-xs text-muted-foreground mt-1">If enabled, news is published automatically. If disabled, it goes to review.</span>
                 </div>
               </div>
+              
+              <div className="pt-4 border-t border-border">
+                <Label className="text-sm font-semibold mb-2 block">Target News Count</Label>
+                <Input 
+                  type="number" 
+                  min="1" max="20" 
+                  value={targetCount}
+                  onChange={(e) => setTargetCount(e.target.value)}
+                  className="w-24 h-9" 
+                />
+                <p className="text-xs text-muted-foreground mt-1">Number of articles to scrape per run.</p>
+              </div>
+
+              <div className="pt-4 border-t border-border">
+                <Label className="text-sm font-semibold mb-2 block">Target Category</Label>
+                <select 
+                  className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                >
+                  <option value="All">All Categories</option>
+                  {CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                </select>
+                <p className="text-xs text-muted-foreground mt-1">Only scrape from sources matching this category.</p>
+              </div>
             </div>
-            
+
             {/* Scraping Schedule */}
             <div className={`space-y-3 md:border-l border-border md:pl-6 transition-opacity ${isScheduleEnabled ? "opacity-100" : "opacity-50"}`}>
               <div className="flex items-center justify-between">

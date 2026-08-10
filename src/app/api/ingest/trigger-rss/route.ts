@@ -16,6 +16,10 @@ export async function GET(req: Request) {
       };
 
       try {
+        const url = new URL(req.url);
+        const targetLimit = parseInt(url.searchParams.get('limit') || '5', 10);
+        const targetCategory = url.searchParams.get('category') || 'All';
+
         sendLog("Starting Emergency Scraping Pipeline...");
         
         const supabase = createClient(
@@ -23,11 +27,17 @@ export async function GET(req: Request) {
           process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
         );
 
-        sendLog("Fetching active scraping sources...");
-        const { data: sources, error: sourceError } = await supabase
+        sendLog(`Fetching active scraping sources (Category: ${targetCategory})...`);
+        let sourceQuery = supabase
           .from("scraping_sources")
           .select("*")
           .eq("is_active", true);
+          
+        if (targetCategory !== "All") {
+          sourceQuery = sourceQuery.eq("category", targetCategory);
+        }
+
+        const { data: sources, error: sourceError } = await sourceQuery;
 
         if (sourceError) throw new Error(sourceError.message);
         if (!sources || sources.length === 0) {
@@ -63,7 +73,7 @@ export async function GET(req: Request) {
 
         const parser = new Parser();
         let totalProcessed = 0;
-        const TARGET_SUCCESSFUL = 5;
+        const TARGET_SUCCESSFUL = targetLimit;
 
         for (const source of sources) {
           if (totalProcessed >= TARGET_SUCCESSFUL) break;
@@ -135,6 +145,7 @@ export async function GET(req: Request) {
                     status: autoApp ? "published" : "draft",
                     original_url: item.link,
                     source: source.name || item.link,
+                    category: source.category || "General",
                     published_at: new Date().toISOString()
                   });
 
