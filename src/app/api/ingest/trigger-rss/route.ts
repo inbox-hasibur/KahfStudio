@@ -128,19 +128,22 @@ export async function GET(req: Request) {
 
                   // 4. Save
                   sendLog(`[Database] Saving to Supabase...`);
-                  await supabase.from("news_articles").insert({
+                  const { error: dbError } = await supabase.from("news_articles").insert({
                     headline: item.title,
                     raw_content: markdown,
                     ai_summary: summary,
                     status: autoApp ? "published" : "draft",
                     original_url: item.link,
                     source: source.name || item.link,
-                    category: source.category || "General",
                     published_at: new Date().toISOString()
                   });
 
-                  sendLog(`[Success] Saved article successfully!`);
-                  totalProcessed++;
+                  if (dbError) {
+                    sendLog(`[Error] DB Insert Failed: ${dbError.message}`);
+                  } else {
+                    sendLog(`[Success] Saved article successfully! (Status: ${autoApp ? "published" : "draft"})`);
+                    totalProcessed++;
+                  }
                   success = true;
                 } catch (aiError: any) {
                   const errMsg = aiError.message || "";
