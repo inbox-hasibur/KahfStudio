@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Database, Play, Square, Link as LinkIcon, Settings, Key, Search, Plus, Trash2, Eye, EyeOff } from "lucide-react";
+import { Database, Play, Square, Link as LinkIcon, Settings, Key, Search, Plus, Trash2, Eye, EyeOff, Maximize2, Minimize2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -37,6 +37,12 @@ export default function AdminScrapingPage() {
   const [isTriggeringRss, setIsTriggeringRss] = useState(false);
   const [scrapeLogs, setScrapeLogs] = useState<string[]>([]);
   const [visibleKeys, setVisibleKeys] = useState<Record<number, boolean>>({});
+  const logsEndRef = useRef<HTMLDivElement>(null);
+  const [isTerminalFullscreen, setIsTerminalFullscreen] = useState(false);
+
+  useEffect(() => {
+    logsEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [scrapeLogs]);
 
   const toggleKeyVisibility = (index: number) => {
     setVisibleKeys(prev => ({ ...prev, [index]: !prev[index] }));
@@ -270,31 +276,6 @@ export default function AdminScrapingPage() {
                   <span className="text-xs text-muted-foreground mt-1">If enabled, news is published automatically. If disabled, it goes to review.</span>
                 </div>
               </div>
-              
-              <div className="pt-4 border-t border-border">
-                <Label className="text-sm font-semibold mb-2 block">Target News Count</Label>
-                <Input 
-                  type="number" 
-                  min="1" max="20" 
-                  value={targetCount}
-                  onChange={(e) => setTargetCount(e.target.value)}
-                  className="w-24 h-9" 
-                />
-                <p className="text-xs text-muted-foreground mt-1">Number of articles to scrape per run.</p>
-              </div>
-
-              <div className="pt-4 border-t border-border">
-                <Label className="text-sm font-semibold mb-2 block">Target Category</Label>
-                <select 
-                  className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                  value={selectedCategory}
-                  onChange={(e) => setSelectedCategory(e.target.value)}
-                >
-                  <option value="All">All Categories</option>
-                  {CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-                </select>
-                <p className="text-xs text-muted-foreground mt-1">Only scrape from sources matching this category.</p>
-              </div>
             </div>
 
             {/* Scraping Schedule */}
@@ -393,70 +374,6 @@ export default function AdminScrapingPage() {
         </CardContent>
       </Card>
 
-      {/* 2. Global Settings (Gemini API Keys) */}
-      <Card className="bg-card/50 backdrop-blur-sm border-border mb-6">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Key className="w-5 h-5 text-primary" />
-            Global Gemini API Keys
-          </CardTitle>
-          <CardDescription>Configure global API keys for background scraping if user BYOK is not available.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-3 pt-2">
-            {apiKeys.map((key, index) => (
-              <div key={index} className="flex gap-2 items-center">
-                <div className="relative flex-1">
-                  <Input 
-                    type={visibleKeys[index] ? "text" : "password"}
-                    placeholder="AIzaSy..." 
-                    value={key}
-                    autoComplete="new-password"
-                    onChange={e => {
-                      const newKeys = [...apiKeys];
-                      newKeys[index] = e.target.value;
-                      setApiKeys(newKeys);
-                    }}
-                    className="font-mono text-xs pr-10"
-                  />
-                  <button 
-                    type="button"
-                    onClick={() => toggleKeyVisibility(index)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  >
-                    {visibleKeys[index] ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-                {apiKeys.length > 1 && (
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    onClick={() => setApiKeys(apiKeys.filter((_, i) => i !== index))} 
-                    className="text-red-500 hover:text-red-400 shrink-0"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                )}
-              </div>
-            ))}
-          </div>
-          
-          <div className="flex items-center justify-between pt-4 mt-4 border-t border-border">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => setApiKeys([...apiKeys, ""])} 
-              className="border-dashed"
-            >
-              <Plus className="w-4 h-4 mr-1" /> Add Another API Key
-            </Button>
-            <Button onClick={handleSaveSettings} disabled={isSavingSettings} size="sm" className={`bg-white text-black hover:bg-slate-200 transition-colors ${saveSuccess ? "!bg-green-500 !text-white" : ""}`}>
-              {isSavingSettings ? "Saving..." : saveSuccess ? "Saved Successfully" : "Save API Keys"}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
       {/* 3. Direct URL Ingestion */}
       <Card className="bg-card/50 backdrop-blur-sm border-border mb-6">
         <CardHeader>
@@ -516,28 +433,71 @@ export default function AdminScrapingPage() {
         </CardFooter>
       </Card>
 
-        {/* Pipeline Terminal View (Shows during scrape) */}
-        {(isTriggeringRss || scrapeLogs.length > 0) && (
-          <Card className="bg-black/90 backdrop-blur-sm border-border mb-6">
-            <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2 text-white font-mono text-sm">
-                <Play className="w-4 h-4" /> Live Scraping Pipeline Output
-                {isTriggeringRss && <span className="ml-2 w-2 h-2 bg-white rounded-full animate-pulse" />}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="h-64 overflow-y-auto font-mono text-xs text-slate-300 space-y-1 p-2 bg-black rounded border border-slate-800">
+      {/* Live Scraping Status */}
+      <Card className={`bg-card/50 backdrop-blur-sm border-border mb-6 transition-all duration-300 ${isTerminalFullscreen ? "fixed inset-4 z-50 overflow-hidden flex flex-col bg-black/95" : ""}`}>
+        <CardHeader className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border pb-4">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <Play className="w-5 h-5 text-primary" />
+              Live Scraping Status
+              {isTriggeringRss && <span className="ml-2 w-2 h-2 bg-green-500 rounded-full animate-pulse" />}
+            </CardTitle>
+            <CardDescription>Manually trigger scraping and view real-time logs.</CardDescription>
+          </div>
+          
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2 bg-background border border-border px-3 py-1 rounded-md">
+              <Label className="text-xs whitespace-nowrap">Target Count:</Label>
+              <Input 
+                type="number" 
+                min="1" max="20" 
+                value={targetCount}
+                onChange={(e) => setTargetCount(e.target.value)}
+                className="w-16 h-7 text-xs border-none p-0 focus-visible:ring-0" 
+              />
+            </div>
+            
+            <div className="flex items-center gap-2 bg-background border border-border px-3 py-1 rounded-md">
+              <Label className="text-xs whitespace-nowrap">Category:</Label>
+              <select 
+                className="flex h-7 w-28 bg-transparent text-xs focus-visible:outline-none"
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+              >
+                <option value="All">All</option>
+                {CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+              </select>
+            </div>
+
+            <Button size="sm" onClick={handleTriggerEmergencyScrape} disabled={isTriggeringRss} className="bg-primary text-primary-foreground hover:bg-primary/90 h-9">
+              <Play className="w-4 h-4 mr-1" /> 
+              {isTriggeringRss ? "Scraping..." : "Scrap Now"}
+            </Button>
+            
+            <Button variant="outline" size="sm" onClick={() => setIsTerminalFullscreen(!isTerminalFullscreen)} className="h-9 px-2 hidden md:flex">
+              {isTerminalFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className={`p-0 ${isTerminalFullscreen ? "flex-1 overflow-hidden" : ""}`}>
+          <div className={`overflow-y-auto font-mono text-xs text-green-400 space-y-1 p-4 bg-black ${isTerminalFullscreen ? "h-full" : "h-72"}`}>
+            {scrapeLogs.length === 0 && !isTriggeringRss ? (
+              <div className="text-slate-500 italic">No logs yet. Click 'Scrap Now' to start...</div>
+            ) : (
+              <>
                 {scrapeLogs.map((log, i) => (
                   <div key={i}>
-                    <span className="text-muted-foreground mr-2">[{new Date().toLocaleTimeString()}]</span>
+                    <span className="text-slate-500 mr-2">[{new Date().toLocaleTimeString()}]</span>
                     {log}
                   </div>
                 ))}
                 {isTriggeringRss && <div className="animate-pulse">_</div>}
-              </div>
-            </CardContent>
-          </Card>
-        )}
+              </>
+            )}
+            <div ref={logsEndRef} />
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Sources Management */}
       <Card className="bg-card/50 backdrop-blur-sm border-border">
@@ -549,12 +509,6 @@ export default function AdminScrapingPage() {
                 Automated Scraping Sources (RSS / DDG)
               </CardTitle>
               <CardDescription>Manage sources for the hourly/daily background cron jobs.</CardDescription>
-            </div>
-            <div className="flex gap-2">
-              <Button size="sm" onClick={handleTriggerEmergencyScrape} disabled={isTriggeringRss} className="bg-white text-black hover:bg-slate-200 border border-slate-300">
-                <Play className="w-4 h-4 mr-1" /> 
-                {isTriggeringRss ? "Triggering..." : "Scrap Now"}
-              </Button>
             </div>
           </div>
         </CardHeader>
@@ -629,6 +583,70 @@ export default function AdminScrapingPage() {
           </div>
         </CardContent>
       </Card>
+      {/* 2. Global Settings (Gemini API Keys) */}
+      <Card className="bg-card/50 backdrop-blur-sm border-border mb-6">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Key className="w-5 h-5 text-primary" />
+            Global Gemini API Keys
+          </CardTitle>
+          <CardDescription>Configure global API keys for background scraping if user BYOK is not available.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-3 pt-2">
+            {apiKeys.map((key, index) => (
+              <div key={index} className="flex gap-2 items-center">
+                <div className="relative flex-1">
+                  <Input 
+                    type={visibleKeys[index] ? "text" : "password"}
+                    placeholder="AIzaSy..." 
+                    value={key}
+                    autoComplete="new-password"
+                    onChange={e => {
+                      const newKeys = [...apiKeys];
+                      newKeys[index] = e.target.value;
+                      setApiKeys(newKeys);
+                    }}
+                    className="font-mono text-xs pr-10"
+                  />
+                  <button 
+                    type="button"
+                    onClick={() => toggleKeyVisibility(index)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    {visibleKeys[index] ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+                {apiKeys.length > 1 && (
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    onClick={() => setApiKeys(apiKeys.filter((_, i) => i !== index))} 
+                    className="text-red-500 hover:text-red-400 shrink-0"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                )}
+              </div>
+            ))}
+          </div>
+          
+          <div className="flex items-center justify-between pt-4 mt-4 border-t border-border">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setApiKeys([...apiKeys, ""])} 
+              className="border-dashed"
+            >
+              <Plus className="w-4 h-4 mr-1" /> Add Another API Key
+            </Button>
+            <Button onClick={handleSaveSettings} disabled={isSavingSettings} size="sm" className={`bg-white text-black hover:bg-slate-200 transition-colors ${saveSuccess ? "!bg-green-500 !text-white" : ""}`}>
+              {isSavingSettings ? "Saving..." : saveSuccess ? "Saved Successfully" : "Save API Keys"}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
     </motion.div>
   );
 }
