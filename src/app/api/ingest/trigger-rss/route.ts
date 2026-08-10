@@ -4,6 +4,9 @@ import Parser from "rss-parser";
 import axios from "axios";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
+export const maxDuration = 60; // Allow up to 60 seconds (safe for Vercel Hobby tier)
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: Request) {
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
