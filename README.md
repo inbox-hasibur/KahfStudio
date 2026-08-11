@@ -2,7 +2,7 @@
 
 **URL:** [https://kahfnews.vercel.app/](https://kahfnews.vercel.app/)
 
-![Next.js](https://img.shields.io/badge/NEXT.JS-black?style=for-the-badge&logo=next.js&logoColor=white) ![Tailwind CSS](https://img.shields.io/badge/TAILWIND_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white) ![Gemini](https://img.shields.io/badge/GEMINI-8E75B2?style=for-the-badge&logo=google-gemini&logoColor=white) ![MongoDB](https://img.shields.io/badge/MONGODB-4EA94B?style=for-the-badge&logo=mongodb&logoColor=white)
+![Next.js](https://img.shields.io/badge/NEXT.JS-black?style=for-the-badge&logo=next.js&logoColor=white) ![Tailwind CSS](https://img.shields.io/badge/TAILWIND_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white) ![Gemini](https://img.shields.io/badge/GEMINI-8E75B2?style=for-the-badge&logo=google-gemini&logoColor=white) ![Supabase](https://img.shields.io/badge/SUPABASE-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white)
 
 KahfNews is an AI-driven news aggregator designed specifically for the busy Bangladeshi Users. It solves the "information overload" problem by scraping trusted and personalized sources, summarizing key insights using Gemini AI, and converting them into a high-quality audio summary and playlist for overall daily news gist.
 
