@@ -10,6 +10,7 @@ import { createClient } from "@/utils/supabase/client";
 import Link from "next/link";
 
 export default function BYOKPage() {
+<<<<<<< Updated upstream
   const [tier, setTier] = useState<string>("free");
   const [loading, setLoading] = useState(true);
 
@@ -29,6 +30,12 @@ export default function BYOKPage() {
   }, []);
 
   if (loading) {
+=======
+  const { data: session, status } = useSession();
+  const isPremium = (session?.user as any)?.tier === "premium" || (session?.user as any)?.role === "admin";
+
+  if (status === 'loading') {
+>>>>>>> Stashed changes
     return <div className="text-center py-12 text-muted-foreground">Checking access...</div>;
   }
 
