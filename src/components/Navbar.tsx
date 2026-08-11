@@ -17,13 +17,12 @@ import {
   LogOut,
   ChevronDown,
   Cpu,
-  CreditCard
+  CreditCard,
+  Lock
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useSession, signOut } from "@/lib/auth-client";
 import { usePathname } from "next/navigation";
-import { Lock } from "lucide-react";
-
 const Navbar = () => {
   const pathname = usePathname();
   const { data: session, status } = useSession();
