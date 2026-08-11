@@ -1,16 +1,16 @@
-# 🎙️ KahfNews - Your Smart, Audio-First Daily News Companion
+# KahfNews - Ai Driven Audio-First Daily News Agregator
 
 **URL:** [https://kahfnews.vercel.app/](https://kahfnews.vercel.app/)
 
 ![Next.js](https://img.shields.io/badge/NEXT.JS-black?style=for-the-badge&logo=next.js&logoColor=white) ![Tailwind CSS](https://img.shields.io/badge/TAILWIND_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white) ![Gemini](https://img.shields.io/badge/GEMINI-8E75B2?style=for-the-badge&logo=google-gemini&logoColor=white) ![MongoDB](https://img.shields.io/badge/MONGODB-4EA94B?style=for-the-badge&logo=mongodb&logoColor=white)
 
-KahfNews is a revolutionary AI-driven news aggregator designed specifically for the busy Bangladeshi context. It solves the "information overload" problem by scraping trusted sources, summarizing key insights using Gemini AI, and converting them into a high-quality audio playlist for hands-free consumption. 
+KahfNews is an AI-driven news aggregator designed specifically for the busy Bangladeshi Users. It solves the "information overload" problem by scraping trusted and personalized sources, summarizing key insights using Gemini AI, and converting them into a high-quality audio summary and playlist for overall daily news gist.
 
-Whether you are walking to your office, stuck in Dhaka's legendary traffic, or preparing for your day—KahfNews ensures you are always informed, without ever needing to look at a screen.
+Whether you are walking to your office, stuck in Dhaka's traffic, or preparing for your day KahfNews ensures you are always informed, without ever needing to look at a screen.
 
 ---
 
-## The Vision: "Listen, Don't Just Read"
+## The Vision: "Read/Listen Anywhere, Personalized Daily News Gist, Save Time"
 
 In Bangladesh, missing a sudden holiday notice or a road-block update can ruin your entire day. Traditional news apps are cluttered with noise and bias. KahfNews acts as your personal "AI Editor-in-Chief," filtering out the noise and prioritizing utility news (Traffic, Holidays, National Alerts) over everything else.
 
@@ -18,8 +18,8 @@ In Bangladesh, missing a sudden holiday notice or a road-block update can ruin y
 
 - **Safety First:** Reading news while walking is dangerous. We provide a podcast-style briefing.
 - **Time Saver:** We summarize long articles into 1-minute audio clips.
-- **Hyper-Local Utility:** Real-time updates on traffic, strikes, and government notices.
-- **Information Lifecycle:** We automatically distinguish between "Just-in" updates (Traffic) and "Permanent" news (Policy changes).
+- **Personalized & Unbiased:** Filter out the noise and bias by selecting custom sources. Get direct updates only on the topics that matter most to you.
+- **Halal Mode:** Stay true to Islamic principles. Our built-in "Halal Mode" automatically removes background music from any media, ensuring a permissible viewing and listening experience.
 
 ---
 
@@ -32,9 +32,13 @@ In Bangladesh, missing a sudden holiday notice or a road-block update can ruin y
 
 **AI Editor (Powered by Gemini 1.5 Flash)**
 
+- **Daily Briefing:** Read or listen to an overall summary of the most important news every day.
 - **Intelligent Summarization:** Converts complex reports into conversational Bangla.
 - **Priority Engine:** High-impact news (like a sudden road block) is automatically moved to the top of your morning brief.
-- **Lifecycle Management:** Ephemeral news (like traffic jams) is auto-deleted after 4 hours to keep your feed clean.
+
+**Halal Mode**
+
+- **Music-Free Experience:** Stay true to Islamic principles. Our built-in "Halal Mode" automatically removes background music from any media, ensuring a permissible viewing and listening experience.
 
 **Unbiased & Trusted Sources**
 
@@ -47,23 +51,27 @@ In Bangladesh, missing a sudden holiday notice or a road-block update can ruin y
 
 ---
 
-## Technical Architecture
+## Tech Stack
 
-- **Frontend:** Next.js 15 (App Router) with TypeScript
-- **Styling:** Tailwind CSS + Shadcn UI (Futuristic & Minimalist)
-- **Backend:** Node.js + MongoDB (Mongoose) for long-term storage
-- **AI Core:** Google Gemini 1.5 Flash for summarization and news classification
-- **Ingestion:** Puppeteer & Cheerio for high-performance scraping
-- **Audio Engine:** Edge-TTS for high-fidelity, free Bangla voice synthesis
+- **Frontend:** Next.js, React, Tailwind CSS, Framer Motion
+- **Backend & Database:** Supabase (PostgreSQL), Inngest (Background Jobs)
+- **AI Core:** Google Gemini AI
+- **Web Scraping:** Puppeteer, Cheerio
+- **Audio Engine:** Google TTS API, Howler.js
+- **Payments:** SSLCommerz, AamarPay, Stripe
 
 ---
 
 ## Roadmap & Future Goals
 
-- [ ] **Personalized Deep-Dives:** Users can set interests (e.g., "Tech" or "Economy").
 - [ ] **Crowdsourced Validation:** Integrating real-time user feedback for traffic news.
 - [ ] **Smart Alarms:** Wake you up 15 minutes early if there is heavy rain or severe traffic on your commute.
 - [ ] **Multi-language Support:** Switching between Bangla and English briefings seamlessly.
+- [ ] **Conversational News:** "Talk to your news" - ask questions to the AI to get deeper context on any story.
+- [ ] **Fact-Check Analyzer:** Built-in AI verification to identify misinformation and biased reporting.
+- [ ] **Emergency Community Hub:** A dedicated feed where users can post real-time updates for emergencies, local help, and support.
+- [ ] **Smart Deals Aggregator:** Real-time collection of product offers, discounts, and coupons to save you money.
+- [ ] **Halal Product Scanner:** AI-powered image detection to scan product ingredients and identify non-permissible (haram) items.
 
 ---
 
