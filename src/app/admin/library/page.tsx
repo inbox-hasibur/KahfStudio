@@ -7,8 +7,16 @@ import { FileText, CheckCircle, Trash2, Edit3, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { createClient } from "@/utils/supabase/client";
+import { useSession } from "@/lib/auth-client";
+import { Key } from "lucide-react";
+import Link from "next/link";
 
 export default function AdminLibraryPage() {
+  const { data: session } = useSession();
+  const userRole = (session?.user as any)?.role || "user";
+  const userTier = (session?.user as any)?.tier || "free";
+  
+  const isLocked = userRole !== "admin" && userTier !== "premium";
   const [activeTab, setActiveTab] = useState("pending");
   const [articles, setArticles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -100,6 +108,25 @@ export default function AdminLibraryPage() {
     { id: "pending", label: `Pending Review (${pendingArticles.length})`, icon: FileText },
     { id: "published", label: `Published (${publishedArticles.length})`, icon: CheckCircle },
   ];
+
+  if (isLocked) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4">
+        <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mb-6">
+          <Key className="w-10 h-10 text-primary" />
+        </div>
+        <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-4">Premium Feature Locked</h2>
+        <p className="text-muted-foreground max-w-md mb-8">
+          Personalized News Approval is a premium feature. Upgrade your account to review and curate your own news library before it gets added to your feed.
+        </p>
+        <Link href="/pricing">
+          <Button className="bg-primary text-primary-foreground hover:bg-primary/90 px-8 py-6 rounded-full font-bold text-lg shadow-xl shadow-primary/20 hover:shadow-primary/40 transition-all hover:scale-105">
+            Upgrade to Premium
+          </Button>
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <motion.div 

@@ -25,17 +25,22 @@ export default function AdminLayout({
     return <div className="pt-32 text-center text-muted-foreground">Loading...</div>;
   }
 
-  // Allow access for now to let user test Admin UI
-  // if ((session?.user as any)?.role !== "admin") {
-  //   redirect("/profile");
-  // }
+  const userRole = (session?.user as any)?.role || "user";
 
-  const navItems = [
-    { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
-    { name: "User Management", href: "/admin/users", icon: Users },
-    { name: "Scraping Control", href: "/admin/scraping", icon: Database },
-    { name: "News Library", href: "/admin/library", icon: Library },
+  if (userRole !== "admin") {
+    if (pathname === "/admin" || pathname.startsWith("/admin/users")) {
+      redirect("/profile");
+    }
+  }
+
+  const allNavItems = [
+    { name: "Dashboard", href: "/admin", icon: LayoutDashboard, adminOnly: true },
+    { name: "User Management", href: "/admin/users", icon: Users, adminOnly: true },
+    { name: "Scraping Control", href: "/admin/scraping", icon: Database, adminOnly: false },
+    { name: "News Library", href: "/admin/library", icon: Library, adminOnly: false },
   ];
+
+  const navItems = allNavItems.filter(item => !item.adminOnly || userRole === "admin");
 
   return (
     <div className="max-w-[1200px] mx-auto px-4 md:px-8 pt-28 md:pt-36 pb-32">
@@ -48,8 +53,10 @@ export default function AdminLayout({
               {session?.user?.name ? session.user.name.charAt(0).toUpperCase() : <User />}
             </div>
             <div>
-              <h2 className="font-bold text-lg leading-tight">{session?.user?.name || "Admin"}</h2>
-              <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">System Administrator</p>
+              <h2 className="font-bold text-lg leading-tight">{session?.user?.name || "User"}</h2>
+              <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                {userRole === "admin" ? "System Administrator" : "Premium Studio"}
+              </p>
             </div>
           </div>
           

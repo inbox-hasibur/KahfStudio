@@ -22,6 +22,7 @@ import {
 import { useTheme } from "next-themes";
 import { useSession, signOut } from "@/lib/auth-client";
 import { usePathname } from "next/navigation";
+import { Lock } from "lucide-react";
 
 const Navbar = () => {
   const pathname = usePathname();
@@ -302,21 +303,17 @@ const Navbar = () => {
                                 </div>
                               </Link>
                               
-                              {/* Show Scraping Control and News Approval for Premium Users */}
-                              {(session?.user as any)?.tier === "premium" && (
-                                <>
-                                  <Link href="/admin/scraping" onClick={() => setIsProfileDropdownOpen(false)}>
-                                    <div className="px-3 py-2 text-[13px] font-medium hover:bg-slate-800 rounded-xl cursor-pointer transition-colors text-emerald-400 hover:text-emerald-300">
-                                      Scraping Control
-                                    </div>
-                                  </Link>
-                                  <Link href="/admin/library" onClick={() => setIsProfileDropdownOpen(false)}>
-                                    <div className="px-3 py-2 text-[13px] font-medium hover:bg-slate-800 rounded-xl cursor-pointer transition-colors text-emerald-400 hover:text-emerald-300">
-                                      News Approval
-                                    </div>
-                                  </Link>
-                                </>
-                              )}
+                              {/* Show Scraping Control and News Approval for All non-admin users, but show lock for free */}
+                              <Link href="/admin/scraping" onClick={() => setIsProfileDropdownOpen(false)}>
+                                <div className={`px-3 py-2 text-[13px] font-medium hover:bg-slate-800 rounded-xl cursor-pointer transition-colors flex items-center gap-2 ${(session?.user as any)?.tier === "premium" ? "text-emerald-400 hover:text-emerald-300" : "text-slate-300 hover:text-white"}`}>
+                                  Scraping Control {(session?.user as any)?.tier !== "premium" && <Lock className="w-3 h-3 text-slate-500" />}
+                                </div>
+                              </Link>
+                              <Link href="/admin/library" onClick={() => setIsProfileDropdownOpen(false)}>
+                                <div className={`px-3 py-2 text-[13px] font-medium hover:bg-slate-800 rounded-xl cursor-pointer transition-colors flex items-center gap-2 ${(session?.user as any)?.tier === "premium" ? "text-emerald-400 hover:text-emerald-300" : "text-slate-300 hover:text-white"}`}>
+                                  News Approval {(session?.user as any)?.tier !== "premium" && <Lock className="w-3 h-3 text-slate-500" />}
+                                </div>
+                              </Link>
 
                               <Link href="/profile/byok" onClick={() => setIsProfileDropdownOpen(false)}>
                                 <div className="px-3 py-2 text-[13px] font-medium hover:bg-slate-800 rounded-xl cursor-pointer transition-colors text-slate-300 hover:text-white">

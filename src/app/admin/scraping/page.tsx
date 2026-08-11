@@ -9,8 +9,16 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { motion } from "framer-motion";
 import { createClient } from "@/utils/supabase/client";
+import { useSession } from "@/lib/auth-client";
+import Link from "next/link";
 
 export default function AdminScrapingPage() {
+  const { data: session } = useSession();
+  const userRole = (session?.user as any)?.role || "user";
+  const userTier = (session?.user as any)?.tier || "free";
+  
+  const isLocked = userRole !== "admin" && userTier !== "premium";
+
   const [isActive, setIsActive] = useState(false);
   const [urlToIngest, setUrlToIngest] = useState("");
   const [ingestCategory, setIngestCategory] = useState("General");
@@ -185,6 +193,8 @@ export default function AdminScrapingPage() {
   const [selectedCategory, setSelectedCategory] = useState("All");
 
   const handleTriggerEmergencyScrape = async () => {
+    // ... logic remains same, but wait, I can't truncate it. The target content must match perfectly.
+    // Let me just replace the return statement below.
     setIsTriggeringRss(true);
     setScrapeLogs(["Connecting to scraping pipeline..."]);
     
@@ -222,6 +232,25 @@ export default function AdminScrapingPage() {
   };
 
 
+
+  if (isLocked) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4">
+        <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mb-6">
+          <Key className="w-10 h-10 text-primary" />
+        </div>
+        <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-4">Premium Feature Locked</h2>
+        <p className="text-muted-foreground max-w-md mb-8">
+          Personalized Scraping Control is a premium feature. Upgrade your account to manage your own news sources, API keys, and custom schedules.
+        </p>
+        <Link href="/pricing">
+          <Button className="bg-primary text-primary-foreground hover:bg-primary/90 px-8 py-6 rounded-full font-bold text-lg shadow-xl shadow-primary/20 hover:shadow-primary/40 transition-all hover:scale-105">
+            Upgrade to Premium
+          </Button>
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <motion.div 

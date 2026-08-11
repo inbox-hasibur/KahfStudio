@@ -55,13 +55,6 @@ const NewsCard = ({ news, isSaved = false, onToggleSave }: NewsCardProps) => {
             />
           </Link>
           
-          {/* Priority Indicator */}
-          <div className="absolute top-3 left-3 flex items-center gap-1.5 px-2 py-1 bg-black/40 backdrop-blur-md rounded-full">
-            <span className={`w-1.5 h-1.5 rounded-full ${priorityColors[news.priority]}`} />
-            <span className="text-[9px] font-bold text-white uppercase tracking-wider">
-              {news.priority}
-            </span>
-          </div>
           
           {/* Image overlay gradient */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
@@ -109,10 +102,19 @@ const NewsCard = ({ news, isSaved = false, onToggleSave }: NewsCardProps) => {
             <div className="flex items-center gap-2">
               <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
                 <Button 
-                  className="h-9 px-4 bg-primary text-primary-foreground hover:opacity-90 transition-all rounded-full font-semibold text-[12px] flex items-center gap-2 shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30"
+                  className="h-8 px-3 bg-primary text-primary-foreground hover:opacity-90 transition-all rounded-full font-semibold text-[11px] flex items-center gap-1 shadow-sm"
                 >
-                  <Play className="w-3.5 h-3.5 fill-current" />
-                  Listen
+                  <Play className="w-3 h-3 fill-current" />
+                  Full
+                </Button>
+              </motion.div>
+              <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                <Button 
+                  variant="outline"
+                  className="h-8 px-3 border-primary/20 text-primary hover:bg-primary/10 transition-all rounded-full font-semibold text-[11px] flex items-center gap-1 shadow-sm"
+                >
+                  <Play className="w-3 h-3 fill-current" />
+                  Summary
                 </Button>
               </motion.div>
               
