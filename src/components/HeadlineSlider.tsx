@@ -21,43 +21,28 @@ const containerVariants = {
 };
 
 const HeadlineSlider = ({ headlines }: HeadlineSliderProps) => {
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const sliderRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const scrollContainer = scrollRef.current;
-    if (!scrollContainer) return;
+    const slider = sliderRef.current;
+    if (!slider) return;
 
-    let animationFrameId: number;
-    let scrollPos = 0;
+    let isDown = false;
+    let startX: number;
+    let scrollLeft: number;
 
-    const scroll = () => {
-      scrollPos += 0.5; // Adjust speed here
-      if (scrollPos >= scrollContainer.scrollWidth / 2) {
-        scrollPos = 0;
+    const interval = setInterval(() => {
+      if (isDown) return; // Don't auto-slide if user is dragging
+      const maxScrollLeft = slider.scrollWidth - slider.clientWidth;
+      if (slider.scrollLeft >= maxScrollLeft - 10) {
+        slider.scrollTo({ left: 0, behavior: 'smooth' });
+      } else {
+        slider.scrollBy({ left: slider.clientWidth > 480 ? 480 + 24 : 340 + 24, behavior: 'smooth' }); // card width + gap
       }
-      scrollContainer.scrollLeft = scrollPos;
-      animationFrameId = requestAnimationFrame(scroll);
-    };
+    }, 4000);
 
-    animationFrameId = requestAnimationFrame(scroll);
-
-    const handleMouseEnter = () => cancelAnimationFrame(animationFrameId);
-    const handleMouseLeave = () => {
-      animationFrameId = requestAnimationFrame(scroll);
-    };
-
-    scrollContainer.addEventListener('mouseenter', handleMouseEnter);
-    scrollContainer.addEventListener('mouseleave', handleMouseLeave);
-
-    return () => {
-      cancelAnimationFrame(animationFrameId);
-      scrollContainer.removeEventListener('mouseenter', handleMouseEnter);
-      scrollContainer.removeEventListener('mouseleave', handleMouseLeave);
-    };
-  }, [headlines]);
-
-  // Duplicate headlines for seamless infinite scroll
-  const displayHeadlines = [...headlines, ...headlines];
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <motion.section
@@ -103,13 +88,13 @@ const HeadlineSlider = ({ headlines }: HeadlineSliderProps) => {
       
       {/* Headlines Carousel - Repetition with variation */}
       <motion.div 
-        ref={scrollRef}
-        className="flex gap-4 overflow-x-auto pb-4 no-scrollbar snap-x snap-mandatory cursor-grab active:cursor-grabbing w-full"
+        ref={sliderRef}
+        className="flex gap-6 overflow-x-auto pb-8 no-scrollbar snap-x snap-mandatory cursor-grab active:cursor-grabbing"
         variants={containerVariants}
       >
-        {displayHeadlines.map((item, index) => (
+        {headlines.map((item, index) => (
           <motion.div
-            key={`${item.id}-${index}`}
+            key={item.id}
             initial={{ opacity: 0, x: 50 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ 

@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import { 
   ArrowLeft, Play, Volume2, FileText, Clock,
-  Calendar, Globe, Tag, ExternalLink, Headphones, Info, Star
+  Calendar, Globe, Tag, ExternalLink, Headphones, Info, Star, Sparkles
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNews } from "@/hooks/useNews";
@@ -99,6 +99,18 @@ export default function DailySummaryPage() {
 
       <div className="grid md:grid-cols-3 gap-8">
         <div className="md:col-span-2 space-y-10">
+          {/* Overall Summary Section */}
+          <section className="bg-primary/5 border border-primary/10 p-6 rounded-3xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full blur-2xl pointer-events-none" />
+            <h2 className="text-xl font-bold font-serif mb-4 flex items-center gap-2 text-foreground">
+              <Sparkles className="w-5 h-5 text-primary" />
+              আজকের সারসংক্ষেপ
+            </h2>
+            <p className="text-[16px] md:text-[18px] leading-[1.8] text-foreground/80 font-medium">
+              {keyPoints.map(p => p.summary).join(" ")}
+            </p>
+          </section>
+
           <section>
             <h2 className="text-2xl font-bold font-serif mb-6 flex items-center gap-2">
               <Star className="w-6 h-6 text-yellow-500" />

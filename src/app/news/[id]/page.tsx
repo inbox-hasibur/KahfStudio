@@ -81,8 +81,8 @@ export default function NewsDetailPage() {
           setNewsItem({
             id: item.id,
             title: item.headline,
-            summary: item.ai_summary || item.summary || item.raw_content,
-            raw_content: item.raw_content || item.content || item.summary || "Full news content is not available.",
+            summary: item.ai_summary || item.raw_content,
+            raw_content: item.raw_content || item.content,
             category: item.category || "General",
             source: item.source || "Unknown",
             publishedAt: item.published_at || item.created_at,
@@ -317,6 +317,8 @@ export default function NewsDetailPage() {
           <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
         </motion.div>
 
+
+
         {/* Article Content */}
         <motion.div variants={itemVariants} className="mb-10 min-h-[300px]">
           {activeView === "summary" ? (
@@ -408,9 +410,11 @@ export default function NewsDetailPage() {
         initial={{ y: 100, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ delay: 1, duration: 0.5 }}
+        onMouseEnter={() => setIsStickyExpanded(true)}
+        onMouseLeave={() => setIsStickyExpanded(false)}
       >
         <motion.div
-          className="bg-black/80 backdrop-blur-xl border border-white/10 p-1.5 rounded-full shadow-2xl flex items-center overflow-hidden"
+          className="bg-black/80 backdrop-blur-xl border border-white/10 p-1.5 rounded-full shadow-2xl flex items-center overflow-hidden cursor-pointer"
           animate={{
             width: isStickyExpanded ? "auto" : "56px",
             height: "56px",
@@ -444,24 +448,16 @@ export default function NewsDetailPage() {
             
             <button 
               className="w-10 h-10 rounded-full flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-colors ml-1"
-              onClick={() => setIsStickyExpanded(false)}
             >
               <ChevronDown className="w-4 h-4" />
             </button>
           </div>
 
-          {/* Collapsed Content */}
-          <div 
-            className="absolute inset-0 flex items-center justify-center opacity-100 cursor-pointer hover:bg-white/10 transition-colors" 
-            style={{ display: !isStickyExpanded ? 'flex' : 'none' }}
-            onMouseEnter={() => setIsStickyExpanded(true)}
-            onClick={() => setIsStickyExpanded(true)}
-          >
-            <div className="flex items-center gap-1">
-              <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-              <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" style={{ animationDelay: "150ms" }} />
-              <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" style={{ animationDelay: "300ms" }} />
-            </div>
+          {/* Collapsed Content (3 animated dots like listening) */}
+          <div className="absolute inset-0 flex items-center justify-center opacity-100 gap-1" style={{ display: !isStickyExpanded ? 'flex' : 'none' }}>
+            <motion.div className="w-1.5 h-1.5 bg-white/70 rounded-full" animate={{ y: [0, -3, 0] }} transition={{ repeat: Infinity, duration: 1, delay: 0 }} />
+            <motion.div className="w-1.5 h-1.5 bg-white/70 rounded-full" animate={{ y: [0, -3, 0] }} transition={{ repeat: Infinity, duration: 1, delay: 0.2 }} />
+            <motion.div className="w-1.5 h-1.5 bg-white/70 rounded-full" animate={{ y: [0, -3, 0] }} transition={{ repeat: Infinity, duration: 1, delay: 0.4 }} />
           </div>
         </motion.div>
       </motion.div>
