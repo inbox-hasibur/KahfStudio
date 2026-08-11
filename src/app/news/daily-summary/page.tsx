@@ -100,39 +100,15 @@ export default function DailySummaryPage() {
       <div className="grid md:grid-cols-3 gap-8">
         <div className="md:col-span-2 space-y-10">
           {/* Overall Summary Section */}
-          <section className="bg-primary/5 border border-primary/10 p-6 rounded-3xl relative overflow-hidden">
+          <section className="bg-primary/5 border border-primary/10 p-6 md:p-10 rounded-3xl relative overflow-hidden">
             <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full blur-2xl pointer-events-none" />
             <h2 className="text-xl font-bold font-serif mb-4 flex items-center gap-2 text-foreground">
               <Sparkles className="w-5 h-5 text-primary" />
               আজকের সারসংক্ষেপ
             </h2>
-            <p className="text-[16px] md:text-[18px] leading-[1.8] text-foreground/80 font-medium">
-              {keyPoints.map(p => p.summary).join(" ")}
-            </p>
-          </section>
-
-          <section>
-            <h2 className="text-2xl font-bold font-serif mb-6 flex items-center gap-2">
-              <Star className="w-6 h-6 text-yellow-500" />
-              মূল আকর্ষণ
-            </h2>
-            <div className="space-y-6">
-              {keyPoints.map((point: any, idx: number) => (
-                <div key={idx} className="p-5 bg-card/50 border border-border rounded-2xl hover:border-primary/30 transition-colors">
-                  <div className="flex justify-between items-start mb-2">
-                    <h3 className="text-lg font-bold text-foreground leading-snug pr-4">{point.title}</h3>
-                    <Link href={`/news/${point.id}`} className="shrink-0 p-2 bg-muted hover:bg-primary/10 hover:text-primary rounded-full transition-colors">
-                      <ExternalLink className="w-4 h-4" />
-                    </Link>
-                  </div>
-                  <p className="text-muted-foreground text-sm line-clamp-3 mb-3">{point.summary}</p>
-                  <Link href={`/news/${point.id}`}>
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-primary/10 text-primary rounded-full text-[11px] font-bold hover:bg-primary hover:text-white transition-colors cursor-pointer uppercase tracking-wider">
-                      <Tag className="w-3 h-3" />
-                      {point.category || "খবর"}
-                    </span>
-                  </Link>
-                </div>
+            <div className="text-[17px] md:text-[20px] leading-[1.8] text-foreground/80 font-medium space-y-4">
+              {keyPoints.map((p, idx) => (
+                <p key={idx}>{p.summary}</p>
               ))}
             </div>
           </section>
@@ -163,13 +139,23 @@ export default function DailySummaryPage() {
           <div className="p-5 bg-muted/50 rounded-2xl border border-border">
             <h3 className="font-bold text-sm uppercase tracking-wider text-muted-foreground mb-4 flex items-center gap-2">
               <Globe className="w-4 h-4" />
-              তথ্যসূত্র সমূহ
+              সংবাদের উৎস
             </h3>
-            <div className="flex flex-wrap gap-2">
-              {sources.map((src: string) => (
-                <span key={src} className="px-2.5 py-1 bg-white/5 border border-white/10 rounded-lg text-xs font-medium text-foreground">
-                  {src}
-                </span>
+            <div className="space-y-4">
+              {keyPoints.map((point: any, idx: number) => (
+                <div key={idx} className="p-4 bg-card/80 border border-border rounded-xl hover:border-primary/30 transition-colors group">
+                  <div className="flex justify-between items-start gap-2 mb-2">
+                    <h4 className="text-[13px] font-bold text-foreground leading-snug group-hover:text-primary transition-colors line-clamp-2">{point.title}</h4>
+                    <Link href={`/news/${point.id}`} className="shrink-0 text-muted-foreground hover:text-primary transition-colors">
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </Link>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 bg-primary/10 text-primary rounded text-[10px] font-bold uppercase tracking-wider">
+                      {point.category || "খবর"}
+                    </span>
+                  </div>
+                </div>
               ))}
             </div>
           </div>

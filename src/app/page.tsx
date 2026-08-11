@@ -182,29 +182,24 @@ export default function Home() {
 
       {/* AI Daily Briefing / Video Podcast Section */}
       <motion.section variants={itemVariants} className="mb-10 md:mb-16">
-        <div className="bg-card/50 backdrop-blur-sm border border-border rounded-2xl p-6 flex flex-col md:flex-row gap-6 items-center justify-between relative overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-          {/* Background Decorative */}
-          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
+        <Link href="/news/daily-summary" className="block relative bg-card border border-border p-6 md:p-8 rounded-[32px] overflow-hidden group hover:border-primary/30 transition-colors shadow-sm">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl group-hover:bg-primary/10 transition-all duration-700" />
           
-          <div className="flex-1 z-10 flex flex-col md:flex-row items-center gap-6">
-             <div 
-                className="relative w-16 h-16 md:w-20 md:h-20 flex-shrink-0 rounded-full bg-primary flex items-center justify-center shadow-lg shadow-primary/40 cursor-pointer hover:scale-105 transition-transform group"
-                onClick={() => {
-                  const audioPlayerTrigger = document.getElementById("global-audio-trigger");
-                  if (audioPlayerTrigger) audioPlayerTrigger.click();
-                }}
-              >
-                <Play className="w-8 h-8 md:w-10 md:h-10 text-white ml-1" fill="currentColor" />
+          <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-6 md:gap-10">
+            <div className="flex items-start md:items-center gap-5 md:gap-6">
+              {/* Play Button Icon - Visual interest */}
+              <div className="w-16 h-16 md:w-20 md:h-20 bg-primary rounded-full flex items-center justify-center flex-shrink-0 shadow-lg shadow-primary/20 group-hover:scale-105 transition-transform duration-500">
+                <Play className="w-8 h-8 md:w-10 md:h-10 text-primary-foreground ml-1" fill="currentColor" />
               </div>
               
-              <div className="text-center md:text-left">
-                <div className="flex items-center justify-center md:justify-start gap-2 mb-2">
-                  <span className="px-2.5 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-wider border border-primary/20 notranslate">
+              <div>
+                <div className="flex items-center gap-2 mb-2 md:mb-3">
+                  <span className="px-2.5 py-1 bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-wider rounded-full border border-primary/20">
                     আজকের সারসংক্ষেপ
                   </span>
-                  <span className="text-[10px] text-muted-foreground font-medium flex items-center gap-1">
+                  <span className="text-muted-foreground text-[11px] font-medium flex items-center gap-1">
                     <Calendar className="w-3 h-3" />
-                    {currentDate}
+                    {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                   </span>
                 </div>
                 <h2 className="text-xl md:text-2xl font-serif font-bold text-foreground mb-2 leading-tight notranslate">
@@ -214,25 +209,28 @@ export default function Home() {
                   আজকের প্রধান খবরগুলোতে থাকছে স্মার্ট সিটি প্রকল্পের নতুন উদ্যোগ, বিশ্ব অর্থনীতিতে মুদ্রাস্ফীতির প্রভাব এবং প্রযুক্তিতে এআই এর নতুন দিগন্ত।
                 </p>
               </div>
+            </div>
+
+            <div className="flex-shrink-0 z-10 mt-4 md:mt-0 flex flex-col sm:flex-row gap-3">
+              <button 
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const audioPlayerTrigger = document.getElementById("global-audio-trigger");
+                  if (audioPlayerTrigger) audioPlayerTrigger.click();
+                }}
+                className="h-12 px-6 bg-primary text-primary-foreground hover:bg-primary/90 font-bold text-sm rounded-xl shadow-sm flex items-center justify-center gap-2 transition-colors cursor-pointer"
+              >
+                <Volume2 className="w-4 h-4" />
+                <span className="notranslate">শুনুন</span>
+              </button>
+              <div className="h-12 px-6 bg-secondary text-secondary-foreground hover:bg-secondary/80 hover:text-foreground font-bold text-sm rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 border border-border cursor-pointer">
+                <FileText className="w-4 h-4" />
+                <span className="notranslate">পড়ুন</span>
+              </div>
+            </div>
           </div>
-          
-          <div className="flex-shrink-0 z-10 mt-4 md:mt-0 flex flex-col sm:flex-row gap-3">
-             <Button 
-               onClick={() => {
-                 const audioPlayerTrigger = document.getElementById("global-audio-trigger");
-                 if (audioPlayerTrigger) audioPlayerTrigger.click();
-               }}
-               className="px-6 py-5 bg-primary text-primary-foreground hover:bg-primary/90 font-bold text-sm rounded-xl shadow-sm flex items-center justify-center gap-2"
-             >
-               <Volume2 className="w-4 h-4" />
-               <span className="notranslate">শুনুন</span>
-             </Button>
-             <Link href="/news/daily-summary" className="px-6 py-5 bg-secondary text-secondary-foreground hover:bg-secondary/80 hover:text-foreground font-bold text-sm rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 border border-border">
-               <FileText className="w-4 h-4" />
-               <span className="notranslate">পড়ুন</span>
-             </Link>
-          </div>
-        </div>
+        </Link>
       </motion.section>
 
       {/* 1. HERO SECTION */}
