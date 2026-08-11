@@ -181,11 +181,15 @@ export default function PricingPage() {
                 <ul className="space-y-4">
                   <li className="flex items-start gap-3">
                     <Zap className="w-4 h-4 text-amber-400 shrink-0 mt-1" />
-                    <span className="text-slate-100 text-sm font-bold">Summarize News</span>
+                    <span className="text-slate-100 text-sm font-bold">Personalized Summarized News</span>
                   </li>
                   <li className="flex items-start gap-3">
                     <Shield className="w-4 h-4 text-blue-400 shrink-0 mt-1" />
                     <span className="text-slate-100 text-sm font-bold">Halal Mode (Music Filtering)</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <Globe className="w-4 h-4 text-purple-400 shrink-0 mt-1" />
+                    <span className="text-slate-100 text-sm font-bold">News Source Control</span>
                   </li>
                   <li className="flex items-start gap-3">
                     <Check className="w-4 h-4 text-green-400 shrink-0 mt-1" />
@@ -202,12 +206,13 @@ export default function PricingPage() {
               <CardFooter className="px-8 pb-8 pt-4 flex-col gap-3">
                 {status === "authenticated" ? (
                   <>
-                    <Button 
-                      onClick={() => setIsPaymentModalOpen(true)}
-                      className="w-full bg-white text-black hover:bg-slate-200 h-12 rounded-xl font-bold text-[15px]"
-                    >
-                      Upgrade Now
-                    </Button>
+                    <Link href={`/checkout?annual=${isAnnual}`} className="w-full">
+                      <Button 
+                        className="w-full bg-white text-black hover:bg-slate-200 h-12 rounded-xl font-bold text-[15px]"
+                      >
+                        Upgrade Now
+                      </Button>
+                    </Link>
                     <Button 
                       onClick={handleClaimTrial}
                       disabled={isTrialLoading || (sessionData?.user as any)?.tier === 'premium'}

@@ -144,7 +144,7 @@ function CheckoutContent() {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 pt-24 pb-12 px-4 font-sans selection:bg-primary/20 text-slate-900 dark:text-slate-100 transition-colors">
-      <div className="max-w-6xl mx-auto bg-white dark:bg-slate-900 rounded-[2rem] shadow-2xl shadow-slate-200/50 dark:shadow-none overflow-hidden flex flex-col md:flex-row border border-slate-200/60 dark:border-slate-800 transition-colors">
+      <div className="max-w-5xl mx-auto bg-white dark:bg-slate-900 rounded-[2rem] shadow-2xl shadow-slate-200/50 dark:shadow-none overflow-hidden flex flex-col md:flex-row border border-slate-200/60 dark:border-slate-800 transition-colors">
         
         {/* Left Side: Order Summary */}
         <div className="w-full md:w-[40%] lg:w-[35%] bg-slate-50/50 dark:bg-slate-800/20 p-8 md:p-10 flex flex-col justify-between relative overflow-hidden border-r border-slate-200/60 dark:border-slate-800 transition-colors">
@@ -205,13 +205,19 @@ function CheckoutContent() {
                   <div className="bg-amber-100 dark:bg-amber-500/20 p-1.5 rounded-lg mt-0.5">
                     <Zap className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400 shrink-0" />
                   </div>
-                  <span className="text-slate-700 dark:text-slate-300 text-sm font-medium">Summarize News</span>
+                  <span className="text-slate-700 dark:text-slate-300 text-sm font-medium">Personalized Summarized News</span>
                 </li>
                 <li className="flex items-start gap-3">
                   <div className="bg-blue-100 dark:bg-blue-500/20 p-1.5 rounded-lg mt-0.5">
                     <Shield className="w-3.5 h-3.5 text-blue-500 dark:text-blue-400 shrink-0" />
                   </div>
                   <span className="text-slate-700 dark:text-slate-300 text-sm font-medium">Halal Mode (Music Filtering)</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <div className="bg-purple-100 dark:bg-purple-500/20 p-1.5 rounded-lg mt-0.5">
+                    <Globe className="w-3.5 h-3.5 text-purple-500 dark:text-purple-400 shrink-0" />
+                  </div>
+                  <span className="text-slate-700 dark:text-slate-300 text-sm font-medium">News Source Control</span>
                 </li>
                 <li className="flex items-start gap-3">
                   <div className="bg-green-100 dark:bg-green-500/20 p-1.5 rounded-lg mt-0.5">
@@ -246,13 +252,13 @@ function CheckoutContent() {
                   <h4 className="font-bold text-slate-700 dark:text-slate-300 text-sm uppercase tracking-wider">Local Gateways</h4>
                 </div>
                 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-3">
                   <div 
                     onClick={() => { setActiveTab("local"); setSelectedMethod("sslcommerz"); }}
-                    className={`relative border-2 rounded-2xl p-4 flex flex-col items-center justify-center cursor-pointer transition-all hover:shadow-md hover:border-blue-600 hover:-translate-y-0.5 h-24 bg-white dark:bg-slate-800 group ${selectedMethod === "sslcommerz" && activeTab === "local" ? "border-blue-600 shadow-lg shadow-blue-600/20 bg-blue-50/50 dark:bg-blue-600/10 ring-4 ring-blue-600/10" : "border-slate-200 dark:border-slate-700"}`}
+                    className={`relative border-2 rounded-2xl p-4 flex flex-row items-center justify-center cursor-pointer transition-all hover:shadow-md hover:border-blue-600 hover:-translate-y-0.5 h-16 bg-white dark:bg-slate-800 group ${selectedMethod === "sslcommerz" && activeTab === "local" ? "border-blue-600 shadow-lg shadow-blue-600/20 bg-blue-50/50 dark:bg-blue-600/10 ring-4 ring-blue-600/10" : "border-slate-200 dark:border-slate-700"}`}
                   >
                     {selectedMethod === "sslcommerz" && activeTab === "local" && (
-                      <div className="absolute top-2 right-2 bg-blue-600 rounded-full p-1 shadow-sm">
+                      <div className="absolute top-1/2 -translate-y-1/2 right-4 bg-blue-600 rounded-full p-1 shadow-sm">
                         <Check className="w-3 h-3 text-white" />
                       </div>
                     )}
@@ -261,10 +267,10 @@ function CheckoutContent() {
 
                   <div 
                     onClick={() => { setActiveTab("local"); setSelectedMethod("aamarpay"); }}
-                    className={`relative border-2 rounded-2xl p-4 flex flex-col items-center justify-center cursor-pointer transition-all hover:shadow-md hover:border-emerald-500 hover:-translate-y-0.5 h-24 bg-white dark:bg-slate-800 group ${selectedMethod === "aamarpay" && activeTab === "local" ? "border-emerald-500 shadow-lg shadow-emerald-500/20 bg-emerald-50/50 dark:bg-emerald-500/10 ring-4 ring-emerald-500/10" : "border-slate-200 dark:border-slate-700"}`}
+                    className={`relative border-2 rounded-2xl p-4 flex flex-row items-center justify-center cursor-pointer transition-all hover:shadow-md hover:border-emerald-500 hover:-translate-y-0.5 h-16 bg-white dark:bg-slate-800 group ${selectedMethod === "aamarpay" && activeTab === "local" ? "border-emerald-500 shadow-lg shadow-emerald-500/20 bg-emerald-50/50 dark:bg-emerald-500/10 ring-4 ring-emerald-500/10" : "border-slate-200 dark:border-slate-700"}`}
                   >
                     {selectedMethod === "aamarpay" && activeTab === "local" && (
-                      <div className="absolute top-2 right-2 bg-emerald-500 rounded-full p-1 shadow-sm">
+                      <div className="absolute top-1/2 -translate-y-1/2 right-4 bg-emerald-500 rounded-full p-1 shadow-sm">
                         <Check className="w-3 h-3 text-white" />
                       </div>
                     )}
@@ -284,14 +290,14 @@ function CheckoutContent() {
                   <h4 className="font-bold text-slate-700 dark:text-slate-300 text-sm uppercase tracking-wider">Global Gateways</h4>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-3">
                   {/* Stripe - ENABLED */}
                   <div 
                     onClick={() => { setActiveTab("global"); setSelectedMethod("stripe"); }}
-                    className={`relative border-2 rounded-2xl p-4 flex flex-col items-center justify-center cursor-pointer transition-all hover:shadow-md hover:border-[#635BFF] hover:-translate-y-0.5 h-24 bg-white dark:bg-slate-800 group ${selectedMethod === "stripe" && activeTab === "global" ? "border-[#635BFF] shadow-lg shadow-[#635BFF]/20 bg-[#635BFF]/5 dark:bg-[#635BFF]/10 ring-4 ring-[#635BFF]/10" : "border-slate-200 dark:border-slate-700"}`}
+                    className={`relative border-2 rounded-2xl p-4 flex flex-row items-center justify-center cursor-pointer transition-all hover:shadow-md hover:border-[#635BFF] hover:-translate-y-0.5 h-16 bg-white dark:bg-slate-800 group ${selectedMethod === "stripe" && activeTab === "global" ? "border-[#635BFF] shadow-lg shadow-[#635BFF]/20 bg-[#635BFF]/5 dark:bg-[#635BFF]/10 ring-4 ring-[#635BFF]/10" : "border-slate-200 dark:border-slate-700"}`}
                   >
                     {selectedMethod === "stripe" && activeTab === "global" && (
-                      <div className="absolute top-2 right-2 bg-[#635BFF] rounded-full p-1 shadow-sm">
+                      <div className="absolute top-1/2 -translate-y-1/2 right-4 bg-[#635BFF] rounded-full p-1 shadow-sm">
                         <Check className="w-3 h-3 text-white" />
                       </div>
                     )}
@@ -301,10 +307,10 @@ function CheckoutContent() {
                   {/* Paddle - ENABLED */}
                   <div 
                     onClick={() => { setActiveTab("global"); setSelectedMethod("paddle"); }}
-                    className={`relative border-2 rounded-2xl p-4 flex flex-col items-center justify-center cursor-pointer transition-all hover:shadow-md hover:border-[#FF5A00] hover:-translate-y-0.5 h-24 bg-white dark:bg-slate-800 group ${selectedMethod === "paddle" && activeTab === "global" ? "border-[#FF5A00] shadow-lg shadow-[#FF5A00]/20 bg-[#FF5A00]/5 dark:bg-[#FF5A00]/10 ring-4 ring-[#FF5A00]/10" : "border-slate-200 dark:border-slate-700"}`}
+                    className={`relative border-2 rounded-2xl p-4 flex flex-row items-center justify-center cursor-pointer transition-all hover:shadow-md hover:border-[#FF5A00] hover:-translate-y-0.5 h-16 bg-white dark:bg-slate-800 group ${selectedMethod === "paddle" && activeTab === "global" ? "border-[#FF5A00] shadow-lg shadow-[#FF5A00]/20 bg-[#FF5A00]/5 dark:bg-[#FF5A00]/10 ring-4 ring-[#FF5A00]/10" : "border-slate-200 dark:border-slate-700"}`}
                   >
                     {selectedMethod === "paddle" && activeTab === "global" && (
-                      <div className="absolute top-2 right-2 bg-[#FF5A00] rounded-full p-1 shadow-sm">
+                      <div className="absolute top-1/2 -translate-y-1/2 right-4 bg-[#FF5A00] rounded-full p-1 shadow-sm">
                         <Check className="w-3 h-3 text-white" />
                       </div>
                     )}
