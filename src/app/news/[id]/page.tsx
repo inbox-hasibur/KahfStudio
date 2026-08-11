@@ -6,7 +6,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { 
   Clock, Globe, ArrowLeft, Play, Share2, Bookmark, 
-  ThumbsUp, MessageCircle, ExternalLink, Tag, Volume2
+  ThumbsUp, MessageCircle, ExternalLink, Tag, Volume2, AlignLeft, Sparkles, Bot, ChevronUp, ChevronDown
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -37,6 +37,39 @@ export default function NewsDetailPage() {
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
   const [relatedStories, setRelatedStories] = useState<any[]>([]);
+  const [activeView, setActiveView] = useState<"full" | "summary">("summary");
+  const [isStickyExpanded, setIsStickyExpanded] = useState(true);
+  const [lastScrollY, setLastScrollY] = useState(0);
+
+  // Auto-collapse sticky bar after 3s, expand on scroll up
+  useEffect(() => {
+    let timeout: NodeJS.Timeout;
+    
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      if (currentScrollY < lastScrollY) {
+        setIsStickyExpanded(true);
+      } else if (currentScrollY > lastScrollY && currentScrollY > 100) {
+        setIsStickyExpanded(false);
+      }
+      setLastScrollY(currentScrollY);
+      
+      clearTimeout(timeout);
+      timeout = setTimeout(() => {
+        setIsStickyExpanded(false);
+      }, 3000);
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    
+    // Initial auto-collapse
+    timeout = setTimeout(() => setIsStickyExpanded(false), 3000);
+    
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      clearTimeout(timeout);
+    };
+  }, [lastScrollY]);
 
   useEffect(() => {
     async function fetchArticle() {
@@ -122,11 +155,11 @@ export default function NewsDetailPage() {
 
   const paragraphs = newsItem.summary.split("\n\n").filter(Boolean);
 
-  const handlePlayAudio = () => {
+  const handlePlayAudio = (type: "full" | "summary") => {
     const event = new CustomEvent('play-audio', {
       detail: {
         title: newsItem.title,
-        summary: newsItem.summary
+        summary: type === "full" ? newsItem.raw_content : newsItem.summary
       }
     });
     window.dispatchEvent(event);
@@ -175,6 +208,55 @@ export default function NewsDetailPage() {
         >
           {newsItem.title}
         </motion.h1>
+
+        {/* View Toggle & Play Buttons */}
+        <motion.div variants={itemVariants} className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 bg-muted/30 p-2 rounded-2xl border border-border">
+          {/* Slider Toggle */}
+          <div className="relative flex items-center bg-background rounded-xl p-1 border border-border w-full md:w-[320px] shadow-sm">
+            <motion.div
+              className="absolute top-1 bottom-1 w-[calc(50%-4px)] bg-primary rounded-lg shadow-sm"
+              animate={{ left: activeView === "summary" ? "4px" : "calc(50% + 0px)" }}
+              transition={{ type: "spring", stiffness: 400, damping: 30 }}
+            />
+            <button
+              onClick={() => setActiveView("summary")}
+              className={`relative flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-bold z-10 transition-colors ${
+                activeView === "summary" ? "text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Sparkles className="w-4 h-4" />
+              Summary
+            </button>
+            <button
+              onClick={() => setActiveView("full")}
+              className={`relative flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-bold z-10 transition-colors ${
+                activeView === "full" ? "text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <AlignLeft className="w-4 h-4" />
+              Full News
+            </button>
+          </div>
+
+          {/* Audio Play Buttons */}
+          <div className="flex items-center gap-2 w-full md:w-auto">
+            <Button 
+              variant="outline" 
+              className="flex-1 md:flex-none rounded-xl gap-2 font-bold border-primary/20 hover:bg-primary/10 text-primary"
+              onClick={() => handlePlayAudio("summary")}
+            >
+              <Play className="w-4 h-4 fill-current" />
+              Play Summary
+            </Button>
+            <Button 
+              className="flex-1 md:flex-none rounded-xl gap-2 font-bold bg-primary text-primary-foreground hover:bg-primary/90 shadow-md shadow-primary/20"
+              onClick={() => handlePlayAudio("full")}
+            >
+              <Volume2 className="w-4 h-4" />
+              Play Full
+            </Button>
+          </div>
+        </motion.div>
 
         {/* Author & Actions Row */}
         <motion.div
@@ -234,10 +316,10 @@ export default function NewsDetailPage() {
           <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
         </motion.div>
 
-        {/* Listen Card */}
+        {/* Listen Card (Hidden in favor of top buttons, but kept for fallback/visual) */}
         <motion.div
           variants={itemVariants}
-          className="flex items-center justify-between p-5 bg-primary/5 rounded-2xl border border-primary/10 mb-10"
+          className="hidden md:flex items-center justify-between p-5 bg-primary/5 rounded-2xl border border-primary/10 mb-10"
         >
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 bg-primary rounded-2xl flex items-center justify-center shadow-lg shadow-primary/20">
@@ -251,7 +333,7 @@ export default function NewsDetailPage() {
             </div>
           </div>
           <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-            <Button onClick={handlePlayAudio} className="bg-primary text-primary-foreground hover:opacity-90 rounded-full font-bold px-6 gap-2">
+            <Button onClick={() => handlePlayAudio(activeView)} className="bg-primary text-primary-foreground hover:opacity-90 rounded-full font-bold px-6 gap-2">
               <Play className="w-4 h-4 fill-current" />
               Play
             </Button>
@@ -259,15 +341,21 @@ export default function NewsDetailPage() {
         </motion.div>
 
         {/* Article Content */}
-        <motion.div variants={itemVariants} className="mb-10">
-          {paragraphs.map((paragraph: string, index: number) => (
-            <p
-              key={index}
-              className="text-[17px] md:text-[18px] leading-[1.7] text-foreground/80 font-medium mb-6 last:mb-0"
-            >
-              {paragraph}
-            </p>
-          ))}
+        <motion.div variants={itemVariants} className="mb-10 min-h-[300px]">
+          {activeView === "summary" ? (
+            paragraphs.map((paragraph: string, index: number) => (
+              <p
+                key={`summary-${index}`}
+                className="text-[17px] md:text-[18px] leading-[1.7] text-foreground/80 font-medium mb-6 last:mb-0"
+              >
+                {paragraph}
+              </p>
+            ))
+          ) : (
+            <div className="text-[17px] md:text-[18px] leading-[1.7] text-foreground/80 font-medium mb-6 whitespace-pre-wrap">
+              {newsItem.raw_content || "Full news content is not available. Please read the original article."}
+            </div>
+          )}
         </motion.div>
 
         {/* Tags */}
@@ -336,6 +424,66 @@ export default function NewsDetailPage() {
           </motion.div>
         )}
       </article>
+
+      {/* Sticky Bottom Collapsible Action Bar */}
+      <motion.div
+        className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center justify-center"
+        initial={{ y: 100, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 1, duration: 0.5 }}
+      >
+        <motion.div
+          className="bg-black/80 backdrop-blur-xl border border-white/10 p-1.5 rounded-full shadow-2xl flex items-center overflow-hidden"
+          animate={{
+            width: isStickyExpanded ? "auto" : "56px",
+            height: "56px",
+          }}
+          transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+        >
+          {/* Expanded Content */}
+          <div className="flex items-center gap-1.5 px-1 whitespace-nowrap opacity-100" style={{ display: isStickyExpanded ? 'flex' : 'none' }}>
+            <Button 
+              variant="ghost" 
+              className="rounded-full text-white hover:bg-white/10 hover:text-white font-semibold text-[13px] h-11 px-4"
+              onClick={() => handlePlayAudio("full")}
+            >
+              <Play className="w-4 h-4 mr-1.5" /> Full News
+            </Button>
+            <div className="w-px h-6 bg-white/20 mx-1" />
+            <Button 
+              variant="ghost" 
+              className="rounded-full text-white hover:bg-white/10 hover:text-white font-semibold text-[13px] h-11 px-4"
+              onClick={() => handlePlayAudio("summary")}
+            >
+              <Sparkles className="w-4 h-4 mr-1.5" /> Summary
+            </Button>
+            <div className="w-px h-6 bg-white/20 mx-1" />
+            <Button 
+              className="rounded-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-[13px] h-11 px-5 shadow-lg shadow-primary/20"
+              onClick={() => alert("Chat feature coming soon!")}
+            >
+              <Bot className="w-4 h-4 mr-1.5" /> Chat with News
+            </Button>
+            
+            <button 
+              className="w-10 h-10 rounded-full flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-colors ml-1"
+              onClick={() => setIsStickyExpanded(false)}
+            >
+              <ChevronDown className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Collapsed Content */}
+          <div className="absolute inset-0 flex items-center justify-center opacity-100" style={{ display: !isStickyExpanded ? 'flex' : 'none' }}>
+            <button 
+              className="w-full h-full flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+              onClick={() => setIsStickyExpanded(true)}
+            >
+              <ChevronUp className="w-5 h-5" />
+            </button>
+          </div>
+        </motion.div>
+      </motion.div>
     </motion.main>
   );
 }

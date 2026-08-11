@@ -18,61 +18,52 @@ interface HeadlineCardProps {
 const HeadlineCard = ({ news, index = 0 }: HeadlineCardProps) => {
   return (
     <motion.div 
-      className="relative min-w-[320px] md:min-w-[420px] h-[260px] md:h-[300px] rounded-[28px] overflow-hidden group cursor-pointer snap-center card-hover"
+      className="relative min-w-[340px] md:min-w-[480px] h-[220px] md:h-[260px] rounded-[24px] overflow-hidden group cursor-pointer snap-center card-hover bg-gradient-to-br from-slate-900 via-slate-800 to-black border border-white/5"
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.5, delay: index * 0.1 }}
-      whileHover={{ y: -4 }}
+      whileHover={{ y: -4, scale: 1.02 }}
     >
-      {/* Background Image - Enhanced with parallax effect */}
-      <motion.img
-        src={news.imageUrl}
-        alt={news.title}
-        className="absolute inset-0 w-full h-full object-cover"
-        whileHover={{ scale: 1.1 }}
-        transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-      />
-
-      {/* Multi-layer Gradient Overlay - Better text readability */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />
-      <div className="absolute inset-0 bg-gradient-to-r from-black/40 to-transparent" />
+      {/* Decorative Background Elements */}
+      <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl group-hover:bg-primary/20 transition-all duration-700" />
+      <div className="absolute bottom-0 left-0 w-40 h-40 bg-blue-500/10 rounded-full blur-2xl group-hover:bg-blue-500/20 transition-all duration-700" />
 
       {/* Animated Glow Border on Hover */}
       <motion.div 
-        className="absolute inset-0 rounded-[28px] border-2 border-transparent group-hover:border-primary/30 transition-all duration-500 pointer-events-none"
-        whileHover={{ boxShadow: "0 0 40px rgba(59, 130, 246, 0.2)" }}
+        className="absolute inset-0 rounded-[24px] border border-transparent group-hover:border-primary/30 transition-all duration-500 pointer-events-none"
+        whileHover={{ boxShadow: "inset 0 0 20px rgba(59, 130, 246, 0.1)" }}
       />
 
       {/* Content - Improved hierarchy with white space */}
       <div className="absolute inset-0 p-6 md:p-8 flex flex-col justify-end">
         {/* Top Section: Category & Source - Clear visual separation */}
-        <div className="flex items-center justify-between mb-4">
-          <Badge className="bg-primary text-primary-foreground border-none text-[10px] font-bold px-3 py-1.5 uppercase tracking-wider shadow-lg">
+        <div className="flex items-center justify-between mb-auto pb-4">
+          <Badge className="bg-primary/20 text-primary border border-primary/30 text-[10px] font-bold px-3 py-1.5 uppercase tracking-wider">
             {news.category}
           </Badge>
-          <span className="text-[11px] font-semibold text-white/70 uppercase tracking-wider bg-black/20 px-2 py-1 rounded-lg backdrop-blur-sm">
+          <span className="text-[11px] font-semibold text-white/60 uppercase tracking-wider">
             {news.source}
           </span>
         </div>
 
         {/* Title - Emphasis through typography */}
-        <h2 className="text-lg md:text-xl lg:text-2xl font-bold text-white leading-tight tracking-tight mb-4 group-hover:text-primary/90 transition-colors line-clamp-2 drop-shadow-lg">
+        <h2 className="text-lg md:text-xl lg:text-2xl font-bold text-white leading-snug tracking-tight mb-4 group-hover:text-primary transition-colors line-clamp-3">
           {news.title}
         </h2>
 
         {/* Bottom Action Bar - Balance and alignment */}
         <div className="flex items-center justify-between">
           <motion.button
-            className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full text-white text-xs font-semibold transition-all border border-white/10"
-            whileHover={{ scale: 1.02, backgroundColor: "rgba(255,255,255,0.2)" }}
+            className="flex items-center gap-2 px-5 py-2.5 bg-white/5 hover:bg-primary/20 rounded-full text-white text-xs font-semibold transition-all border border-white/10 group-hover:border-primary/50"
+            whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
           >
-            <Play className="w-4 h-4 fill-white" />
+            <Play className="w-4 h-4 text-primary group-hover:text-white" fill="currentColor" />
             <span>Listen</span>
           </motion.button>
           
           <motion.button
-            className="p-2 text-white/60 hover:text-white transition-colors rounded-full hover:bg-white/10"
+            className="p-2.5 text-white/60 hover:text-white transition-colors rounded-full hover:bg-white/10 bg-white/5 border border-white/5"
             whileHover={{ scale: 1.1, rotate: 15 }}
             whileTap={{ scale: 0.9 }}
           >

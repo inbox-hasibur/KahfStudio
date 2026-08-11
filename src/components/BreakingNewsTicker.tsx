@@ -14,7 +14,7 @@ export default function BreakingNewsTicker({ items = [] }: BreakingNewsTickerPro
     <div className="w-full bg-[#111116]/60 backdrop-blur-md border border-primary/30 rounded-2xl text-white flex items-center relative overflow-hidden mb-8 shadow-sm">
       <div className="flex-shrink-0 bg-primary/20 text-primary font-bold px-4 py-2.5 border-r border-primary/30 flex items-center gap-2 z-10 backdrop-blur-md">
         <span className="w-2 h-2 rounded-full bg-primary animate-pulse-glow"></span>
-        <span className="font-serif">ব্রেকিং নিউজ</span>
+        <span className="font-serif">নিউজ</span>
       </div>
       
       <div className="flex-1 overflow-hidden whitespace-nowrap relative flex items-center h-10">
