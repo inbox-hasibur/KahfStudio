@@ -2,9 +2,10 @@
 
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { Check, Star, Zap, Shield, Headphones, Archive, Loader2 } from "lucide-react";
+import { Check, Star, Zap, Shield, Headphones, Archive, Loader2, CreditCard, Wallet, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useSession } from "@/lib/auth-client";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
@@ -13,17 +14,42 @@ export default function PricingPage() {
   const { data: sessionData, status } = useSession();
   const [isAnnual, setIsAnnual] = useState(false);
   const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
+  const [isTrialLoading, setIsTrialLoading] = useState(false);
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
 
-  const handleCheckout = async () => {
+  const handleClaimTrial = async () => {
+    if (!sessionData?.user?.id) return;
+    setIsTrialLoading(true);
+    try {
+      const response = await fetch('/api/checkout/trial', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: sessionData.user.id })
+      });
+      const data = await response.json();
+      if (data.success) {
+        // Redirect to success page mimicking local gateways to trigger session refresh
+        window.location.href = '/pricing/success?gateway=sslcommerz';
+      } else {
+        alert(data.error || 'Failed to claim trial');
+        setIsTrialLoading(false);
+      }
+    } catch (err) {
+      alert('Network error while claiming trial');
+      setIsTrialLoading(false);
+    }
+  };
+
+  const handleCheckout = async (gateway: 'lemonsqueezy' | 'aamarpay') => {
     if (!sessionData?.user?.id) return;
     setIsCheckoutLoading(true);
     try {
-      const response = await fetch('/api/checkout', {
+      const response = await fetch(`/api/checkout/${gateway}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ userId: sessionData.user.id }),
+        body: JSON.stringify({ userId: sessionData.user.id, isAnnual }),
       });
       const data = await response.json();
       if (data.url) {
@@ -49,8 +75,6 @@ export default function PricingPage() {
       <Navbar />
       
       <main className="flex-1 flex flex-col items-center justify-center pt-32 pb-24 px-4 md:px-6 relative overflow-hidden">
-
-
         <motion.div className="text-center max-w-3xl mx-auto mb-10 z-10" {...fadeIn}>
           <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-6">
             Choose Your Plan
@@ -155,18 +179,17 @@ export default function PricingPage() {
               
               <CardContent className="px-8 flex-1">
                 <ul className="space-y-4">
-                  {/* Premium Extra Features */}
                   <li className="flex items-start gap-3">
                     <Zap className="w-4 h-4 text-amber-400 shrink-0 mt-1" />
-                    <span className="text-slate-100 text-sm font-bold">Personalized News Generation</span>
+                    <span className="text-slate-100 text-sm font-bold">Summarize News</span>
                   </li>
                   <li className="flex items-start gap-3">
                     <Shield className="w-4 h-4 text-blue-400 shrink-0 mt-1" />
-                    <span className="text-slate-100 text-sm font-bold">Halal Mode (MDX-Net Filtering)</span>
+                    <span className="text-slate-100 text-sm font-bold">Halal Mode (Music Filtering)</span>
                   </li>
                   <li className="flex items-start gap-3">
-                    <Check className="w-5 h-5 text-green-500 shrink-0 mt-0.5" />
-                    <span className="text-slate-200 text-sm font-medium">BYOK (Bring Your Own Key) Support</span>
+                    <Check className="w-4 h-4 text-green-400 shrink-0 mt-1" />
+                    <span className="text-slate-100 text-sm font-bold">Custom API Support</span>
                   </li>
                   <li className="flex items-start gap-3">
                     <Check className="w-5 h-5 text-green-500 shrink-0 mt-0.5" />
@@ -176,19 +199,24 @@ export default function PricingPage() {
                   <li className="text-xs text-slate-400">Plus all Free plan features</li>
                 </ul>
               </CardContent>
-              <CardFooter className="px-8 pb-8 pt-4">
+              <CardFooter className="px-8 pb-8 pt-4 flex-col gap-3">
                 {status === "authenticated" ? (
-                  <Button 
-                    onClick={handleCheckout} 
-                    disabled={isCheckoutLoading}
-                    className="w-full bg-white text-black hover:bg-slate-200 h-12 rounded-xl font-bold text-[15px]"
-                  >
-                    {isCheckoutLoading ? (
-                      <span className="flex items-center gap-2">
-                        <Loader2 className="w-4 h-4 animate-spin" /> Processing...
-                      </span>
-                    ) : "Upgrade Now"}
-                  </Button>
+                  <>
+                    <Button 
+                      onClick={() => setIsPaymentModalOpen(true)}
+                      className="w-full bg-white text-black hover:bg-slate-200 h-12 rounded-xl font-bold text-[15px]"
+                    >
+                      Upgrade Now
+                    </Button>
+                    <Button 
+                      onClick={handleClaimTrial}
+                      disabled={isTrialLoading || (sessionData?.user as any)?.tier === 'premium'}
+                      variant="outline"
+                      className="w-full h-12 rounded-xl font-bold text-[15px] border-primary/50 text-primary hover:bg-primary hover:text-primary-foreground"
+                    >
+                      {isTrialLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Claim 7-Day Free Trial"}
+                    </Button>
+                  </>
                 ) : (
                   <Link href="/register" className="w-full">
                     <Button className="w-full bg-white text-black hover:bg-slate-200 h-12 rounded-xl font-bold text-[15px]">

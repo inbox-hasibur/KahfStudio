@@ -16,6 +16,20 @@ function CheckoutSuccessContent() {
   const [invoiceUrl, setInvoiceUrl] = useState<string | null>(null);
 
   useEffect(() => {
+    const gateway = searchParams.get("gateway");
+    
+    // For local gateways, verification is already handled by the callback route
+    if (gateway === "sslcommerz" || gateway === "aamarpay") {
+      const refresh = async () => {
+        const supabase = createClient();
+        await supabase.auth.refreshSession();
+        setStatus("success");
+        setInvoiceUrl(`/pricing/invoice?gateway=${gateway}`);
+      };
+      refresh();
+      return;
+    }
+
     if (!sessionId) {
       setStatus("error");
       return;

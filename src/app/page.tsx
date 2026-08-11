@@ -8,7 +8,8 @@ import MainFeed from "@/components/MainFeed";
 import AudioPlayer from "@/components/AudioPlayer";
 import BreakingNewsTicker from "@/components/BreakingNewsTicker";
 import { useNews, useWeather } from "@/hooks/useNews";
-import { Newspaper, Loader2, Calendar, Sparkles, CloudSun, Play, FileText } from "lucide-react";
+import { Newspaper, Loader2, Calendar, Sparkles, CloudSun, Play, FileText, Star } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { useSession } from "@/lib/auth-client";
 
 
@@ -157,6 +158,28 @@ export default function Home() {
         </div>
       </motion.section>
       
+      {/* Trial Banner */}
+      {(sessionData?.user as any)?.trial_days_left !== undefined && (
+        <motion.section variants={itemVariants} className="mb-10 md:mb-14">
+          <div className="bg-primary/10 border border-primary/20 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+                <Star className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <h3 className="font-bold text-primary">7-Day Free Trial</h3>
+                <p className="text-sm text-muted-foreground">You have <strong>{(sessionData?.user as any)?.trial_days_left} days</strong> left in your premium trial.</p>
+              </div>
+            </div>
+            <Link href="/pricing" className="w-full sm:w-auto">
+              <Button size="sm" variant="outline" className="w-full border-primary text-primary hover:bg-primary hover:text-white font-bold">
+                Upgrade Now
+              </Button>
+            </Link>
+          </div>
+        </motion.section>
+      )}
+
       {/* AI Daily Briefing / Video Podcast Section */}
       <motion.section variants={itemVariants} className="mb-10 md:mb-16">
         <div className="bg-card/50 backdrop-blur-sm border border-border rounded-2xl p-6 flex flex-col md:flex-row gap-6 items-center justify-between relative overflow-hidden shadow-sm hover:shadow-md transition-shadow">

@@ -13,11 +13,51 @@ export function useSession(options?: any) {
       name: user.user_metadata?.full_name || user.email?.split('@')[0],
       image: user.user_metadata?.avatar_url,
       role: user.user_metadata?.role || "user",
-      tier: user.user_metadata?.tier || "free"
+      tier: user.user_metadata?.tier || "free",
+      trial_days_left: user.user_metadata?.trial_days_left
     });
     const fetchSession = async () => {
       const { data: { session: activeSession } } = await supabase.auth.getSession();
       if (activeSession) {
+        // Fetch latest profile to ensure tier/role are in sync with DB
+        const { data: profile } = await supabase.from('profiles').select('tier, role').eq('id', activeSession.user.id).single();
+        if (profile) {
+          activeSession.user.user_metadata = {
+            ...activeSession.user.user_metadata,
+            tier: profile.tier,
+            role: profile.role
+          };
+        }
+
+        // Check trial expiration
+        if (activeSession.user.user_metadata.tier === 'premium') {
+          const { data: sub } = await supabase
+            .from('subscriptions')
+            .select('plan_type, valid_until, status')
+            .eq('user_id', activeSession.user.id)
+            .eq('status', 'trialing')
+            .single();
+
+          if (sub) {
+            const validUntil = new Date(sub.valid_until);
+            if (new Date() > validUntil) {
+              // Trial expired!
+              await fetch('/api/checkout/trial/expire', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: activeSession.user.id })
+              }).catch(() => {});
+              
+              activeSession.user.user_metadata.tier = 'free';
+            } else {
+              // Trial is still active, inject days remaining
+              const diffTime = Math.abs(validUntil.getTime() - new Date().getTime());
+              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+              activeSession.user.user_metadata.trial_days_left = diffDays;
+            }
+          }
+        }
+        
         setSession({ user: formatUser(activeSession.user) });
         setStatus('authenticated');
       } else {
@@ -27,8 +67,44 @@ export function useSession(options?: any) {
     };
     fetchSession();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, activeSession) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, activeSession) => {
       if (activeSession) {
+        // Fetch latest profile to ensure tier/role are in sync with DB
+        const { data: profile } = await supabase.from('profiles').select('tier, role').eq('id', activeSession.user.id).single();
+        if (profile) {
+          activeSession.user.user_metadata = {
+            ...activeSession.user.user_metadata,
+            tier: profile.tier,
+            role: profile.role
+          };
+        }
+        // Check trial expiration
+        if (activeSession.user.user_metadata.tier === 'premium') {
+          const { data: sub } = await supabase
+            .from('subscriptions')
+            .select('plan_type, valid_until, status')
+            .eq('user_id', activeSession.user.id)
+            .eq('status', 'trialing')
+            .single();
+
+          if (sub) {
+            const validUntil = new Date(sub.valid_until);
+            if (new Date() > validUntil) {
+              await fetch('/api/checkout/trial/expire', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: activeSession.user.id })
+              }).catch(() => {});
+              
+              activeSession.user.user_metadata.tier = 'free';
+            } else {
+              const diffTime = Math.abs(validUntil.getTime() - new Date().getTime());
+              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+              activeSession.user.user_metadata.trial_days_left = diffDays;
+            }
+          }
+        }
+        
         setSession({ user: formatUser(activeSession.user) });
         setStatus('authenticated');
       } else {

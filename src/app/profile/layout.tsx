@@ -4,7 +4,7 @@ import React from "react";
 import Link from "next/link";
 import { usePathname, redirect } from "next/navigation";
 import { motion } from "framer-motion";
-import { LayoutDashboard, Key, Cpu, Settings, User } from "lucide-react";
+import { LayoutDashboard, Key, Cpu, Settings, User, Database, Library } from "lucide-react";
 import { useSession } from "@/lib/auth-client";
 
 export default function ProfileLayout({
@@ -29,6 +29,15 @@ export default function ProfileLayout({
     { name: "BYOK & API Management", href: "/profile/byok", icon: Key },
     { name: "Preferences", href: "/profile/preferences", icon: Settings },
   ];
+
+  const isPremium = (session?.user as any)?.tier === "premium" || (session?.user as any)?.role === "admin";
+
+  if (isPremium) {
+    navItems.splice(1, 0, 
+      { name: "Scraping Control", href: "/admin/scraping", icon: Database },
+      { name: "News Approval", href: "/admin/library", icon: Library }
+    );
+  }
 
   if ((session?.user as any)?.role === "admin") {
     navItems.push({ name: "Admin Panel", href: "/admin", icon: Cpu });

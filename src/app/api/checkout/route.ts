@@ -13,25 +13,30 @@ export async function POST(req: Request) {
                    (host ? `${protocol}://${host}` : process.env.NEXT_PUBLIC_APP_URL) || 
                    'http://localhost:3000';
     
-    // Parse the request body for user id
+    // Parse the request body for user id and isAnnual
     const body = await req.json().catch(() => ({}));
     const userId = body.userId;
+    const isAnnual = body.isAnnual === true;
 
     if (!userId) {
       return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
     }
+
+    // Global Pricing is $1 / $10
+    const unitAmount = isAnnual ? 1000 : 100; // 1000 cents = $10, 100 cents = $1
+    const planName = isAnnual ? 'KahfStudio Premium (Yearly)' : 'KahfStudio Premium (Monthly)';
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [
         {
           price_data: {
-            currency: 'bdt',
+            currency: 'usd',
             product_data: {
-              name: 'KahfStudio Premium - Demo Test',
-              description: 'Lifetime Premium access (Demo)',
+              name: planName,
+              description: 'Full access to personalized AI news and premium features.',
             },
-            unit_amount: 10000, // 100 BDT in cents
+            unit_amount: unitAmount,
           },
           quantity: 1,
         },
