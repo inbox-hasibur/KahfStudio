@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 import HeadlineCard from "./HeadlineCard";
 import { Flame, TrendingUp } from "lucide-react";
@@ -21,6 +21,44 @@ const containerVariants = {
 };
 
 const HeadlineSlider = ({ headlines }: HeadlineSliderProps) => {
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const scrollContainer = scrollRef.current;
+    if (!scrollContainer) return;
+
+    let animationFrameId: number;
+    let scrollPos = 0;
+
+    const scroll = () => {
+      scrollPos += 0.5; // Adjust speed here
+      if (scrollPos >= scrollContainer.scrollWidth / 2) {
+        scrollPos = 0;
+      }
+      scrollContainer.scrollLeft = scrollPos;
+      animationFrameId = requestAnimationFrame(scroll);
+    };
+
+    animationFrameId = requestAnimationFrame(scroll);
+
+    const handleMouseEnter = () => cancelAnimationFrame(animationFrameId);
+    const handleMouseLeave = () => {
+      animationFrameId = requestAnimationFrame(scroll);
+    };
+
+    scrollContainer.addEventListener('mouseenter', handleMouseEnter);
+    scrollContainer.addEventListener('mouseleave', handleMouseLeave);
+
+    return () => {
+      cancelAnimationFrame(animationFrameId);
+      scrollContainer.removeEventListener('mouseenter', handleMouseEnter);
+      scrollContainer.removeEventListener('mouseleave', handleMouseLeave);
+    };
+  }, [headlines]);
+
+  // Duplicate headlines for seamless infinite scroll
+  const displayHeadlines = [...headlines, ...headlines];
+
   return (
     <motion.section
       initial="hidden"
@@ -65,12 +103,13 @@ const HeadlineSlider = ({ headlines }: HeadlineSliderProps) => {
       
       {/* Headlines Carousel - Repetition with variation */}
       <motion.div 
-        className="flex gap-6 overflow-x-auto pb-8 no-scrollbar snap-x snap-mandatory cursor-grab active:cursor-grabbing"
+        ref={scrollRef}
+        className="flex gap-4 overflow-x-auto pb-4 no-scrollbar snap-x snap-mandatory cursor-grab active:cursor-grabbing w-full"
         variants={containerVariants}
       >
-        {headlines.map((item, index) => (
+        {displayHeadlines.map((item, index) => (
           <motion.div
-            key={item.id}
+            key={`${item.id}-${index}`}
             initial={{ opacity: 0, x: 50 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ 

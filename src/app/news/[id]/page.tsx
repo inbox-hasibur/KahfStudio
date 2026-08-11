@@ -81,7 +81,8 @@ export default function NewsDetailPage() {
           setNewsItem({
             id: item.id,
             title: item.headline,
-            summary: item.ai_summary || item.raw_content,
+            summary: item.ai_summary || item.summary || item.raw_content,
+            raw_content: item.raw_content || item.content || item.summary || "Full news content is not available.",
             category: item.category || "General",
             source: item.source || "Unknown",
             publishedAt: item.published_at || item.created_at,
@@ -316,30 +317,6 @@ export default function NewsDetailPage() {
           <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
         </motion.div>
 
-        {/* Listen Card (Hidden in favor of top buttons, but kept for fallback/visual) */}
-        <motion.div
-          variants={itemVariants}
-          className="hidden md:flex items-center justify-between p-5 bg-primary/5 rounded-2xl border border-primary/10 mb-10"
-        >
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-primary rounded-2xl flex items-center justify-center shadow-lg shadow-primary/20">
-              <Volume2 className="w-6 h-6 text-primary-foreground" />
-            </div>
-            <div>
-              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-0.5">
-                Listen to this story
-              </p>
-              <p className="text-foreground font-semibold">AI Voice Briefing</p>
-            </div>
-          </div>
-          <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-            <Button onClick={() => handlePlayAudio(activeView)} className="bg-primary text-primary-foreground hover:opacity-90 rounded-full font-bold px-6 gap-2">
-              <Play className="w-4 h-4 fill-current" />
-              Play
-            </Button>
-          </motion.div>
-        </motion.div>
-
         {/* Article Content */}
         <motion.div variants={itemVariants} className="mb-10 min-h-[300px]">
           {activeView === "summary" ? (
@@ -474,13 +451,17 @@ export default function NewsDetailPage() {
           </div>
 
           {/* Collapsed Content */}
-          <div className="absolute inset-0 flex items-center justify-center opacity-100" style={{ display: !isStickyExpanded ? 'flex' : 'none' }}>
-            <button 
-              className="w-full h-full flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 transition-colors"
-              onClick={() => setIsStickyExpanded(true)}
-            >
-              <ChevronUp className="w-5 h-5" />
-            </button>
+          <div 
+            className="absolute inset-0 flex items-center justify-center opacity-100 cursor-pointer hover:bg-white/10 transition-colors" 
+            style={{ display: !isStickyExpanded ? 'flex' : 'none' }}
+            onMouseEnter={() => setIsStickyExpanded(true)}
+            onClick={() => setIsStickyExpanded(true)}
+          >
+            <div className="flex items-center gap-1">
+              <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+              <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" style={{ animationDelay: "150ms" }} />
+              <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" style={{ animationDelay: "300ms" }} />
+            </div>
           </div>
         </motion.div>
       </motion.div>
