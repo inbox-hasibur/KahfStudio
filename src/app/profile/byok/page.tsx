@@ -7,39 +7,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Key, Lock, Sparkles } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
+import { useSession } from "@/lib/auth-client";
 import Link from "next/link";
 
 export default function BYOKPage() {
-<<<<<<< Updated upstream
-  const [tier, setTier] = useState<string>("free");
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function checkTier() {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data } = await supabase.from('profiles').select('tier').eq('id', user.id).single();
-        if (data && data.tier) {
-          setTier(data.tier);
-        }
-      }
-      setLoading(false);
-    }
-    checkTier();
-  }, []);
-
-  if (loading) {
-=======
   const { data: session, status } = useSession();
   const isPremium = (session?.user as any)?.tier === "premium" || (session?.user as any)?.role === "admin";
 
   if (status === 'loading') {
->>>>>>> Stashed changes
     return <div className="text-center py-12 text-muted-foreground">Checking access...</div>;
   }
 
-  if (tier !== 'premium') {
+  if (!isPremium) {
     return (
       <motion.div
         initial={{ opacity: 0, y: 10 }}
