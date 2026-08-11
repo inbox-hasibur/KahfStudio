@@ -8,7 +8,7 @@ import MainFeed from "@/components/MainFeed";
 import AudioPlayer from "@/components/AudioPlayer";
 import BreakingNewsTicker from "@/components/BreakingNewsTicker";
 import { useNews, useWeather } from "@/hooks/useNews";
-import { Newspaper, Loader2, Calendar, Sparkles, CloudSun, Play, FileText, Star } from "lucide-react";
+import { Newspaper, Loader2, Calendar, Sparkles, CloudSun, Play, FileText, Star, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useSession } from "@/lib/auth-client";
 
@@ -216,8 +216,18 @@ export default function Home() {
               </div>
           </div>
           
-          <div className="flex-shrink-0 z-10 mt-4 md:mt-0">
-             <Link href="/news/daily-summary" className="px-6 py-3 bg-secondary text-secondary-foreground hover:bg-secondary/80 hover:text-foreground font-semibold text-sm rounded-xl transition-all shadow-sm flex items-center gap-2 border border-border">
+          <div className="flex-shrink-0 z-10 mt-4 md:mt-0 flex flex-col sm:flex-row gap-3">
+             <Button 
+               onClick={() => {
+                 const audioPlayerTrigger = document.getElementById("global-audio-trigger");
+                 if (audioPlayerTrigger) audioPlayerTrigger.click();
+               }}
+               className="px-6 py-5 bg-primary text-primary-foreground hover:bg-primary/90 font-bold text-sm rounded-xl shadow-sm flex items-center justify-center gap-2"
+             >
+               <Volume2 className="w-4 h-4" />
+               <span className="notranslate">শুনুন</span>
+             </Button>
+             <Link href="/news/daily-summary" className="px-6 py-5 bg-secondary text-secondary-foreground hover:bg-secondary/80 hover:text-foreground font-bold text-sm rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 border border-border">
                <FileText className="w-4 h-4" />
                <span className="notranslate">পড়ুন</span>
              </Link>
