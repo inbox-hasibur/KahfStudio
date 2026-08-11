@@ -7,8 +7,8 @@ import Link from "next/link";
 import { 
   Clock, Globe, ArrowLeft, Play, Share2, Bookmark, 
   ThumbsUp, MessageCircle, ExternalLink, Tag, Volume2, AlignLeft, Sparkles, Bot, ChevronUp, ChevronDown
-} from "lucide-react";
 import { Button } from "@/components/ui/button";
+import ReactMarkdown from "react-markdown";
 
 // Using Unsplash source for placeholder images based on category
 const getPlaceholderImage = (category: string) => {
@@ -154,7 +154,36 @@ export default function NewsDetailPage() {
     minute: "2-digit",
   });
 
-  const paragraphs = newsItem.summary.split("\n\n").filter(Boolean);
+  const paragraphs = newsItem.summary?.split("\n\n").filter(Boolean) || [];
+
+  // Cleanup layer for raw content
+  const extractContentAndMeta = (raw: string) => {
+    if (!raw) return { body: "", meta: [] };
+    
+    const lines = raw.split("\n");
+    const meta: string[] = [];
+    const body: string[] = [];
+    
+    const metaKeywords = ["source:", "author:", "date:", "published:", "category:", "tags:"];
+    
+    lines.forEach(line => {
+      const lowerLine = line.toLowerCase().trim();
+      const isMeta = metaKeywords.some(keyword => lowerLine.startsWith(keyword));
+      
+      if (isMeta || (line.trim().startsWith("- ") && metaKeywords.some(kw => lowerLine.includes(kw)))) {
+        meta.push(line.replace(/^- /, '').trim());
+      } else {
+        body.push(line);
+      }
+    });
+
+    return { 
+      body: body.join("\n").replace(/\n{3,}/g, '\n\n').trim(), 
+      meta 
+    };
+  };
+
+  const { body: cleanBody, meta: extractedMeta } = extractContentAndMeta(newsItem.raw_content);
 
   const handlePlayAudio = (type: "full" | "summary") => {
     const event = new CustomEvent('play-audio', {
@@ -325,14 +354,32 @@ export default function NewsDetailPage() {
             paragraphs.map((paragraph: string, index: number) => (
               <p
                 key={`summary-${index}`}
-                className="text-[17px] md:text-[18px] leading-[1.7] text-foreground/80 font-medium mb-6 last:mb-0"
+                className="text-[17px] md:text-[18px] leading-[1.8] text-foreground/80 font-medium mb-6 last:mb-0"
               >
                 {paragraph}
               </p>
             ))
           ) : (
-            <div className="text-[17px] md:text-[18px] leading-[1.7] text-foreground/80 font-medium mb-6 whitespace-pre-wrap">
-              {newsItem.raw_content || "Full news content is not available. Please read the original article."}
+            <div className="prose prose-lg dark:prose-invert prose-p:text-[17px] md:prose-p:text-[18px] prose-p:leading-[1.8] prose-p:text-foreground/80 prose-p:font-medium prose-a:text-primary max-w-none prose-img:rounded-2xl prose-img:w-full prose-headings:font-bold prose-headings:text-foreground">
+              {cleanBody ? (
+                <ReactMarkdown>{cleanBody}</ReactMarkdown>
+              ) : (
+                <p>Full news content is not available. Please read the original article.</p>
+              )}
+              
+              {/* Extracted Metadata at the bottom */}
+              {extractedMeta.length > 0 && (
+                <div className="mt-12 p-6 bg-muted/30 rounded-2xl border border-border">
+                  <h4 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-4">Extracted Metadata</h4>
+                  <ul className="space-y-2">
+                    {extractedMeta.map((m, i) => (
+                      <li key={i} className="text-sm text-foreground/70 font-medium flex items-start gap-2">
+                        <span className="text-primary mt-1">•</span> {m}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
           )}
         </motion.div>

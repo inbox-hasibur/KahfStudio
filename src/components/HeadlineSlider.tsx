@@ -50,39 +50,18 @@ const HeadlineSlider = ({ headlines }: HeadlineSliderProps) => {
       animate="visible"
       variants={containerVariants}
     >
-      {/* Section Header - Enhanced with design theory: hierarchy, emphasis */}
+      {/* Section Header - Clean and Minimal */}
       <motion.div 
-        className="flex items-center justify-between mb-8"
+        className="flex items-center mb-8"
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
-        <div className="flex items-center gap-3">
-          <motion.div 
-            className="relative"
-            animate={{ 
-              boxShadow: [
-                "0 0 0 0 rgba(239, 68, 68, 0.4)",
-                "0 0 20px 5px rgba(239, 68, 68, 0.2)",
-                "0 0 0 0 rgba(239, 68, 68, 0.4)"
-              ]
-            }
-            }
-            transition={{ duration: 2, repeat: Infinity }}
-          >
-            <div className="w-3 h-3 rounded-full bg-red-500" />
-          </motion.div>
-          <div className="flex items-center gap-2">
-            <Flame className="w-4 h-4 text-red-500" />
-            <h2 className="text-caption text-foreground font-bold font-serif">
-              শীর্ষ খবর
-            </h2>
-          </div>
-        </div>
-        
-        <div className="flex items-center gap-2 text-muted-foreground">
-          <TrendingUp className="w-4 h-4" />
-          <span className="text-[12px] font-medium font-serif">এখন ট্রেন্ডিং</span>
+        <div className="flex items-center gap-2">
+          <Flame className="w-6 h-6 text-primary" />
+          <h2 className="text-2xl md:text-3xl text-foreground font-bold font-serif">
+            শীর্ষ খবর
+          </h2>
         </div>
       </motion.div>
       
