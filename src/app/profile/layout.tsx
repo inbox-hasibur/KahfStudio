@@ -4,7 +4,7 @@ import React from "react";
 import Link from "next/link";
 import { usePathname, redirect } from "next/navigation";
 import { motion } from "framer-motion";
-import { LayoutDashboard, Key, Cpu, Settings, User, Database, Library } from "lucide-react";
+import { LayoutDashboard, Key, Cpu, Settings, User, Database, Library, Lock } from "lucide-react";
 import { useSession } from "@/lib/auth-client";
 
 export default function ProfileLayout({
@@ -24,23 +24,18 @@ export default function ProfileLayout({
     return <div className="pt-32 text-center text-muted-foreground">Loading Profile...</div>;
   }
 
-  const navItems = [
-    { name: "Dashboard", href: "/profile", icon: LayoutDashboard },
-    { name: "BYOK & API Management", href: "/profile/byok", icon: Key },
-    { name: "Preferences", href: "/profile/preferences", icon: Settings },
-  ];
-
   const isPremium = (session?.user as any)?.tier === "premium" || (session?.user as any)?.role === "admin";
 
-  if (isPremium) {
-    navItems.splice(1, 0, 
-      { name: "Scraping Control", href: "/admin/scraping", icon: Database },
-      { name: "News Approval", href: "/admin/library", icon: Library }
-    );
-  }
+  const navItems = [
+    { name: "Dashboard", href: "/profile", icon: LayoutDashboard },
+    { name: "Scraping Control", href: "/profile/scraping", icon: Database, isPremiumFeature: true },
+    { name: "News Approval", href: "/profile/library", icon: Library, isPremiumFeature: true },
+    { name: "BYOK & API Management", href: "/profile/byok", icon: Key, isPremiumFeature: true },
+    { name: "Preferences", href: "/profile/preferences", icon: Settings, isPremiumFeature: false },
+  ];
 
   if ((session?.user as any)?.role === "admin") {
-    navItems.push({ name: "Admin Panel", href: "/admin", icon: Cpu });
+    navItems.push({ name: "Admin Panel", href: "/admin", icon: Cpu, isPremiumFeature: false });
   }
 
   return (

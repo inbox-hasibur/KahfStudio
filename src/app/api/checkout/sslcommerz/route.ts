@@ -57,7 +57,12 @@ export async function POST(req: Request) {
     formData.append('value_a', userId);
     formData.append('value_b', isAnnual ? 'yearly' : 'monthly');
 
-    const response = await fetch("https://sandbox-gw.sslcommerz.com/gwprocess/v4/api.php", {
+    const isLive = process.env.SSLCOMMERZ_IS_LIVE === 'true';
+    const gatewayUrl = isLive 
+      ? "https://securepay.sslcommerz.com/gwprocess/v4/api.php" 
+      : "https://sandbox-gw.sslcommerz.com/gwprocess/v4/api.php";
+
+    const response = await fetch(gatewayUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded'

@@ -303,14 +303,14 @@ const Navbar = () => {
                               </Link>
                               
                               {/* Show Scraping Control and News Approval for All non-admin users, but show lock for free */}
-                              <Link href="/admin/scraping" onClick={() => setIsProfileDropdownOpen(false)}>
+                              <Link href="/profile/scraping" onClick={() => setIsProfileDropdownOpen(false)}>
                                 <div className={`px-3 py-2 text-[13px] font-medium hover:bg-slate-800 rounded-xl cursor-pointer transition-colors flex items-center gap-2 ${(session?.user as any)?.tier === "premium" ? "text-emerald-400 hover:text-emerald-300" : "text-slate-300 hover:text-white"}`}>
-                                  Scraping Control {(session?.user as any)?.tier !== "premium" && <Lock className="w-3 h-3 text-slate-500" />}
+                                  Scraping Control
                                 </div>
                               </Link>
-                              <Link href="/admin/library" onClick={() => setIsProfileDropdownOpen(false)}>
+                              <Link href="/profile/library" onClick={() => setIsProfileDropdownOpen(false)}>
                                 <div className={`px-3 py-2 text-[13px] font-medium hover:bg-slate-800 rounded-xl cursor-pointer transition-colors flex items-center gap-2 ${(session?.user as any)?.tier === "premium" ? "text-emerald-400 hover:text-emerald-300" : "text-slate-300 hover:text-white"}`}>
-                                  News Approval {(session?.user as any)?.tier !== "premium" && <Lock className="w-3 h-3 text-slate-500" />}
+                                  News Approval
                                 </div>
                               </Link>
 

@@ -51,7 +51,13 @@ export default function RegisterPage() {
         throw new Error(authError.message);
       }
 
-      router.push("/login");
+      if (authData.session) {
+        router.push("/profile");
+        router.refresh();
+      } else {
+        // If email confirmation is required, session might be null
+        router.push("/login?message=Account created successfully. Please log in.");
+      }
     } catch (err: any) {
       setError(err.message);
     }
