@@ -2,8 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Play, Pause, SkipForward, SkipBack, Volume2, VolumeX, X, Disc3 } from "lucide-react";
-import { Howl } from "howler";
+import { Play, Pause, SkipForward, SkipBack, Volume2, VolumeX, X, Disc3, Mic2 } from "lucide-react";
 
 interface AudioPlayerProps {
   storiesCount?: number;
@@ -18,51 +17,89 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
   const [volume, setVolume] = useState(0.8);
   const [isMuted, setIsMuted] = useState(false);
   const [dynamicPlaylist, setDynamicPlaylist] = useState<any[]>([]);
+  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [selectedVoiceURI, setSelectedVoiceURI] = useState<string>("");
 
-  const howlRef = useRef<Howl | null>(null);
-  const progressRef = useRef<NodeJS.Timeout | null>(null);
+  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
   const playlist = dynamicPlaylist.length > 0 ? dynamicPlaylist : (newsItems.length > 0 ? newsItems.map(item => ({
     title: item.title || item.headline,
-    src: `/api/audio/tts?text=${encodeURIComponent((item.title || item.headline || "") + ". " + (item.ai_summary || ""))}`,
+    text: (item.title || item.headline || "") + ". " + (item.ai_summary || item.summary || ""),
   })) : [
-    { title: "Demo Audio 1", src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" },
-    { title: "Demo Audio 2", src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3" }
+    { title: "Demo Audio 1", text: "Welcome to KahfNews. This is a sample text for speech synthesis." },
+    { title: "Demo Audio 2", text: "Here is another sample news article read aloud by your browser." }
   ]);
 
   const currentTrack = playlist[currentIndex];
 
+  // Initialize Voices
   useEffect(() => {
-    if (!isOpen || !currentTrack) return;
+    if (typeof window === "undefined" || !window.speechSynthesis) return;
+
+    const loadVoices = () => {
+      let availableVoices = window.speechSynthesis.getVoices();
+      setVoices(availableVoices);
+      if (availableVoices.length > 0 && !selectedVoiceURI) {
+        const savedURI = localStorage.getItem("kahf-tts-voice");
+        if (savedURI && availableVoices.some(v => v.voiceURI === savedURI)) {
+          setSelectedVoiceURI(savedURI);
+        } else {
+          // Try to find a Bengali voice first, fallback to first
+          const bnVoice = availableVoices.find(v => v.lang.includes("bn") || v.lang.includes("bn-BD") || v.lang.includes("bn-IN"));
+          setSelectedVoiceURI(bnVoice ? bnVoice.voiceURI : availableVoices[0].voiceURI);
+        }
+      }
+    };
+
+    loadVoices();
+    window.speechSynthesis.onvoiceschanged = loadVoices;
     
-    if (howlRef.current) {
-      howlRef.current.unload();
+    return () => {
+      window.speechSynthesis.onvoiceschanged = null;
+    };
+  }, [selectedVoiceURI]);
+
+  const handleVoiceChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const uri = e.target.value;
+    setSelectedVoiceURI(uri);
+    localStorage.setItem("kahf-tts-voice", uri);
+  };
+
+  // Handle Playback
+  useEffect(() => {
+    if (!isOpen || !currentTrack || typeof window === "undefined" || !window.speechSynthesis) return;
+    
+    window.speechSynthesis.cancel();
+    setProgress(0);
+
+    const utterance = new SpeechSynthesisUtterance(currentTrack.text);
+    if (selectedVoiceURI) {
+      const voice = voices.find(v => v.voiceURI === selectedVoiceURI);
+      if (voice) utterance.voice = voice;
     }
+    
+    utterance.volume = isMuted ? 0 : volume;
+    utterance.rate = 1.0;
 
-    howlRef.current = new Howl({
-      src: [currentTrack.src],
-      html5: true,
-      volume: isMuted ? 0 : volume,
-      onplay: () => {
-        setIsPlaying(true);
-        progressRef.current = setInterval(() => {
-          if (howlRef.current) {
-            setProgress(howlRef.current.seek() as number / (howlRef.current.duration() || 1));
-          }
-        }, 1000);
-      },
-      onpause: () => setIsPlaying(false),
-      onend: () => handleNext(),
-      onstop: () => setIsPlaying(false),
-    });
+    utterance.onstart = () => setIsPlaying(true);
+    utterance.onend = () => handleNext();
+    utterance.onpause = () => setIsPlaying(false);
+    utterance.onresume = () => setIsPlaying(true);
+    
+    // Estimate progress based on boundary
+    utterance.onboundary = (event) => {
+      if (currentTrack.text.length > 0) {
+        setProgress(event.charIndex / currentTrack.text.length);
+      }
+    };
 
-    howlRef.current.play();
+    utteranceRef.current = utterance;
+    window.speechSynthesis.speak(utterance);
 
     return () => {
-      if (howlRef.current) howlRef.current.unload();
-      if (progressRef.current) clearInterval(progressRef.current);
+      window.speechSynthesis.cancel();
     };
-  }, [currentIndex, isOpen, dynamicPlaylist]);
+  }, [currentIndex, isOpen, dynamicPlaylist, selectedVoiceURI]);
 
   useEffect(() => {
     const handlePlayAudio = (e: any) => {
@@ -71,27 +108,47 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
       
       setDynamicPlaylist([{
         title: title,
-        src: `/api/audio/tts?text=${encodeURIComponent(textToPlay)}`
+        text: textToPlay
       }]);
       setCurrentIndex(0);
       setIsOpen(true);
     };
 
+    const handleOpenSettings = () => {
+      setIsOpen(true);
+    };
+
     window.addEventListener('play-audio', handlePlayAudio);
-    return () => window.removeEventListener('play-audio', handlePlayAudio);
+    window.addEventListener('open-audio-settings', handleOpenSettings);
+    return () => {
+      window.removeEventListener('play-audio', handlePlayAudio);
+      window.removeEventListener('open-audio-settings', handleOpenSettings);
+    };
   }, []);
 
   useEffect(() => {
-    if (howlRef.current) howlRef.current.volume(isMuted ? 0 : volume);
+    if (utteranceRef.current) {
+      utteranceRef.current.volume = isMuted ? 0 : volume;
+    }
   }, [volume, isMuted]);
 
   const togglePlay = () => {
-    if (!howlRef.current) return;
-    isPlaying ? howlRef.current.pause() : howlRef.current.play();
+    if (typeof window === "undefined" || !window.speechSynthesis) return;
+    if (isPlaying) {
+      window.speechSynthesis.pause();
+    } else {
+      window.speechSynthesis.resume();
+    }
   };
 
-  const handleNext = () => setCurrentIndex((prev) => (prev + 1) % playlist.length);
-  const handlePrev = () => setCurrentIndex((prev) => (prev - 1 + playlist.length) % playlist.length);
+  const handleNext = () => {
+    if (typeof window !== "undefined") window.speechSynthesis.cancel();
+    setCurrentIndex((prev) => (prev + 1) % playlist.length);
+  };
+  const handlePrev = () => {
+    if (typeof window !== "undefined") window.speechSynthesis.cancel();
+    setCurrentIndex((prev) => (prev - 1 + playlist.length) % playlist.length);
+  };
 
   return (
     <>
@@ -107,7 +164,7 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
             initial={{ y: 100, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 100, opacity: 0 }}
-            className="fixed bottom-4 md:bottom-8 left-1/2 -translate-x-1/2 z-[100] w-[90%] max-w-md bg-card/80 backdrop-blur-xl border border-border p-4 rounded-3xl shadow-2xl flex flex-col gap-3"
+            className="fixed bottom-24 md:bottom-28 left-1/2 -translate-x-1/2 z-[100] w-[90%] max-w-md bg-card/80 backdrop-blur-xl border border-border p-4 rounded-3xl shadow-2xl flex flex-col gap-3"
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3 overflow-hidden">
@@ -116,7 +173,9 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
                 </div>
                 <div className="truncate">
                   <p className="text-sm font-bold text-foreground truncate">{currentTrack?.title}</p>
-                  <p className="text-xs text-muted-foreground">KahfNews Auto-TTS</p>
+                  <p className="text-xs text-muted-foreground flex items-center gap-1">
+                     Native Text-to-Speech
+                  </p>
                 </div>
               </div>
               <button onClick={() => setIsOpen(false)} className="p-2 text-muted-foreground hover:bg-muted rounded-full">
@@ -124,7 +183,23 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
               </button>
             </div>
 
-            <div className="flex items-center justify-center gap-4">
+            {/* Voice Selection */}
+            <div className="flex items-center gap-2 mt-1">
+              <Mic2 className="w-4 h-4 text-muted-foreground shrink-0" />
+              <select 
+                value={selectedVoiceURI} 
+                onChange={handleVoiceChange}
+                className="w-full text-xs bg-muted/50 border border-border rounded-lg p-1.5 focus:outline-none focus:ring-1 focus:ring-primary truncate"
+              >
+                {voices.map(v => (
+                  <option key={v.voiceURI} value={v.voiceURI}>
+                    {v.name} ({v.lang})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex items-center justify-center gap-4 mt-2">
               <button onClick={handlePrev} className="p-2 hover:bg-muted rounded-full"><SkipBack className="w-5 h-5" /></button>
               <button onClick={togglePlay} className="p-3 bg-primary text-primary-foreground rounded-full hover:scale-105 transition-transform">
                 {isPlaying ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6 ml-1" />}

@@ -14,11 +14,24 @@ interface HeadlineCardProps {
     category: string;
     imageUrl?: string;
     source: string;
+    summary?: string;
   };
   index?: number;
 }
 
 const HeadlineCard = ({ news, index = 0 }: HeadlineCardProps) => {
+  const handlePlayAudio = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const event = new CustomEvent('play-audio', {
+      detail: {
+        title: news.title,
+        summary: news.summary || "No summary available."
+      }
+    });
+    window.dispatchEvent(event);
+  };
+
   return (
     <Link href={`/news/${news.id || ''}`}>
       <motion.div 
@@ -58,6 +71,7 @@ const HeadlineCard = ({ news, index = 0 }: HeadlineCardProps) => {
         {/* Bottom Action Bar - Balance and alignment */}
         <div className="flex items-center justify-between mt-auto">
           <motion.button
+            onClick={handlePlayAudio}
             className="flex items-center gap-2 px-4 py-2 bg-primary/10 hover:bg-primary/20 rounded-full text-primary text-xs font-semibold transition-all border border-primary/10 group-hover:border-primary/30"
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}

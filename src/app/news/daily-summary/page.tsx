@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNews } from "@/hooks/useNews";
+import AudioPlayer from "@/components/AudioPlayer";
 
 export default function DailySummaryPage() {
   const { news, loading } = useNews();
@@ -161,6 +162,8 @@ export default function DailySummaryPage() {
           </div>
         </div>
       </div>
+      
+      <AudioPlayer />
     </motion.main>
   );
 }

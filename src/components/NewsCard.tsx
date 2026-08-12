@@ -30,6 +30,21 @@ const priorityColors = {
 };
 
 const NewsCard = ({ news, isSaved = false, onToggleSave }: NewsCardProps) => {
+  const handlePlayAudio = (type: 'full' | 'summary', e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const textToPlay = type === 'full' ? `${news.title}. ${news.summary}` : news.summary;
+    
+    const event = new CustomEvent('play-audio', {
+      detail: {
+        title: news.title,
+        summary: textToPlay
+      }
+    });
+    window.dispatchEvent(event);
+  };
+
   return (
     <motion.div 
       className="relative group"
@@ -43,22 +58,6 @@ const NewsCard = ({ news, isSaved = false, onToggleSave }: NewsCardProps) => {
       
       <Card className="relative bg-card border-border group-hover:border-primary/20 rounded-[28px] overflow-hidden flex flex-col p-4 md:p-5 gap-5 md:gap-6 transition-all duration-500 shadow-sm hover:shadow-xl hover:shadow-primary/5 h-full">
         
-        {/* Image Section - Golden ratio sizing */}
-        <div className="relative w-full h-[180px] lg:h-[200px] shrink-0 overflow-hidden rounded-[20px]">
-          <Link href={`/news/${news.id}`}>
-            <motion.img 
-              src={news.imageUrl} 
-              alt={news.title}
-              className="object-cover w-full h-full"
-              whileHover={{ scale: 1.05 }}
-              transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-            />
-          </Link>
-          
-          
-          {/* Image overlay gradient */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
-        </div>
 
         {/* Content Section - Improved white space and alignment */}
         <div className="flex-1 flex flex-col min-w-0 py-1">
@@ -102,6 +101,7 @@ const NewsCard = ({ news, isSaved = false, onToggleSave }: NewsCardProps) => {
             <div className="flex items-center gap-2">
               <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
                 <Button 
+                  onClick={(e) => handlePlayAudio('full', e)}
                   className="h-8 px-3 bg-primary text-primary-foreground hover:opacity-90 transition-all rounded-full font-semibold text-[11px] flex items-center gap-1 shadow-sm"
                 >
                   <Play className="w-3 h-3 fill-current" />
@@ -110,6 +110,7 @@ const NewsCard = ({ news, isSaved = false, onToggleSave }: NewsCardProps) => {
               </motion.div>
               <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
                 <Button 
+                  onClick={(e) => handlePlayAudio('summary', e)}
                   variant="outline"
                   className="h-8 px-3 border-primary/20 text-primary hover:bg-primary/10 transition-all rounded-full font-semibold text-[11px] flex items-center gap-1 shadow-sm"
                 >

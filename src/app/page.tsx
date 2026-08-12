@@ -8,7 +8,7 @@ import MainFeed from "@/components/MainFeed";
 import AudioPlayer from "@/components/AudioPlayer";
 import BreakingNewsTicker from "@/components/BreakingNewsTicker";
 import { useNews, useWeather } from "@/hooks/useNews";
-import { Newspaper, Loader2, Calendar, Sparkles, CloudSun, Play, FileText, Star, Volume2 } from "lucide-react";
+import { Newspaper, Loader2, Calendar, Sparkles, CloudSun, Play, FileText, Star, Volume2, Bot, ChevronDown, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useSession } from "@/lib/auth-client";
 
@@ -39,6 +39,8 @@ const itemVariants = {
 export default function Home() {
   const [isLoading, setIsLoading] = useState(true);
   const [currentDate, setCurrentDate] = useState("");
+  const [isStickyExpanded, setIsStickyExpanded] = useState(true);
+  const [lastScrollY, setLastScrollY] = useState(0);
   const { news, loading: newsLoading } = useNews();
   const { weather } = useWeather();
   const { data: sessionData } = useSession();
@@ -63,10 +65,41 @@ export default function Home() {
     return () => clearTimeout(timer);
   }, []);
 
+  // Auto-collapse sticky bar after 3s, expand on scroll up
+  useEffect(() => {
+    let timeout: NodeJS.Timeout;
+    
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      if (currentScrollY < lastScrollY) {
+        setIsStickyExpanded(true);
+      } else if (currentScrollY > lastScrollY && currentScrollY > 100) {
+        setIsStickyExpanded(false);
+      }
+      setLastScrollY(currentScrollY);
+      
+      clearTimeout(timeout);
+      timeout = setTimeout(() => {
+        setIsStickyExpanded(false);
+      }, 3000);
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    
+    // Initial auto-collapse
+    timeout = setTimeout(() => setIsStickyExpanded(false), 3000);
+    
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      clearTimeout(timeout);
+    };
+  }, [lastScrollY]);
+
   // Transform news for headlines (top 3 with images)
   const headlines = news.slice(0, 3).map((item: any) => ({
     id: item._id || item.id,
     title: item.headline || item.title,
+    summary: item.ai_summary || item.summary || "সংক্ষিপ্ত বিবরণ পাওয়া যায়নি।",
     category: item.category,
     imageUrl: item.imageUrl || "https://images.unsplash.com/photo-1590644365607-1c5a519a7a37?q=80&w=2070&auto=format&fit=crop",
     source: item.source,
@@ -188,9 +221,17 @@ export default function Home() {
           <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-6 md:gap-10">
             <div className="flex items-start md:items-center gap-5 md:gap-6">
               {/* Play Button Icon - Visual interest */}
-              <div className="w-16 h-16 md:w-20 md:h-20 bg-primary rounded-full flex items-center justify-center flex-shrink-0 shadow-lg shadow-primary/20 group-hover:scale-105 transition-transform duration-500">
+              <button 
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const audioPlayerTrigger = document.getElementById("global-audio-trigger");
+                  if (audioPlayerTrigger) audioPlayerTrigger.click();
+                }}
+                className="w-16 h-16 md:w-20 md:h-20 bg-primary rounded-full flex items-center justify-center flex-shrink-0 shadow-lg shadow-primary/20 hover:scale-105 transition-transform duration-500 cursor-pointer"
+              >
                 <Play className="w-8 h-8 md:w-10 md:h-10 text-primary-foreground ml-1" fill="currentColor" />
-              </div>
+              </button>
               
               <div>
                 <div className="flex items-center gap-2 mb-2 md:mb-3">
@@ -247,6 +288,81 @@ export default function Home() {
 
       {/* 3. FLOATING AUDIO PLAYER */}
       <AudioPlayer storiesCount={totalStories || 7} newsItems={feedItems} />
+
+      {/* Sticky Bottom Collapsible Action Bar */}
+      <motion.div
+        className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center justify-center"
+        initial={{ y: 100, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 1, duration: 0.5 }}
+        onMouseEnter={() => setIsStickyExpanded(true)}
+        onMouseLeave={() => setIsStickyExpanded(false)}
+      >
+        <motion.div
+          className="bg-black/80 backdrop-blur-xl border border-white/10 p-1.5 rounded-full shadow-2xl flex items-center overflow-hidden cursor-pointer"
+          animate={{
+            width: isStickyExpanded ? "auto" : "56px",
+            height: "56px",
+          }}
+          transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+        >
+          {/* Expanded Content */}
+          <div className="flex items-center gap-1.5 px-1 whitespace-nowrap opacity-100" style={{ display: isStickyExpanded ? 'flex' : 'none' }}>
+            <Button 
+              variant="ghost" 
+              className="rounded-full text-white hover:bg-white/10 hover:text-white font-semibold text-[13px] h-11 px-4"
+              onClick={() => {
+                const audioPlayerTrigger = document.getElementById("global-audio-trigger");
+                if (audioPlayerTrigger) audioPlayerTrigger.click();
+              }}
+            >
+              <Play className="w-4 h-4 mr-1.5" /> Listen Summary Podcast
+            </Button>
+            <div className="w-px h-6 bg-white/20 mx-1" />
+            <Link href="/news/daily-summary">
+              <Button 
+                variant="ghost" 
+                className="rounded-full text-white hover:bg-white/10 hover:text-white font-semibold text-[13px] h-11 px-4"
+              >
+                <Sparkles className="w-4 h-4 mr-1.5" /> Read Daily Summary
+              </Button>
+            </Link>
+            <div className="w-px h-6 bg-white/20 mx-1" />
+            <Button 
+              className="rounded-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-[13px] h-11 px-5 shadow-lg shadow-primary/20"
+              onClick={() => alert("Chat feature coming soon!")}
+            >
+              <Bot className="w-4 h-4 mr-1.5" /> Chat with News
+            </Button>
+            
+            <div className="w-px h-6 bg-white/20 mx-1" />
+            
+            <button 
+              className="w-10 h-10 rounded-full flex items-center justify-center text-white hover:text-primary bg-white/5 hover:bg-white/10 transition-colors"
+              onClick={() => {
+                const event = new CustomEvent('open-audio-settings');
+                window.dispatchEvent(event);
+              }}
+              title="Voice Settings"
+            >
+              <Settings className="w-4 h-4" />
+            </button>
+            
+            <button 
+              className="w-10 h-10 rounded-full flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-colors ml-1"
+            >
+              <ChevronDown className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Collapsed Content (3 animated dots like listening) */}
+          <div className="absolute inset-0 flex items-center justify-center opacity-100 gap-1" style={{ display: !isStickyExpanded ? 'flex' : 'none' }}>
+            <motion.div className="w-1.5 h-1.5 bg-white/70 rounded-full" animate={{ y: [0, -3, 0] }} transition={{ repeat: Infinity, duration: 1, delay: 0 }} />
+            <motion.div className="w-1.5 h-1.5 bg-white/70 rounded-full" animate={{ y: [0, -3, 0] }} transition={{ repeat: Infinity, duration: 1, delay: 0.2 }} />
+            <motion.div className="w-1.5 h-1.5 bg-white/70 rounded-full" animate={{ y: [0, -3, 0] }} transition={{ repeat: Infinity, duration: 1, delay: 0.4 }} />
+          </div>
+        </motion.div>
+      </motion.div>
     </motion.main>
   );
 }

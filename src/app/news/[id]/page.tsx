@@ -6,9 +6,10 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { 
   Clock, Globe, ArrowLeft, Play, Share2, Bookmark, 
-  ThumbsUp, MessageCircle, ExternalLink, Tag, Volume2, AlignLeft, Sparkles, Bot, ChevronUp, ChevronDown
+  ThumbsUp, MessageCircle, ExternalLink, Tag, Volume2, AlignLeft, Sparkles, Bot, ChevronUp, ChevronDown, Settings
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import AudioPlayer from "@/components/AudioPlayer";
 
 // Using Unsplash source for placeholder images based on category
 const getPlaceholderImage = (category: string) => {
@@ -508,6 +509,19 @@ export default function NewsDetailPage() {
               <Bot className="w-4 h-4 mr-1.5" /> Chat with News
             </Button>
             
+            <div className="w-px h-6 bg-white/20 mx-1" />
+            
+            <button 
+              className="w-10 h-10 rounded-full flex items-center justify-center text-white hover:text-primary bg-white/5 hover:bg-white/10 transition-colors"
+              onClick={() => {
+                const event = new CustomEvent('open-audio-settings');
+                window.dispatchEvent(event);
+              }}
+              title="Voice Settings"
+            >
+              <Settings className="w-4 h-4" />
+            </button>
+            
             <button 
               className="w-10 h-10 rounded-full flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-colors ml-1"
             >
@@ -523,6 +537,8 @@ export default function NewsDetailPage() {
           </div>
         </motion.div>
       </motion.div>
+      
+      <AudioPlayer />
     </motion.main>
   );
 }
