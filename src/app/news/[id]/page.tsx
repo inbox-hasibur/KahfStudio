@@ -158,10 +158,24 @@ export default function NewsDetailPage() {
   const paragraphs = newsItem.summary.split("\n\n").filter(Boolean);
 
   const handlePlayAudio = (type: "full" | "summary") => {
+    const isEnglish = typeof document !== 'undefined' && (document.cookie.includes('googtrans=/bn/en') || localStorage.getItem('kahf-language') === 'EN');
+    const preferredLang = isEnglish ? 'EN' : 'BN';
+
     const event = new CustomEvent('play-audio', {
       detail: {
+        id: newsItem.id,
         title: newsItem.title,
-        summary: type === "full" ? newsItem.raw_content : newsItem.summary
+        summary: type === "full" ? newsItem.raw_content : newsItem.summary,
+        imageUrl: newsItem.imageUrl,
+        source: newsItem.source,
+        preferredLang,
+        preferredType: type,
+        audioUrls: {
+          bn_full: (newsItem as any).audio_bn_full,
+          bn_summary: (newsItem as any).audio_bn_summary,
+          en_full: (newsItem as any).audio_en_full,
+          en_summary: (newsItem as any).audio_en_summary,
+        }
       }
     });
     window.dispatchEvent(event);
@@ -268,56 +282,48 @@ export default function NewsDetailPage() {
         {/* Title */}
         <motion.h1
           variants={itemVariants}
-          className="text-[28px] md:text-[40px] lg:text-[48px] font-bold text-foreground leading-[1.1] tracking-tight mb-6"
+          className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-foreground leading-[1.25] tracking-tight mb-4 sm:mb-6"
         >
           {newsItem.title}
         </motion.h1>
 
         {/* View Toggle & Play Buttons */}
-        <motion.div variants={itemVariants} className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 bg-muted/30 p-2 rounded-2xl border border-border">
+        <motion.div variants={itemVariants} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-4 mb-6 sm:mb-8 bg-muted/40 p-1.5 sm:p-2 rounded-xl sm:rounded-2xl border border-border">
           {/* Slider Toggle */}
-          <div className="relative flex items-center bg-background rounded-xl p-1 border border-border w-full md:w-[320px] shadow-sm">
+          <div className="relative flex items-center bg-card rounded-lg sm:rounded-xl p-1 border border-border w-full sm:w-[280px] md:w-[320px] shadow-sm">
             <motion.div
-              className="absolute top-1 bottom-1 w-[calc(50%-4px)] bg-primary rounded-lg shadow-sm"
+              className="absolute top-1 bottom-1 w-[calc(50%-4px)] bg-primary rounded-md sm:rounded-lg shadow-sm"
               animate={{ left: activeView === "summary" ? "4px" : "calc(50% + 0px)" }}
               transition={{ type: "spring", stiffness: 400, damping: 30 }}
             />
             <button
               onClick={() => setActiveView("summary")}
-              className={`relative flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-bold z-10 transition-colors ${
+              className={`relative flex-1 flex items-center justify-center gap-1.5 py-1.5 sm:py-2 text-xs sm:text-sm font-bold z-10 transition-colors ${
                 activeView === "summary" ? "text-primary-foreground" : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              <Sparkles className="w-4 h-4" />
+              <Sparkles className="w-3.5 h-3.5" />
               Summary
             </button>
             <button
               onClick={() => setActiveView("full")}
-              className={`relative flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-bold z-10 transition-colors ${
+              className={`relative flex-1 flex items-center justify-center gap-1.5 py-1.5 sm:py-2 text-xs sm:text-sm font-bold z-10 transition-colors ${
                 activeView === "full" ? "text-primary-foreground" : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              <AlignLeft className="w-4 h-4" />
+              <AlignLeft className="w-3.5 h-3.5" />
               Full News
             </button>
           </div>
 
-          {/* Audio Play Buttons */}
-          <div className="flex items-center gap-2 w-full md:w-auto">
+          {/* Audio Play Button */}
+          <div className="flex items-center gap-2 w-full sm:w-auto">
             <Button 
-              variant="outline" 
-              className="flex-1 md:flex-none rounded-xl gap-2 font-bold border-primary/20 hover:bg-primary/10 text-primary"
+              className="flex-1 sm:flex-none h-8 sm:h-9 text-xs sm:text-sm rounded-lg sm:rounded-xl gap-1.5 font-bold bg-primary text-primary-foreground hover:bg-primary/90 shadow-md shadow-primary/20"
               onClick={() => handlePlayAudio("summary")}
             >
-              <Play className="w-4 h-4 fill-current" />
-              Play Summary
-            </Button>
-            <Button 
-              className="flex-1 md:flex-none rounded-xl gap-2 font-bold bg-primary text-primary-foreground hover:bg-primary/90 shadow-md shadow-primary/20"
-              onClick={() => handlePlayAudio("full")}
-            >
-              <Volume2 className="w-4 h-4" />
-              Play Full
+              <Play className="w-3.5 h-3.5 fill-current" />
+              Listen Summary
             </Button>
           </div>
         </motion.div>

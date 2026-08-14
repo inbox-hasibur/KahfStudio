@@ -74,33 +74,33 @@ export default function PricingPage() {
     <div className="min-h-screen bg-slate-950 text-slate-50 flex flex-col font-sans selection:bg-primary/30">
       <Navbar />
       
-      <main className="flex-1 flex flex-col items-center justify-center pt-32 pb-24 px-4 md:px-6 relative overflow-hidden">
-        <motion.div className="text-center max-w-3xl mx-auto mb-10 z-10" {...fadeIn}>
-          <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-6">
+      <main className="flex-1 flex flex-col items-center justify-center pt-20 sm:pt-28 md:pt-32 pb-20 px-3 sm:px-6 relative overflow-hidden">
+        <motion.div className="text-center max-w-3xl mx-auto mb-6 sm:mb-10 z-10" {...fadeIn}>
+          <h1 className="text-2xl sm:text-4xl md:text-5xl font-bold tracking-tight mb-3 sm:mb-6">
             Choose Your Plan
           </h1>
-          <p className="text-lg md:text-xl text-slate-400 font-medium mb-8">
+          <p className="text-xs sm:text-base md:text-lg text-slate-400 font-medium mb-5 sm:mb-8 max-w-2xl mx-auto leading-relaxed">
             Join the personalized news ecosystem. Automate your daily briefings and enjoy an ad-free, halal audio experience.
           </p>
 
-          <div className="flex items-center justify-center gap-3 bg-slate-900/50 p-1.5 rounded-full border border-slate-800 w-fit mx-auto">
+          <div className="flex items-center justify-center gap-2 sm:gap-3 bg-slate-900/50 p-1 sm:p-1.5 rounded-full border border-slate-800 w-fit mx-auto">
             <button
               onClick={() => setIsAnnual(false)}
-              className={`px-4 py-2 rounded-full text-sm font-bold transition-all ${!isAnnual ? 'bg-primary text-white shadow-md' : 'text-slate-400 hover:text-white'}`}
+              className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-bold transition-all ${!isAnnual ? 'bg-primary text-white shadow-md' : 'text-slate-400 hover:text-white'}`}
             >
               Monthly
             </button>
             <button
               onClick={() => setIsAnnual(true)}
-              className={`px-4 py-2 rounded-full text-sm font-bold transition-all flex items-center gap-2 ${isAnnual ? 'bg-primary text-white shadow-md' : 'text-slate-400 hover:text-white'}`}
+              className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5 ${isAnnual ? 'bg-primary text-white shadow-md' : 'text-slate-400 hover:text-white'}`}
             >
               Yearly
-              <span className="bg-green-500/20 text-green-400 text-[10px] px-2 py-0.5 rounded-full">Save 16%</span>
+              <span className="bg-green-500/20 text-green-400 text-[9px] sm:text-[10px] px-1.5 sm:px-2 py-0.5 rounded-full">Save 16%</span>
             </button>
           </div>
         </motion.div>
 
-        <div className="flex flex-col md:flex-row justify-center items-stretch w-full max-w-5xl mx-auto z-10 gap-8">
+        <div className="flex flex-col md:flex-row justify-center items-stretch w-full max-w-5xl mx-auto z-10 gap-4 sm:gap-8">
           {/* Free Plan */}
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
@@ -108,23 +108,23 @@ export default function PricingPage() {
             transition={{ duration: 0.5, delay: 0.1 }}
             className="w-full md:w-1/2 relative"
           >
-            <Card className="bg-slate-950/80 border border-slate-800 h-full flex flex-col rounded-[24px] overflow-hidden relative p-2 backdrop-blur-md">
-              <CardHeader className="pb-6 pt-6 px-8 relative overflow-hidden">
-                <CardTitle className="text-2xl font-bold flex items-center gap-2 text-white">
+            <Card className="bg-slate-950/80 border border-slate-800 h-full flex flex-col rounded-2xl sm:rounded-[24px] overflow-hidden relative p-1 sm:p-2 backdrop-blur-md">
+              <CardHeader className="pb-4 sm:pb-6 pt-4 sm:pt-6 px-4 sm:px-8 relative overflow-hidden">
+                <CardTitle className="text-xl sm:text-2xl font-bold flex items-center gap-2 text-white">
                   Free
                 </CardTitle>
-                <CardDescription className="text-slate-400 text-sm mt-2 font-medium max-w-[85%] relative z-10 leading-relaxed">
+                <CardDescription className="text-slate-400 text-xs sm:text-sm mt-1 sm:mt-2 font-medium max-w-[85%] relative z-10 leading-relaxed">
                   Basic access to stay informed with standard news updates.
                 </CardDescription>
 
-                <div className="mt-4 flex items-baseline text-4xl font-bold relative z-10">
-                  <span className="text-3xl mr-1 font-bold text-white">৳</span>0
-                  <span className="text-base text-slate-400 font-medium ml-2">/forever</span>
+                <div className="mt-3 sm:mt-4 flex items-baseline text-2xl sm:text-4xl font-bold relative z-10">
+                  <span className="text-xl sm:text-3xl mr-1 font-bold text-white">৳</span>0
+                  <span className="text-xs sm:text-base text-slate-400 font-medium ml-1.5 sm:ml-2">/forever</span>
                 </div>
               </CardHeader>
               
-              <CardContent className="px-8 flex-1">
-                <ul className="space-y-4">
+              <CardContent className="px-4 sm:px-8 flex-1">
+                <ul className="space-y-2.5 sm:space-y-4">
                   <li className="flex items-start gap-3">
                     <Check className="w-5 h-5 text-green-500 shrink-0 mt-0.5" />
                     <span className="text-slate-300 text-sm">Platform-generated daily news</span>

@@ -131,12 +131,28 @@ export async function signIn(provider: string, options: any) {
     email: options.email,
     password: options.password
   });
-  if (error) return { error: error.message };
+  if (error) return { ok: false, error: error.message };
   
-  if (data?.user && options.role) {
-    if (data.user.user_metadata?.role !== options.role) {
+  if (data?.user) {
+    // Fetch actual profile role from database
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role, tier')
+      .eq('id', data.user.id)
+      .single();
+
+    const actualRole = profile?.role || data.user.user_metadata?.role || "user";
+    
+    // Sync metadata
+    data.user.user_metadata = {
+      ...data.user.user_metadata,
+      role: actualRole,
+      tier: profile?.tier || data.user.user_metadata?.tier || "free"
+    };
+
+    if (options.role === "admin" && actualRole !== "admin") {
       await supabase.auth.signOut();
-      return { ok: false, error: "Invalid credentials or role mismatch" };
+      return { ok: false, error: "This account does not have Admin access privileges." };
     }
   }
   

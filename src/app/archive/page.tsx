@@ -49,12 +49,16 @@ export default function ArchivePage() {
             title: item.headline,
             summary: item.ai_summary || item.raw_content,
             category: item.category || "General",
-            source: item.source || "Unknown",
-            priority: "medium", // You can calculate this based on some logic if needed
+            source: item.source || "KahfNews",
+            priority: "medium",
             publishedAt: new Date(item.published_at || item.created_at).toLocaleDateString(),
             imageUrl: item.image_url || getPlaceholderImage(item.category),
             rawDate: new Date(item.published_at || item.created_at),
-            isPersonalized: item.is_personalized || item.type === 'personalized' || false
+            isPersonalized: item.is_personalized || item.type === 'personalized' || false,
+            audio_bn_full: item.audio_bn_full,
+            audio_bn_summary: item.audio_bn_summary,
+            audio_en_full: item.audio_en_full,
+            audio_en_summary: item.audio_en_summary,
           }));
           setArticles(mapped);
         }
@@ -101,7 +105,7 @@ export default function ArchivePage() {
 
   return (
     <motion.main
-      className="max-w-[1200px] mx-auto px-4 md:px-6 pt-28 md:pt-36 pb-40"
+      className="max-w-[1200px] mx-auto px-3 sm:px-6 pt-20 sm:pt-28 md:pt-36 pb-32"
       initial="hidden"
       animate="visible"
       variants={containerVariants}
@@ -110,46 +114,46 @@ export default function ArchivePage() {
       <motion.div variants={itemVariants}>
         <Link
           href="/"
-          className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-8 group"
+          className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors mb-4 sm:mb-6 group"
         >
-          <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-          <span className="text-[13px] font-semibold uppercase tracking-wider">Back to Feed</span>
+          <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-1 transition-transform" />
+          <span className="text-xs sm:text-[13px] font-semibold uppercase tracking-wider">Back to Feed</span>
         </Link>
       </motion.div>
 
       {/* Header & Controls */}
-      <motion.div variants={itemVariants} className="mb-8 flex flex-col lg:flex-row lg:items-start justify-between gap-6">
+      <motion.div variants={itemVariants} className="mb-5 sm:mb-8 flex flex-col lg:flex-row lg:items-start justify-between gap-4 sm:gap-6">
         <div>
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-12 h-12 rounded-2xl bg-purple-500/10 flex items-center justify-center border border-purple-500/20 shrink-0">
-              <ArchiveIcon className="w-6 h-6 text-purple-500" />
+          <div className="flex items-center gap-2.5 sm:gap-3 mb-2.5 sm:mb-4">
+            <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-purple-500/10 flex items-center justify-center border border-purple-500/20 shrink-0">
+              <ArchiveIcon className="w-4 h-4 sm:w-6 sm:h-6 text-purple-500" />
             </div>
             <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-foreground">Archive</h1>
-              <p className="text-muted-foreground text-[14px]">
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground">Archive</h1>
+              <p className="text-muted-foreground text-xs sm:text-[14px]">
                 {articles.length} stories saved
               </p>
             </div>
           </div>
-          <p className="text-muted-foreground max-w-[500px]">
+          <p className="text-xs sm:text-sm text-muted-foreground max-w-[500px] leading-relaxed">
             Browse through our history of news coverage. Every story we've curated, saved for your reference.
           </p>
         </div>
 
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+        <div className="flex items-center justify-between sm:justify-start gap-2 sm:gap-4 w-full sm:w-auto">
           {/* Tabs */}
-          <div className="flex items-center gap-1 p-1 bg-card border border-border rounded-xl">
+          <div className="flex-1 sm:flex-initial flex items-center gap-1 p-1 bg-card border border-border rounded-xl">
             <button
               onClick={() => setActiveTab("general")}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === "general" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}
+              className={`flex-1 sm:flex-initial px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-all ${activeTab === "general" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}
             >
               General
             </button>
             <button
               onClick={() => setActiveTab("personalized")}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${activeTab === "personalized" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}
+              className={`flex-1 sm:flex-initial px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-all flex items-center justify-center gap-1.5 ${activeTab === "personalized" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}
             >
-              <Sparkles className="w-4 h-4" />
+              <Sparkles className="w-3.5 h-3.5" />
               Personalized
             </button>
           </div>
@@ -158,30 +162,30 @@ export default function ArchivePage() {
           <div className="flex items-center gap-1 p-1 bg-card border border-border rounded-xl">
             <button
               onClick={() => setViewMode("list")}
-              className={`p-2 rounded-lg transition-all ${viewMode === "list" ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}
+              className={`p-1.5 sm:p-2 rounded-lg transition-all ${viewMode === "list" ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}
               title="List View"
             >
-              <List className="w-4 h-4" />
+              <List className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </button>
             <button
               onClick={() => setViewMode("grid")}
-              className={`p-2 rounded-lg transition-all ${viewMode === "grid" ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}
+              className={`p-1.5 sm:p-2 rounded-lg transition-all ${viewMode === "grid" ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}
               title="Grid View"
             >
-              <LayoutGrid className="w-4 h-4" />
+              <LayoutGrid className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </button>
           </div>
         </div>
       </motion.div>
 
       {/* Search */}
-      <motion.div variants={itemVariants} className="mb-8">
+      <motion.div variants={itemVariants} className="mb-5 sm:mb-8">
         <div className="relative">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+          <Search className="absolute left-3.5 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground" />
           <input
             type="text"
             placeholder="Search archive..."
-            className="w-full bg-card border border-border rounded-2xl py-3.5 pl-12 pr-4 text-[15px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/40 transition-all"
+            className="w-full bg-card border border-border rounded-xl sm:rounded-2xl py-2.5 sm:py-3.5 pl-10 sm:pl-12 pr-4 text-xs sm:text-[15px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/40 transition-all shadow-sm"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />

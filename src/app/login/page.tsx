@@ -38,7 +38,7 @@ export default function LoginPage() {
     });
 
     if (result?.error) {
-      setError("Invalid credentials or role mismatch");
+      setError(result.error);
     } else {
       if (role === "admin") {
         router.push("/admin");

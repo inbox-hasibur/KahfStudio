@@ -14,39 +14,51 @@ interface NewsCardProps {
     summary: string;
     source: string;
     category: string;
-    priority: "high" | "medium" | "low";
+    priority?: "high" | "medium" | "low";
     publishedAt: string;
     imageUrl?: string;
     originalUrl?: string;
+    audio_bn_full?: string;
+    audio_bn_summary?: string;
+    audio_en_full?: string;
+    audio_en_summary?: string;
   };
   isSaved?: boolean;
   onToggleSave?: () => void;
 }
 
-const priorityColors = {
-  high: "bg-red-500",
-  medium: "bg-amber-500",
-  low: "bg-emerald-500",
-};
-
 const NewsCard = ({ news, isSaved = false, onToggleSave }: NewsCardProps) => {
-  const handlePlayAudio = (type: 'full' | 'summary', e: React.MouseEvent) => {
+  const handlePlayAudio = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
-    const textToPlay = type === 'full' ? `${news.title}. ${news.summary}` : news.summary;
-    
-    const event = new CustomEvent('play-audio', {
+
+    const isEnglish =
+      typeof document !== "undefined" &&
+      (document.cookie.includes("googtrans=/bn/en") || localStorage.getItem("kahf-language") === "EN");
+    const preferredLang = isEnglish ? "EN" : "BN";
+
+    const event = new CustomEvent("play-audio", {
       detail: {
+        id: news.id,
         title: news.title,
-        summary: textToPlay
-      }
+        summary: news.summary,
+        imageUrl: news.imageUrl,
+        source: news.source,
+        preferredLang,
+        preferredType: "summary",
+        audioUrls: {
+          bn_full: news.audio_bn_full,
+          bn_summary: news.audio_bn_summary,
+          en_full: news.audio_en_full,
+          en_summary: news.audio_en_summary,
+        },
+      },
     });
     window.dispatchEvent(event);
   };
 
   return (
-    <motion.div 
+    <motion.div
       className="relative group"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
@@ -55,87 +67,77 @@ const NewsCard = ({ news, isSaved = false, onToggleSave }: NewsCardProps) => {
     >
       {/* Animated Gradient Border on Hover */}
       <div className="absolute -inset-[1px] bg-gradient-to-r from-primary/0 via-primary/20 to-primary/0 rounded-[28px] opacity-0 group-hover:opacity-100 transition-all duration-500 blur-sm" />
-      
-      <Card className="relative bg-card border-border group-hover:border-primary/20 rounded-[28px] overflow-hidden flex flex-col p-4 md:p-5 gap-5 md:gap-6 transition-all duration-500 shadow-sm hover:shadow-xl hover:shadow-primary/5 h-full">
-        
 
-        {/* Content Section - Improved white space and alignment */}
-        <div className="flex-1 flex flex-col min-w-0 py-1">
-          {/* Top Row: Category, Source, Time - Clear hierarchy */}
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
+      <Card className="relative bg-card border-border group-hover:border-primary/20 rounded-2xl sm:rounded-[28px] overflow-hidden flex flex-col p-3.5 sm:p-5 gap-3.5 sm:gap-5 transition-all duration-500 shadow-sm hover:shadow-xl hover:shadow-primary/5 h-full">
+        {/* Content Section */}
+        <div className="flex-1 flex flex-col min-w-0 py-0.5">
+          {/* Top Row: Category, Source, Time */}
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-1.5 sm:gap-2">
               <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-              <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-primary">
-                {news.category}
+              <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-primary">
+                {news.category || "General"}
               </span>
               <span className="text-border">|</span>
-              <span className="text-[11px] font-medium text-muted-foreground">
-                {news.source}
+              <span className="text-[10px] sm:text-[11px] font-medium text-muted-foreground truncate max-w-[100px] sm:max-w-none">
+                {news.source || "KahfNews"}
               </span>
             </div>
-            <div className="flex items-center gap-1.5 text-muted-foreground">
-              <Clock className="w-3.5 h-3.5" />
-              <span className="text-[11px] font-medium">
-                {news.publishedAt}
-              </span>
+            <div className="flex items-center gap-1 text-muted-foreground">
+              <Clock className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+              <span className="text-[10px] sm:text-[11px] font-medium">{news.publishedAt}</span>
             </div>
           </div>
 
-          {/* Title - Enhanced typography hierarchy */}
-          <h3 className="text-lg md:text-xl lg:text-[22px] font-bold text-foreground leading-[1.35] tracking-tight mb-3 line-clamp-2">
-            <Link 
-              href={`/news/${news.id}`} 
+          {/* Title */}
+          <h3 className="text-sm sm:text-base md:text-lg lg:text-xl font-bold text-foreground leading-[1.35] tracking-tight mb-2 line-clamp-2">
+            <Link
+              href={`/news/${news.id}`}
               className="hover:text-primary transition-colors duration-300"
             >
               {news.title}
             </Link>
           </h3>
 
-          {/* Summary - Better readability with optimal line length */}
-          <p className="text-muted-foreground text-[14px] leading-[1.6] line-clamp-2 mb-4 flex-grow">
+          {/* Summary */}
+          <p className="text-muted-foreground text-[11px] sm:text-xs md:text-sm leading-relaxed line-clamp-2 mb-3 flex-grow font-sans">
             {news.summary}
           </p>
 
-          {/* Action Bar - Balanced layout with clear CTAs */}
-          <div className="flex items-center justify-between mt-auto pt-2 border-t border-border/50">
+          {/* Action Bar - Single Clean "Listen Summary" CTA */}
+          <div className="flex items-center justify-between mt-auto pt-2.5 border-t border-border/50">
             <div className="flex items-center gap-2">
               <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                <Button 
-                  onClick={(e) => handlePlayAudio('full', e)}
-                  className="h-8 px-3 bg-primary text-primary-foreground hover:opacity-90 transition-all rounded-full font-semibold text-[11px] flex items-center gap-1 shadow-sm"
+                <Button
+                  onClick={handlePlayAudio}
+                  className="h-7 sm:h-8 px-3 sm:px-3.5 bg-primary text-primary-foreground hover:opacity-90 transition-all rounded-full font-bold text-[10px] sm:text-[11px] flex items-center gap-1.5 shadow-sm cursor-pointer"
+                  title="Play Gemini 3.1 Flash AI Audio Briefing"
                 >
                   <Play className="w-3 h-3 fill-current" />
-                  Full
+                  <span>Listen Summary</span>
                 </Button>
               </motion.div>
-              <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                <Button 
-                  onClick={(e) => handlePlayAudio('summary', e)}
-                  variant="outline"
-                  className="h-8 px-3 border-primary/20 text-primary hover:bg-primary/10 transition-all rounded-full font-semibold text-[11px] flex items-center gap-1 shadow-sm"
-                >
-                  <Play className="w-3 h-3 fill-current" />
-                  Summary
-                </Button>
-              </motion.div>
-              
+
               <Link href={`/news/${news.id}`}>
                 <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     size="icon"
-                    className="h-9 w-9 rounded-full border-border hover:bg-muted hover:border-primary/30 transition-all"
+                    className="h-8 w-8 rounded-full border-border hover:bg-muted hover:border-primary/30 transition-all cursor-pointer"
+                    title="Read article"
                   >
-                    <ArrowUpRight className="w-4 h-4" />
+                    <ArrowUpRight className="w-3.5 h-3.5" />
                   </Button>
                 </motion.div>
               </Link>
             </div>
-            
-            {/* Secondary Actions - Subtle but accessible */}
+
+            {/* Secondary Actions */}
             <div className="flex items-center gap-1">
               <motion.button
-                className={`p-2 transition-colors rounded-full hover:bg-muted ${isSaved ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}
+                className={`p-2 transition-colors rounded-full hover:bg-muted ${
+                  isSaved ? "text-primary" : "text-muted-foreground hover:text-foreground"
+                }`}
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
                 aria-label="Bookmark"

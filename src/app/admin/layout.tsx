@@ -4,7 +4,7 @@ import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
-import { LayoutDashboard, Users, Cpu, Database, Library, User } from "lucide-react";
+import { LayoutDashboard, Users, Cpu, Database, Library, User, BarChart3 } from "lucide-react";
 import { useSession } from "@/lib/auth-client";
 import { redirect } from "next/navigation";
 

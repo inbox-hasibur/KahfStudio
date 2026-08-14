@@ -109,16 +109,16 @@ const Navbar = () => {
             transition={{ duration: 0.3 }}
           >
             {/* Logo Section */}
-            <Link href="/" className="flex items-center gap-2 pl-2 md:pl-4 pr-3 md:pr-6 border-r border-border">
+            <Link href="/" className="flex items-center gap-1.5 sm:gap-2 pl-1.5 sm:pl-3 pr-2 sm:pr-4">
               <motion.div 
-                className="w-8 h-8 bg-gradient-to-br from-primary to-primary/60 rounded-xl flex items-center justify-center shadow-lg"
+                className="w-7 h-7 sm:w-8 sm:h-8 bg-gradient-to-br from-primary to-primary/60 rounded-lg sm:rounded-xl flex items-center justify-center shadow-md"
                 whileHover={{ scale: 1.05, rotate: 3 }}
                 whileTap={{ scale: 0.95 }}
                 transition={{ duration: 0.2 }}
               >
-                <span className="text-[14px] font-black text-white italic">K</span>
+                <span className="text-xs sm:text-[14px] font-black text-white italic">K</span>
               </motion.div>
-              <span className="text-sm font-black tracking-tighter text-foreground hidden sm:block">
+              <span className="text-xs sm:text-sm font-black tracking-tight text-foreground">
                 Kahf<span className="text-primary">News</span>
               </span>
             </Link>
@@ -136,10 +136,10 @@ const Navbar = () => {
               {mounted && (
                 <button 
                   onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-                  className="p-2.5 text-muted-foreground hover:text-foreground transition-colors rounded-xl hover:bg-white dark:hover:bg-slate-800"
+                  className="p-1.5 sm:p-2 text-muted-foreground hover:text-foreground transition-colors rounded-lg sm:rounded-xl hover:bg-muted"
                   aria-label="Toggle theme"
                 >
-                  {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                  {theme === "dark" ? <Sun className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <Moon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
                 </button>
               )}
 
@@ -148,11 +148,11 @@ const Navbar = () => {
                 {mounted && (
                   <button 
                     onClick={() => setIsLangDropdownOpen(!isLangDropdownOpen)}
-                    className="px-2.5 py-1.5 text-[12px] font-bold text-muted-foreground hover:text-foreground transition-colors rounded-xl hover:bg-white dark:hover:bg-slate-800 flex items-center gap-1"
+                    className="px-2 py-1 text-[11px] sm:text-[12px] font-bold text-muted-foreground hover:text-foreground transition-colors rounded-lg sm:rounded-xl hover:bg-muted flex items-center gap-0.5 sm:gap-1"
                     aria-label="Toggle language"
                   >
                     {language}
-                    <ChevronDown className="w-3 h-3" />
+                    <ChevronDown className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                   </button>
                 )}
                 

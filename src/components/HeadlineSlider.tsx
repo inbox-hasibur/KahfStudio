@@ -50,23 +50,23 @@ const HeadlineSlider = ({ headlines }: HeadlineSliderProps) => {
       animate="visible"
       variants={containerVariants}
     >
-      {/* Section Header - Enhanced with design theory: hierarchy, emphasis */}
+      {/* Section Header - Harmonious scale */}
       <motion.div 
-        className="flex items-center justify-between mb-8"
+        className="flex items-center justify-between mb-4 sm:mb-6"
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
-        <div className="flex items-center gap-3">
-          <Flame className="w-6 h-6 text-primary" />
-          <h2 className="text-headline text-foreground font-serif">শীর্ষ খবর</h2>
+        <div className="flex items-center gap-2 sm:gap-2.5">
+          <Flame className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
+          <h2 className="text-sm sm:text-base md:text-xl font-serif font-bold text-foreground tracking-tight">শীর্ষ খবর</h2>
         </div>
       </motion.div>
       
       {/* Headlines Carousel - Repetition with variation */}
       <motion.div 
         ref={sliderRef}
-        className="flex gap-6 overflow-x-auto pb-8 no-scrollbar snap-x snap-mandatory cursor-grab active:cursor-grabbing"
+        className="flex gap-4 sm:gap-6 overflow-x-auto pb-2 sm:pb-3 no-scrollbar snap-x snap-mandatory cursor-grab active:cursor-grabbing"
         variants={containerVariants}
       >
         {headlines.map((item, index) => (
