@@ -102,7 +102,7 @@ const Navbar = () => {
           
           {/* Main Navigation Dock - Enhanced Glassmorphism */}
           <motion.nav 
-            className={`flex-1 glass-strong rounded-2xl p-1 md:p-1.5 flex items-center justify-between relative transition-all duration-500 ${
+            className={`flex-1 glass-strong rounded-2xl p-1 md:p-1.5 flex items-center justify-between relative transition-all duration-500 min-h-[48px] sm:min-h-[52px] ${
               scrolled ? "shadow-[0_8px_32px_rgba(0,0,0,0.15)]" : ""
             }`}
             whileHover={{ scale: 1.002 }}
@@ -123,15 +123,15 @@ const Navbar = () => {
               </span>
             </Link>
 
-            {/* Links - Desktop */}
-            <div className="hidden md:flex items-center gap-1">
+            {/* Links - Desktop (Shown from lg: 1024px+ for clean non-overlapping layout) */}
+            <div className="hidden lg:flex items-center gap-1">
               <NavLink href="/" icon={<Headphones className="w-4 h-4" />} label="News" active={pathname === "/"} />
               <NavLink href="/media" icon={<Globe className="w-4 h-4" />} label="Media" active={pathname === "/media"} />
               <NavLink href="/archive" icon={<Archive className="w-4 h-4" />} label="Archive" active={pathname === "/archive"} />
               <NavLink href="/models" icon={<Cpu className="w-4 h-4" />} label="AI Models" active={pathname === "/models"} />
             </div>
 
-            <div className="flex items-center gap-1 pr-2">
+            <div className="flex items-center gap-1 pr-1.5">
               {/* Theme Toggle */}
               {mounted && (
                 <button 
@@ -163,7 +163,7 @@ const Navbar = () => {
                       initial={{ opacity: 0, y: 5 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: 5 }}
-                      className="absolute right-0 mt-2 w-24 bg-white dark:bg-slate-900 border border-border rounded-xl shadow-lg overflow-hidden flex flex-col z-50 py-1"
+                      className="absolute right-0 mt-2 w-24 bg-card border border-border rounded-xl shadow-lg overflow-hidden flex flex-col z-50 py-1"
                     >
                       <button
                         onClick={() => handleLanguageChange("BN")}
@@ -185,13 +185,13 @@ const Navbar = () => {
               {/* Search Icon - With keyboard shortcut hint */}
               <motion.button 
                 onClick={() => setIsSearchOpen(!isSearchOpen)}
-                className="hidden sm:flex items-center gap-2 px-3 py-2 text-muted-foreground hover:text-foreground transition-colors rounded-xl hover:bg-white dark:hover:bg-slate-800"
+                className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 text-muted-foreground hover:text-foreground transition-colors rounded-xl hover:bg-muted"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
               >
                 <Search className="w-4 h-4" />
-                <span className="text-[11px] font-medium">Search</span>
-                <kbd className="hidden lg:inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-mono bg-muted rounded border border-border">
+                <span className="text-[11px] font-medium hidden xl:inline">Search</span>
+                <kbd className="hidden xl:inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-mono bg-muted rounded border border-border">
                   <Command className="w-3 h-3" />K
                 </kbd>
               </motion.button>
@@ -199,18 +199,18 @@ const Navbar = () => {
               {/* Mobile Search Button */}
               <motion.button 
                 onClick={() => setIsSearchOpen(!isSearchOpen)}
-                className="sm:hidden p-2.5 text-muted-foreground hover:text-foreground transition-colors rounded-xl hover:bg-white dark:hover:bg-slate-800"
+                className="sm:hidden p-2 text-muted-foreground hover:text-foreground transition-colors rounded-xl hover:bg-muted"
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
               >
                 <Search className="w-4 h-4" />
               </motion.button>
 
-              {/* Mobile Menu Button */}
-              <div className="md:hidden">
+              {/* Mobile / Tablet Menu Button (Shown on mobile & tablet < 1024px) */}
+              <div className="lg:hidden">
                 <motion.button 
                   onClick={() => setIsMenuOpen(!isMenuOpen)}
-                  className="p-2.5 text-muted-foreground hover:text-foreground transition-colors rounded-xl hover:bg-white dark:hover:bg-slate-800 min-w-[44px] min-h-[44px] flex items-center justify-center"
+                  className="p-2 text-muted-foreground hover:text-foreground transition-colors rounded-xl hover:bg-muted min-w-[38px] min-h-[38px] flex items-center justify-center cursor-pointer"
                   whileTap={{ scale: 0.9 }}
                 >
                   <AnimatePresence mode="wait">
@@ -221,7 +221,7 @@ const Navbar = () => {
                       exit={{ rotate: 90, opacity: 0 }}
                       transition={{ duration: 0.2 }}
                     >
-                      {isMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+                      {isMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
                     </motion.div>
                   </AnimatePresence>
                 </motion.button>
@@ -229,28 +229,28 @@ const Navbar = () => {
             </div>
           </motion.nav>
 
-          {/* Auth Buttons - Desktop */}
+          {/* Auth Buttons - Desktop / Tablet (Synced Height & Padding with Main Nav Dock) */}
           <motion.div 
-            className="hidden sm:flex glass-strong rounded-2xl p-1.5 items-center gap-1"
+            className="hidden sm:flex glass-strong rounded-2xl p-1 md:p-1.5 items-center gap-1 shrink-0 min-h-[48px] sm:min-h-[52px]"
             whileHover={{ scale: 1.01 }}
             transition={{ duration: 0.3 }}
           >
             {status === "authenticated" ? (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 my-auto">
                 <motion.button 
                   onClick={() => signOut()}
-                  className="px-2 md:px-4 py-2 bg-transparent text-muted-foreground rounded-full text-[13px] font-bold hover:bg-white dark:hover:bg-slate-800 hover:text-foreground transition-all flex items-center gap-1 md:gap-2 h-9"
+                  className="px-2.5 sm:px-3 py-1.5 bg-transparent text-muted-foreground rounded-full text-[12px] font-bold hover:bg-muted hover:text-foreground transition-all flex items-center gap-1 h-8 cursor-pointer"
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                 >
-                  <LogOut className="w-4 h-4" />
-                  <span className="hidden md:inline">Logout</span>
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span className="hidden xl:inline">Logout</span>
                 </motion.button>
                 
                 <div className="relative">
                   <motion.button 
                     onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
-                    className="w-9 h-9 rounded-full bg-[#1e293b] flex items-center justify-center text-white font-bold hover:bg-[#334155] transition-colors border border-[#334155]"
+                    className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold hover:bg-primary/90 transition-colors shadow-sm cursor-pointer"
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                   >
@@ -264,32 +264,32 @@ const Navbar = () => {
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 10, scale: 0.95 }}
                         transition={{ duration: 0.2 }}
-                        className="absolute right-0 mt-3 w-64 rounded-2xl border border-border bg-slate-950 shadow-[0_8px_30px_rgb(0,0,0,0.4)] overflow-hidden py-2 z-50 flex flex-col"
+                        className="absolute right-0 mt-3 w-64 rounded-2xl border border-border bg-card shadow-2xl overflow-hidden py-2 z-50 flex flex-col text-foreground"
                       >
-                        <div className="px-5 py-3 border-b border-border bg-slate-900/50">
-                          <p className="text-[14px] font-bold text-slate-200">{session?.user?.name}</p>
-                          <p className="text-[12px] text-slate-400 truncate">{session?.user?.email}</p>
+                        <div className="px-5 py-3 border-b border-border bg-muted/40">
+                          <p className="text-[14px] font-bold text-foreground">{session?.user?.name}</p>
+                          <p className="text-[12px] text-muted-foreground truncate">{session?.user?.email}</p>
                         </div>
                         <div className="p-2 flex flex-col gap-1">
                           {(session?.user as any)?.role === "admin" ? (
                             <>
                               <Link href="/admin" onClick={() => setIsProfileDropdownOpen(false)}>
-                                <div className="px-3 py-2 text-[13px] font-medium hover:bg-slate-800 rounded-xl cursor-pointer transition-colors text-slate-300 hover:text-white">
+                                <div className="px-3 py-2 text-[13px] font-medium hover:bg-muted rounded-xl cursor-pointer transition-colors text-muted-foreground hover:text-foreground">
                                   Dashboard
                                 </div>
                               </Link>
                               <Link href="/admin/users" onClick={() => setIsProfileDropdownOpen(false)}>
-                                <div className="px-3 py-2 text-[13px] font-medium hover:bg-slate-800 rounded-xl cursor-pointer transition-colors text-slate-300 hover:text-white">
+                                <div className="px-3 py-2 text-[13px] font-medium hover:bg-slate-800 rounded-xl cursor-pointer transition-colors text-muted-foreground hover:text-foreground">
                                   User Management
                                 </div>
                               </Link>
                               <Link href="/admin/scraping" onClick={() => setIsProfileDropdownOpen(false)}>
-                                <div className="px-3 py-2 text-[13px] font-medium hover:bg-slate-800 rounded-xl cursor-pointer transition-colors text-slate-300 hover:text-white">
+                                <div className="px-3 py-2 text-[13px] font-medium hover:bg-muted rounded-xl cursor-pointer transition-colors text-muted-foreground hover:text-foreground">
                                   Scraping Control
                                 </div>
                               </Link>
                               <Link href="/admin/library" onClick={() => setIsProfileDropdownOpen(false)}>
-                                <div className="px-3 py-2 text-[13px] font-medium hover:bg-slate-800 rounded-xl cursor-pointer transition-colors text-slate-300 hover:text-white">
+                                <div className="px-3 py-2 text-[13px] font-medium hover:bg-muted rounded-xl cursor-pointer transition-colors text-muted-foreground hover:text-foreground">
                                   News Library
                                 </div>
                               </Link>
@@ -297,30 +297,30 @@ const Navbar = () => {
                           ) : (
                             <>
                               <Link href="/profile" onClick={() => setIsProfileDropdownOpen(false)}>
-                                <div className="px-3 py-2 text-[13px] font-medium hover:bg-slate-800 rounded-xl cursor-pointer transition-colors text-slate-300 hover:text-white">
+                                <div className="px-3 py-2 text-[13px] font-medium hover:bg-muted rounded-xl cursor-pointer transition-colors text-muted-foreground hover:text-foreground">
                                   Dashboard
                                 </div>
                               </Link>
                               
-                              {/* Show Scraping Control and News Approval for All non-admin users, but show lock for free */}
+                              {/* Show Scraping Control and News Approval for All non-admin users */}
                               <Link href="/profile/scraping" onClick={() => setIsProfileDropdownOpen(false)}>
-                                <div className={`px-3 py-2 text-[13px] font-medium hover:bg-slate-800 rounded-xl cursor-pointer transition-colors flex items-center gap-2 ${(session?.user as any)?.tier === "premium" ? "text-emerald-400 hover:text-emerald-300" : "text-slate-300 hover:text-white"}`}>
+                                <div className={`px-3 py-2 text-[13px] font-medium hover:bg-muted rounded-xl cursor-pointer transition-colors flex items-center gap-2 ${(session?.user as any)?.tier === "premium" ? "text-primary hover:text-primary/90" : "text-muted-foreground hover:text-foreground"}`}>
                                   Scraping Control
                                 </div>
                               </Link>
                               <Link href="/profile/library" onClick={() => setIsProfileDropdownOpen(false)}>
-                                <div className={`px-3 py-2 text-[13px] font-medium hover:bg-slate-800 rounded-xl cursor-pointer transition-colors flex items-center gap-2 ${(session?.user as any)?.tier === "premium" ? "text-emerald-400 hover:text-emerald-300" : "text-slate-300 hover:text-white"}`}>
+                                <div className={`px-3 py-2 text-[13px] font-medium hover:bg-muted rounded-xl cursor-pointer transition-colors flex items-center gap-2 ${(session?.user as any)?.tier === "premium" ? "text-primary hover:text-primary/90" : "text-muted-foreground hover:text-foreground"}`}>
                                   News Approval
                                 </div>
                               </Link>
 
                               <Link href="/profile/byok" onClick={() => setIsProfileDropdownOpen(false)}>
-                                <div className="px-3 py-2 text-[13px] font-medium hover:bg-slate-800 rounded-xl cursor-pointer transition-colors text-slate-300 hover:text-white">
+                                <div className="px-3 py-2 text-[13px] font-medium hover:bg-muted rounded-xl cursor-pointer transition-colors text-muted-foreground hover:text-foreground">
                                   BYOK & API Management
                                 </div>
                               </Link>
                               <Link href="/profile/preferences" onClick={() => setIsProfileDropdownOpen(false)}>
-                                <div className="px-3 py-2 text-[13px] font-medium hover:bg-slate-800 rounded-xl cursor-pointer transition-colors text-slate-300 hover:text-white">
+                                <div className="px-3 py-2 text-[13px] font-medium hover:bg-muted rounded-xl cursor-pointer transition-colors text-muted-foreground hover:text-foreground">
                                   Preferences
                                 </div>
                               </Link>
@@ -333,10 +333,10 @@ const Navbar = () => {
                 </div>
               </div>
             ) : (
-              <>
+              <div className="flex items-center gap-1 my-auto">
                 <Link href="/login">
                   <motion.button 
-                    className="px-5 py-2.5 text-[12px] font-bold text-muted-foreground hover:text-foreground transition-colors rounded-xl hover:bg-white dark:hover:bg-slate-800"
+                    className="px-3 sm:px-4 py-1.5 text-[12px] font-bold text-muted-foreground hover:text-foreground transition-colors rounded-xl hover:bg-muted h-8"
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                   >
@@ -345,14 +345,14 @@ const Navbar = () => {
                 </Link>
                 <Link href="/register">
                   <motion.button 
-                    className="px-5 py-2.5 bg-white text-zinc-900 rounded-xl text-[12px] font-bold hover:bg-zinc-100 transition-all shadow-lg hover:shadow-xl whitespace-nowrap"
+                    className="px-3.5 sm:px-4 py-1.5 bg-primary text-primary-foreground rounded-xl text-[12px] font-bold hover:bg-primary/90 transition-all shadow-md whitespace-nowrap h-8"
                     whileHover={{ scale: 1.02, y: -1 }}
                     whileTap={{ scale: 0.98 }}
                   >
                     Sign&nbsp;up
                   </motion.button>
                 </Link>
-              </>
+              </div>
             )}
           </motion.div>
         </div>
@@ -372,7 +372,7 @@ const Navbar = () => {
                 <input 
                   type="text" 
                   placeholder="Search news, categories, or updates..."
-                  className="w-full bg-white/50 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-800 focus:bg-white dark:focus:bg-slate-800 border border-border rounded-xl py-3 pl-11 pr-4 text-[14px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all"
+                  className="w-full bg-card/60 hover:bg-card focus:bg-card border border-border rounded-xl py-3 pl-11 pr-4 text-[14px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   autoFocus
@@ -412,22 +412,16 @@ const Navbar = () => {
               <div className="flex gap-2 mt-1">
                 {status === "authenticated" ? (
                   <>
-                    {(session?.user as any)?.role === "admin" && (
-                      <Link href="/admin" className="flex-1" onClick={() => setIsMenuOpen(false)}>
-                        <motion.button 
-                          className="w-full py-3 text-[13px] font-bold text-white hover:text-white transition-colors rounded-xl bg-primary hover:bg-primary/90 min-h-[44px]"
-                          whileTap={{ scale: 0.98 }}
-                        >
-                          Admin Panel
-                        </motion.button>
-                      </Link>
-                    )}
-                    <Link href="/profile" className="flex-1" onClick={() => setIsMenuOpen(false)}>
+                    <Link 
+                      href={(session?.user as any)?.role === "admin" ? "/admin" : "/profile"} 
+                      className="flex-1" 
+                      onClick={() => setIsMenuOpen(false)}
+                    >
                       <motion.button 
-                        className="w-full py-3 text-[13px] font-bold text-muted-foreground hover:text-foreground transition-colors rounded-xl hover:bg-muted min-h-[44px]"
+                        className="w-full py-3 text-[13px] font-bold text-primary-foreground transition-colors rounded-xl bg-primary hover:bg-primary/90 min-h-[44px]"
                         whileTap={{ scale: 0.98 }}
                       >
-                        Profile
+                        {(session?.user as any)?.role === "admin" ? "Dashboard" : "Profile"}
                       </motion.button>
                     </Link>
                     <div className="flex-1">
@@ -452,7 +446,7 @@ const Navbar = () => {
                     </Link>
                     <Link href="/register" className="flex-1" onClick={() => setIsMenuOpen(false)}>
                       <motion.button 
-                        className="px-6 py-2.5 bg-white text-zinc-900 rounded-xl text-[13px] font-bold hover:bg-zinc-100 transition-all shadow-lg min-w-[90px]"
+                        className="w-full py-2.5 bg-primary text-primary-foreground rounded-xl text-[13px] font-bold hover:bg-primary/90 transition-all shadow-md min-w-[90px]"
                         whileTap={{ scale: 0.95 }}
                       >
                         Sign&nbsp;up
@@ -491,8 +485,8 @@ const NavLink = ({
     <div
       className={`flex items-center gap-2 px-4 py-3 md:py-2.5 rounded-xl text-[13px] md:text-[12px] font-bold transition-all duration-300 w-full md:w-auto min-h-[44px] md:min-h-0 whitespace-nowrap ${
         active 
-          ? "bg-white dark:bg-slate-800 text-foreground shadow-sm" 
-          : "text-muted-foreground hover:text-foreground hover:bg-white dark:hover:bg-slate-800"
+          ? "bg-card text-foreground shadow-sm" 
+          : "text-muted-foreground hover:text-foreground hover:bg-card"
       }`}
     >
       <span className={active ? "text-foreground" : "group-hover:text-foreground transition-colors"}>

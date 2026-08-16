@@ -58,22 +58,22 @@ export default function LoginPage() {
         </CardHeader>
         <CardContent>
           <div className="flex justify-center mb-6">
-            <div className="relative flex w-48 h-10 bg-slate-100 dark:bg-slate-900 rounded-full p-1 border border-slate-200 dark:border-slate-800">
+            <div className="relative flex w-48 h-10 bg-muted/80 rounded-full p-1 border border-border">
               <div 
-                className="absolute top-1 bottom-1 w-[calc(50%-4px)] bg-white dark:bg-slate-800 shadow-sm rounded-full transition-all duration-300 ease-in-out"
+                className="absolute top-1 bottom-1 w-[calc(50%-4px)] bg-card border border-border/40 shadow-sm rounded-full transition-all duration-300 ease-in-out"
                 style={{ left: role === "user" ? "4px" : "calc(50%)" }}
               />
               <button 
                 type="button"
                 onClick={() => setRole("user")}
-                className={`relative z-10 flex-1 flex items-center justify-center text-sm font-medium transition-colors ${role === "user" ? "text-slate-900 dark:text-white" : "text-slate-500 dark:text-slate-400"}`}
+                className={`relative z-10 flex-1 flex items-center justify-center text-sm font-bold transition-colors ${role === "user" ? "text-foreground" : "text-muted-foreground hover:text-foreground"}`}
               >
                 User
               </button>
               <button 
                 type="button"
                 onClick={() => setRole("admin")}
-                className={`relative z-10 flex-1 flex items-center justify-center text-sm font-medium transition-colors ${role === "admin" ? "text-slate-900 dark:text-white" : "text-slate-500 dark:text-slate-400"}`}
+                className={`relative z-10 flex-1 flex items-center justify-center text-sm font-bold transition-colors ${role === "admin" ? "text-foreground" : "text-muted-foreground hover:text-foreground"}`}
               >
                 Admin
               </button>
@@ -96,7 +96,7 @@ export default function LoginPage() {
             
             {error && <p className="text-sm text-red-500 text-center font-medium">{error}</p>}
             
-            <Button className="w-full bg-white text-zinc-900 border border-zinc-200 dark:border-transparent hover:bg-zinc-100 h-12 rounded-xl font-bold text-[15px] shadow-sm" type="submit" disabled={isSubmitting}>
+            <Button className="w-full bg-primary text-primary-foreground hover:bg-primary/90 h-12 rounded-xl font-bold text-[15px] shadow-sm transition-all" type="submit" disabled={isSubmitting}>
               {isSubmitting ? "Signing in..." : "Sign in"}
             </Button>
           </form>

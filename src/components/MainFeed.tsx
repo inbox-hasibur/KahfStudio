@@ -69,7 +69,7 @@ export default function MainFeed({ newsItems }: MainFeedProps) {
 
   return (
     <motion.div
-      className="w-full space-y-8"
+      className="w-full space-y-4 sm:space-y-5"
       initial="hidden"
       animate="visible"
       variants={containerVariants}
@@ -77,7 +77,7 @@ export default function MainFeed({ newsItems }: MainFeedProps) {
       {/* Feed Header & Category Navigation */}
       <motion.div
         variants={itemVariants}
-        className="flex flex-col md:flex-row md:items-center justify-between border-b border-border pb-4 sm:pb-6 gap-3 sm:gap-6"
+        className="flex flex-col md:flex-row md:items-center justify-between border-b border-border pb-2.5 sm:pb-3.5 gap-2 sm:gap-4"
       >
         <div className="flex items-center gap-2 sm:gap-3">
           <div className="relative">
@@ -86,7 +86,7 @@ export default function MainFeed({ newsItems }: MainFeedProps) {
               <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-primary opacity-50" />
             </div>
           </div>
-          <h2 className="text-sm sm:text-base md:text-xl font-serif font-bold text-foreground tracking-tight">সব খবর</h2>
+          <h2 className="text-sm sm:text-base md:text-xl font-sans font-bold text-foreground tracking-tight">সব খবর</h2>
         </div>
 
         {/* Category Navigation Tabs */}
@@ -121,7 +121,7 @@ export default function MainFeed({ newsItems }: MainFeedProps) {
       <AnimatePresence mode="wait">
         <motion.div
           key={activeCategory}
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8"
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-5"
           initial="hidden"
           animate="visible"
           exit="hidden"

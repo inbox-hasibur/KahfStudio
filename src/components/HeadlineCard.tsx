@@ -59,9 +59,9 @@ const HeadlineCard = ({ news, index = 0 }: HeadlineCardProps) => {
         transition={{ duration: 0.5, delay: index * 0.1 }}
         whileHover={{ y: -3, scale: 1.01 }}
       >
-        {/* Decorative Ambient Glow Orbs (Matching Hero Card Style) */}
-        <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl group-hover:bg-primary/10 transition-all duration-700 pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-40 h-40 bg-emerald-500/5 rounded-full blur-2xl group-hover:bg-emerald-500/10 transition-all duration-700 pointer-events-none" />
+        {/* Top Center Ambient Round Glow Orb (Exact requested Mindful Pause Card Style) */}
+        <div className="absolute -top-14 left-1/2 -translate-x-1/2 w-60 h-28 bg-primary/10 dark:bg-primary/25 rounded-full blur-3xl group-hover:bg-primary/20 dark:group-hover:bg-primary/40 transition-all duration-700 pointer-events-none" />
+        <div className="absolute top-0 right-0 w-48 h-48 bg-primary/5 rounded-full blur-3xl group-hover:bg-primary/10 transition-all duration-700 pointer-events-none" />
 
         {/* Content */}
         <div className="absolute inset-0 p-3.5 sm:p-5 md:p-6 flex flex-col justify-between">

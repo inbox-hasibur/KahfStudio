@@ -27,6 +27,18 @@ interface NewsCardProps {
   onToggleSave?: () => void;
 }
 
+// Helper to remove raw markdown syntax like **bold** or ## Header
+const cleanMarkdown = (text: string) => {
+  if (!text) return "";
+  return text
+    .replace(/#+\s*/g, '')
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    .replace(/\*(.*?)\*/g, '$1')
+    .replace(/__(.*?)__/g, '$1')
+    .replace(/_(.*?)_/g, '$1')
+    .trim();
+};
+
 const NewsCard = ({ news, isSaved = false, onToggleSave }: NewsCardProps) => {
   const handlePlayAudio = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -40,8 +52,8 @@ const NewsCard = ({ news, isSaved = false, onToggleSave }: NewsCardProps) => {
     const event = new CustomEvent("play-audio", {
       detail: {
         id: news.id,
-        title: news.title,
-        summary: news.summary,
+        title: cleanMarkdown(news.title),
+        summary: cleanMarkdown(news.summary),
         imageUrl: news.imageUrl,
         source: news.source,
         preferredLang,
@@ -59,18 +71,18 @@ const NewsCard = ({ news, isSaved = false, onToggleSave }: NewsCardProps) => {
 
   return (
     <motion.div
-      className="relative group"
+      className="relative group h-full"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
       whileHover={{ y: -2 }}
     >
       {/* Animated Gradient Border on Hover */}
-      <div className="absolute -inset-[1px] bg-gradient-to-r from-primary/0 via-primary/20 to-primary/0 rounded-[28px] opacity-0 group-hover:opacity-100 transition-all duration-500 blur-sm" />
+      <div className="absolute -inset-[1px] bg-gradient-to-r from-primary/0 via-primary/20 to-primary/0 rounded-[24px] opacity-0 group-hover:opacity-100 transition-all duration-500 blur-sm" />
 
-      <Card className="relative bg-card border-border group-hover:border-primary/20 rounded-2xl sm:rounded-[28px] overflow-hidden flex flex-col p-3.5 sm:p-5 gap-3.5 sm:gap-5 transition-all duration-500 shadow-sm hover:shadow-xl hover:shadow-primary/5 h-full">
+      <Card className="relative bg-card border-border group-hover:border-primary/20 rounded-2xl sm:rounded-[24px] overflow-hidden flex flex-col justify-between p-3.5 sm:p-4.5 transition-all duration-500 shadow-sm hover:shadow-xl hover:shadow-primary/5 h-full">
         {/* Content Section */}
-        <div className="flex-1 flex flex-col min-w-0 py-0.5">
+        <div className="flex-1 flex flex-col justify-between min-w-0 py-0.5">
           {/* Top Row: Category, Source, Time */}
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-1.5 sm:gap-2">
@@ -89,20 +101,21 @@ const NewsCard = ({ news, isSaved = false, onToggleSave }: NewsCardProps) => {
             </div>
           </div>
 
-          {/* Title */}
-          <h3 className="text-sm sm:text-base md:text-lg lg:text-xl font-bold text-foreground leading-[1.35] tracking-tight mb-2 line-clamp-2">
-            <Link
-              href={`/news/${news.id}`}
-              className="hover:text-primary transition-colors duration-300"
-            >
-              {news.title}
-            </Link>
-          </h3>
+          {/* Title & Summary Container - Dynamic Flow without Empty Gaps */}
+          <div className="flex-1 flex flex-col justify-start mb-3 min-h-[5.2rem] sm:min-h-[6.2rem]">
+            <h3 className="text-xs sm:text-sm md:text-base font-bold text-foreground leading-[1.35] tracking-tight line-clamp-2 mb-1 sm:mb-1.5">
+              <Link
+                href={`/news/${news.id}`}
+                className="hover:text-primary transition-colors duration-300"
+              >
+                {cleanMarkdown(news.title)}
+              </Link>
+            </h3>
 
-          {/* Summary */}
-          <p className="text-muted-foreground text-[11px] sm:text-xs md:text-sm leading-relaxed line-clamp-2 mb-3 flex-grow font-sans">
-            {news.summary}
-          </p>
+            <p className="text-muted-foreground text-[11px] sm:text-xs leading-relaxed line-clamp-3 font-sans">
+              {cleanMarkdown(news.summary)}
+            </p>
+          </div>
 
           {/* Action Bar - Single Clean "Listen Summary" CTA */}
           <div className="flex items-center justify-between mt-auto pt-2.5 border-t border-border/50">

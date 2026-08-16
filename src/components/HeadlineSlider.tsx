@@ -52,14 +52,14 @@ const HeadlineSlider = ({ headlines }: HeadlineSliderProps) => {
     >
       {/* Section Header - Harmonious scale */}
       <motion.div 
-        className="flex items-center justify-between mb-4 sm:mb-6"
+        className="flex items-center justify-between mb-2 sm:mb-3"
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
         <div className="flex items-center gap-2 sm:gap-2.5">
           <Flame className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
-          <h2 className="text-sm sm:text-base md:text-xl font-serif font-bold text-foreground tracking-tight">শীর্ষ খবর</h2>
+          <h2 className="text-sm sm:text-base md:text-xl font-sans font-bold text-foreground tracking-tight">শীর্ষ খবর</h2>
         </div>
       </motion.div>
       

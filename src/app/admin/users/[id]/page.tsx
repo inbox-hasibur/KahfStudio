@@ -112,7 +112,7 @@ export default function UserPaymentHistoryPage({ params }: { params: any }) {
             ) : (
               <div className="border border-border rounded-xl overflow-hidden shadow-sm">
                 <table className="w-full text-sm text-left">
-                  <thead className="bg-[#0f172a] text-white">
+                  <thead className="bg-muted/70 text-foreground">
                     <tr>
                       <th className="px-4 py-3 font-medium">Plan Type</th>
                       <th className="px-4 py-3 font-medium">Status</th>

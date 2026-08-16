@@ -105,7 +105,7 @@ export default function ArchivePage() {
 
   return (
     <motion.main
-      className="max-w-[1200px] mx-auto px-3 sm:px-6 pt-20 sm:pt-28 md:pt-36 pb-32"
+      className="max-w-[1200px] mx-auto px-2.5 sm:px-6 pt-[72px] sm:pt-[84px] md:pt-[96px] pb-20 md:pb-28"
       initial="hidden"
       animate="visible"
       variants={containerVariants}
@@ -114,7 +114,7 @@ export default function ArchivePage() {
       <motion.div variants={itemVariants}>
         <Link
           href="/"
-          className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors mb-4 sm:mb-6 group"
+          className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors mb-2.5 sm:mb-3.5 group"
         >
           <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-1 transition-transform" />
           <span className="text-xs sm:text-[13px] font-semibold uppercase tracking-wider">Back to Feed</span>
@@ -122,15 +122,15 @@ export default function ArchivePage() {
       </motion.div>
 
       {/* Header & Controls */}
-      <motion.div variants={itemVariants} className="mb-5 sm:mb-8 flex flex-col lg:flex-row lg:items-start justify-between gap-4 sm:gap-6">
+      <motion.div variants={itemVariants} className="mb-3 sm:mb-4 flex flex-col lg:flex-row lg:items-start justify-between gap-3 sm:gap-4">
         <div>
-          <div className="flex items-center gap-2.5 sm:gap-3 mb-2.5 sm:mb-4">
-            <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-purple-500/10 flex items-center justify-center border border-purple-500/20 shrink-0">
-              <ArchiveIcon className="w-4 h-4 sm:w-6 sm:h-6 text-purple-500" />
+          <div className="flex items-center gap-2.5 sm:gap-3 mb-2 sm:mb-3">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-purple-500/10 flex items-center justify-center border border-purple-500/20 shrink-0">
+              <ArchiveIcon className="w-4 h-4 sm:w-5 sm:h-5 text-purple-500" />
             </div>
             <div>
-              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground">Archive</h1>
-              <p className="text-muted-foreground text-xs sm:text-[14px]">
+              <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-foreground">Archive</h1>
+              <p className="text-muted-foreground text-xs sm:text-[13px]">
                 {articles.length} stories saved
               </p>
             </div>
@@ -140,7 +140,7 @@ export default function ArchivePage() {
           </p>
         </div>
 
-        <div className="flex items-center justify-between sm:justify-start gap-2 sm:gap-4 w-full sm:w-auto">
+        <div className="flex items-center justify-between sm:justify-start gap-2 sm:gap-3 w-full sm:w-auto">
           {/* Tabs */}
           <div className="flex-1 sm:flex-initial flex items-center gap-1 p-1 bg-card border border-border rounded-xl">
             <button
@@ -179,21 +179,21 @@ export default function ArchivePage() {
       </motion.div>
 
       {/* Search */}
-      <motion.div variants={itemVariants} className="mb-5 sm:mb-8">
+      <motion.div variants={itemVariants} className="mb-3 sm:mb-4">
         <div className="relative">
-          <Search className="absolute left-3.5 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground" />
+          <Search className="absolute left-3.5 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input
             type="text"
             placeholder="Search archive..."
-            className="w-full bg-card border border-border rounded-xl sm:rounded-2xl py-2.5 sm:py-3.5 pl-10 sm:pl-12 pr-4 text-xs sm:text-[15px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/40 transition-all shadow-sm"
+            className="w-full bg-card border border-border rounded-xl py-2.5 sm:py-3 pl-10 sm:pl-11 pr-4 text-xs sm:text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/40 transition-all shadow-sm"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
       </motion.div>
 
-      {/* Archive List */}
-      <motion.div variants={containerVariants} className="space-y-6 relative">
+      {/* Archive List / Grid (Synced Tight Spacing) */}
+      <motion.div variants={containerVariants} className="space-y-4 relative">
         {activeTab === "personalized" && !isPremium ? (
           <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-background/60 backdrop-blur-sm rounded-xl py-20 border border-border/50">
             <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
@@ -210,7 +210,7 @@ export default function ArchivePage() {
         ) : null}
 
         <div className={activeTab === "personalized" && !isPremium ? "opacity-30 pointer-events-none select-none blur-sm" : ""}>
-          <div className={viewMode === "grid" ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" : "space-y-6"}>
+          <div className={viewMode === "grid" ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-5" : "space-y-3 sm:space-y-3.5"}>
             {filteredArchive.length > 0 ? (
               filteredArchive.map((item) => (
                 <motion.div key={item.id} variants={itemVariants}>
@@ -222,12 +222,12 @@ export default function ArchivePage() {
                 </motion.div>
               ))
             ) : (
-              <motion.div variants={itemVariants} className="py-20 text-center col-span-full">
-                <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
-                  <ArchiveIcon className="w-8 h-8 text-muted-foreground" />
+              <motion.div variants={itemVariants} className="py-16 text-center col-span-full">
+                <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-3">
+                  <ArchiveIcon className="w-7 h-7 text-muted-foreground" />
                 </div>
-                <p className="text-foreground font-semibold mb-1">No stories found</p>
-                <p className="text-muted-foreground text-[14px]">
+                <p className="text-foreground font-semibold mb-1 text-sm">No stories found</p>
+                <p className="text-muted-foreground text-xs">
                   Try adjusting your search to find what you're looking for.
                 </p>
               </motion.div>

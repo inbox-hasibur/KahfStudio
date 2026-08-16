@@ -62,19 +62,19 @@ const LinuxIcon = () => (
 
 export default function AIModelsPage() {
   return (
-    <main className="min-h-screen bg-background text-foreground pb-32 pt-28 md:pt-36">
+    <main className="min-h-screen bg-background text-foreground pb-20 md:pb-28 pt-[72px] sm:pt-[84px] md:pt-[96px]">
       <div className="max-w-[1200px] mx-auto px-4 md:px-8 relative z-10">
         {/* Hero Section */}
         <div>
 
-          <h1 className="text-4xl md:text-6xl font-black tracking-tighter mb-6 flex flex-col md:flex-row items-center justify-center gap-3 text-zinc-900 dark:text-white">
-            <Cpu className="w-12 h-12 text-emerald-600 dark:text-emerald-500" />
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight mb-4 flex flex-col md:flex-row items-center justify-center gap-3 text-foreground">
+            <Cpu className="w-10 h-10 text-primary" />
             KahfNews{" "}
-            <span className="text-emerald-600 dark:text-emerald-500">
+            <span className="text-primary">
               AI Models
             </span>
           </h1>
-          <p className="text-lg text-zinc-600 dark:text-zinc-400 max-w-2xl mx-auto leading-relaxed">
+          <p className="text-sm sm:text-base text-muted-foreground max-w-2xl mx-auto leading-relaxed">
             Discover the inner workings of our advanced neural networks.
             Download and integrate our raw AI models, datasets, and native apps
             for unparalleled audio processing.

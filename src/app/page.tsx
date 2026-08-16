@@ -220,6 +220,34 @@ export default function Home() {
 
   const totalStories = news.length;
 
+  const handlePlayFullAudio = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    const allSummaries = headlines.map((h: any) => h.summary || h.ai_summary || h.title).filter(Boolean).join(". ");
+    const firstHeadline = headlines[0];
+    
+    const event = new CustomEvent('play-audio', {
+      detail: {
+        id: "daily-podcast",
+        title: `আজকের খবরের সম্পূর্ণ এআই পডকাস্ট - ${currentDate}`,
+        summary: allSummaries || "আজকের শীর্ষ সংবাদ ও বিস্তারিত খবরের সারসংক্ষেপ।",
+        imageUrl: firstHeadline?.imageUrl || firstHeadline?.image_url,
+        source: "KahfNews AI Podcast",
+        preferredLang: "BN",
+        preferredType: "summary",
+        audioUrls: {
+          bn_full: firstHeadline?.audio_bn_full,
+          bn_summary: firstHeadline?.audio_bn_summary,
+          en_full: firstHeadline?.audio_en_full,
+          en_summary: firstHeadline?.audio_en_summary,
+        }
+      }
+    });
+    window.dispatchEvent(event);
+  };
+
   if (isLoading || newsLoading) {
     return (
       <div className="min-h-[80vh] flex flex-col items-center justify-center gap-4">
@@ -236,13 +264,13 @@ export default function Home() {
 
   return (
     <motion.main
-      className="max-w-[1400px] mx-auto px-2.5 sm:px-6 lg:px-8 pt-16 sm:pt-24 md:pt-32 pb-28 md:pb-48 overflow-x-hidden"
+      className="max-w-[1400px] mx-auto px-2.5 sm:px-6 lg:px-8 pt-[72px] sm:pt-[84px] md:pt-[96px] pb-28 md:pb-48 overflow-x-hidden"
       initial="hidden"
       animate="visible"
       variants={containerVariants}
     >
       {/* 1. Contextual Smart Widgets Bar (Clean 2-Row Mobile Alignment, No Dot in Time) */}
-      <motion.section variants={itemVariants} className="mb-3 sm:mb-6">
+      <motion.section variants={itemVariants} className="mb-2 sm:mb-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 sm:gap-3 bg-transparent p-0 border-none">
           {/* ROW 1 ON MOBILE (Left Cluster on Desktop): Date, Time, Weather */}
           <div className="flex items-center justify-between sm:justify-start gap-1 sm:gap-2.5 text-[10px] sm:text-xs w-full sm:w-auto">
@@ -393,32 +421,35 @@ export default function Home() {
       </motion.section>
 
       {/* 2. Breaking News Ticker */}
-      <motion.section variants={itemVariants} className="mb-4 sm:mb-6">
+      <motion.section variants={itemVariants} className="mb-2.5 sm:mb-3.5">
         <BreakingNewsTicker items={headlines.map((h: any) => h.title)} />
       </motion.section>
 
       {/* 3. Merged Super Hero Card (Card Theme BG + Big Play Button ALWAYS on Right in Same Row) */}
-      <motion.section variants={itemVariants} className="mb-5 sm:mb-8">
+      <motion.section variants={itemVariants} className="mb-3 sm:mb-4">
         <div className="relative bg-card border border-border p-4 sm:p-6 md:p-8 lg:p-10 rounded-2xl sm:rounded-3xl md:rounded-[32px] overflow-hidden shadow-sm hover:shadow-md hover:border-primary/30 transition-all duration-300 group">
+          {/* Top Center Ambient Round Glow Orb (Exact requested Mindful Pause Card Style) */}
+          <div className="absolute -top-20 left-1/2 -translate-x-1/2 w-96 sm:w-[500px] h-40 bg-primary/10 dark:bg-primary/25 rounded-full blur-3xl group-hover:bg-primary/20 dark:group-hover:bg-primary/40 transition-all duration-700 pointer-events-none" />
+
           {/* 2-Column Responsive Proportional Layout (Left Content 67-75% / Right Action 25-33%) */}
           <div className="relative grid grid-cols-12 items-center gap-3 sm:gap-6 lg:gap-8">
             {/* Left Content Column */}
             <div className="col-span-8 md:col-span-8 lg:col-span-9 min-w-0 space-y-2.5 sm:space-y-4">
-              {/* Top Badge Row: Left Tag Badge & Right Duration Badge */}
-              <div className="flex items-center justify-between gap-2 w-full">
+              {/* Top Badge Row: Left Tag Badge & Synced Duration Badge right beside it */}
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className="inline-flex items-center gap-1 px-2.5 py-0.5 sm:px-3 sm:py-1 bg-primary/15 text-primary text-[10px] sm:text-[11px] font-black uppercase tracking-wider rounded-full border border-primary/25">
                   <Zap className="w-3 h-3 fill-current" />
                   আজকের এআই সারসংক্ষেপ
                 </span>
 
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-muted/90 text-foreground border border-border text-[11px] sm:text-xs font-mono font-bold rounded-full shadow-sm whitespace-nowrap shrink-0">
-                  <Clock className="w-3.5 h-3.5 text-primary shrink-0" />
-                  <span>~8 min</span>
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 sm:px-3 sm:py-1 bg-muted/90 text-foreground border border-border text-[10px] sm:text-[11px] font-mono font-bold rounded-full shadow-sm whitespace-nowrap shrink-0">
+                  <Clock className="w-3 h-3 text-primary shrink-0" />
+                  <span>8 min</span>
                 </span>
               </div>
 
               {/* Main Headline */}
-              <h1 className="text-sm sm:text-lg md:text-2xl lg:text-[2.25rem] font-serif font-bold text-foreground leading-[1.3] tracking-tight notranslate">
+              <h1 className="text-sm sm:text-lg md:text-2xl lg:text-[2.25rem] font-sans font-bold text-foreground leading-[1.3] tracking-tight notranslate">
                 আপনার দৈনিক সারসংক্ষেপ: <span className="text-primary">আজকের খবরের সম্পূর্ণ বিশ্লেষণ</span>
               </h1>
 
@@ -428,26 +459,21 @@ export default function Home() {
               </p>
 
               {/* Action Buttons ("শুনুন" & "পড়ুন") directly after text */}
-              <div className="flex items-center gap-1.5 sm:gap-3 pt-0.5 sm:pt-2">
+              <div className="flex items-center gap-2 sm:gap-3 pt-1 sm:pt-2">
                 <Button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    const audioPlayerTrigger = document.getElementById("global-audio-trigger");
-                    if (audioPlayerTrigger) audioPlayerTrigger.click();
-                  }}
-                  className="h-7 sm:h-8 md:h-10 px-3 sm:px-5 rounded-full bg-primary text-primary-foreground font-bold text-[10px] sm:text-xs gap-1 sm:gap-2 shadow-sm cursor-pointer"
+                  onClick={handlePlayFullAudio}
+                  className="h-8 sm:h-9 md:h-10 px-4 sm:px-5 rounded-xl bg-primary text-primary-foreground font-bold text-xs sm:text-sm gap-1.5 shadow-sm cursor-pointer hover:bg-primary/90 transition-all"
                 >
-                  <Headphones className="w-3 h-3 sm:w-4 sm:h-4" />
+                  <Headphones className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
                   <span>শুনুন</span>
                 </Button>
 
                 <Link href="/news/daily-summary">
                   <Button
                     variant="outline"
-                    className="h-7 sm:h-8 md:h-10 px-3 sm:px-5 rounded-full border-border hover:bg-muted font-bold text-[10px] sm:text-xs gap-1 sm:gap-2 cursor-pointer"
+                    className="h-8 sm:h-9 md:h-10 px-4 sm:px-5 rounded-xl border-border hover:bg-muted text-foreground font-bold text-xs sm:text-sm gap-1.5 cursor-pointer transition-all"
                   >
-                    <FileText className="w-3 h-3 sm:w-4 sm:h-4" />
+                    <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
                     <span>পড়ুন</span>
                   </Button>
                 </Link>
@@ -457,14 +483,9 @@ export default function Home() {
             {/* Right Dedicated Action Column: Centered Play Button (Shifted Leftwards to Golden Center) */}
             <div className="col-span-4 md:col-span-4 lg:col-span-3 flex items-center justify-center my-auto">
               <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  const audioPlayerTrigger = document.getElementById("global-audio-trigger");
-                  if (audioPlayerTrigger) audioPlayerTrigger.click();
-                }}
+                onClick={handlePlayFullAudio}
                 className="relative group/play flex items-center justify-center w-11 h-11 sm:w-14 sm:h-14 md:w-18 md:h-18 lg:w-22 lg:h-22 bg-primary text-primary-foreground rounded-full shadow-2xl shadow-primary/30 hover:scale-105 active:scale-95 transition-all duration-300 cursor-pointer"
-                title="Play Full AI Daily Audio Briefing (~8 Mins)"
+                title="Play Full AI Daily Audio Briefing (8 Mins)"
               >
                 <div className="absolute inset-0 rounded-full bg-primary animate-ping opacity-20" />
                 <Play className="w-4 h-4 sm:w-6 sm:h-6 md:w-8 md:h-8 lg:w-9 lg:h-9 fill-current ml-0.5 sm:ml-1 transition-transform group-hover/play:scale-110" />
@@ -476,7 +497,7 @@ export default function Home() {
 
       {/* Trial Banner */}
       {(sessionData?.user as any)?.trial_days_left !== undefined && (
-        <motion.section variants={itemVariants} className="mb-6 sm:mb-10">
+        <motion.section variants={itemVariants} className="mb-4 sm:mb-6">
           <div className="bg-primary/10 border border-primary/20 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
@@ -503,7 +524,7 @@ export default function Home() {
       )}
 
       {/* 4. Featured Headlines Section */}
-      <motion.section variants={itemVariants} className="mb-6 sm:mb-10">
+      <motion.section variants={itemVariants} className="mb-3.5 sm:mb-5">
         <HeadlineSlider headlines={headlines} />
       </motion.section>
 
@@ -527,10 +548,22 @@ export default function Home() {
             {isStickyExpanded ? (
               <ChevronLeft className="w-4 h-4" />
             ) : (
-              <div className="flex gap-0.5">
-                <span className="w-1 h-1 rounded-full bg-primary animate-pulse" />
-                <span className="w-1 h-1 rounded-full bg-muted-foreground" />
-                <span className="w-1 h-1 rounded-full bg-muted-foreground" />
+              <div className="flex items-center gap-1 px-0.5">
+                <motion.span
+                  className="w-1.5 h-1.5 rounded-full bg-primary"
+                  animate={{ y: [0, -3, 0] }}
+                  transition={{ duration: 0.6, repeat: Infinity, delay: 0 }}
+                />
+                <motion.span
+                  className="w-1.5 h-1.5 rounded-full bg-primary"
+                  animate={{ y: [0, -3, 0] }}
+                  transition={{ duration: 0.6, repeat: Infinity, delay: 0.2 }}
+                />
+                <motion.span
+                  className="w-1.5 h-1.5 rounded-full bg-primary"
+                  animate={{ y: [0, -3, 0] }}
+                  transition={{ duration: 0.6, repeat: Infinity, delay: 0.4 }}
+                />
               </div>
             )}
           </button>

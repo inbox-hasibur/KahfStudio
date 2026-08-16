@@ -216,10 +216,10 @@ export default function NewsDetailPage() {
     });
 
     return (
-      <div className="space-y-6">
+      <div className="space-y-4">
         {paragraphs.map((p, i) => (
-          <p key={i} className="text-[17px] md:text-[18px] leading-[1.8] text-foreground/85 font-medium">
-            {p}
+          <p key={i} className="text-sm sm:text-base leading-relaxed text-foreground/90 font-normal">
+            {p.replace(/\*\*(.*?)\*\*/g, '$1').replace(/\*(.*?)\*/g, '$1')}
           </p>
         ))}
         
@@ -245,7 +245,7 @@ export default function NewsDetailPage() {
 
   return (
     <motion.main
-      className="max-w-[860px] mx-auto px-4 md:px-6 pt-28 md:pt-36 pb-40"
+      className="max-w-[860px] mx-auto px-3 sm:px-6 pt-[72px] sm:pt-[84px] md:pt-[96px] pb-20 md:pb-28"
       initial="hidden"
       animate="visible"
       variants={containerVariants}
@@ -254,7 +254,7 @@ export default function NewsDetailPage() {
       <motion.div variants={itemVariants}>
         <Link
           href="/"
-          className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-8 group"
+          className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-3.5 sm:mb-4 group"
         >
           <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
           <span className="text-[13px] font-semibold uppercase tracking-wider">Back to Feed</span>
