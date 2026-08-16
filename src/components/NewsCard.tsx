@@ -101,9 +101,9 @@ const NewsCard = ({ news, isSaved = false, onToggleSave }: NewsCardProps) => {
             </div>
           </div>
 
-          {/* Title & Summary Container - Dynamic Flow without Empty Gaps */}
-          <div className="flex-1 flex flex-col justify-start mb-3 min-h-[5.2rem] sm:min-h-[6.2rem]">
-            <h3 className="text-xs sm:text-sm md:text-base font-bold text-foreground leading-[1.35] tracking-tight line-clamp-2 mb-1 sm:mb-1.5">
+          {/* Title - Fixed 2-Line Container Height for 100% Uniform Card Heights */}
+          <div className="min-h-[2.6rem] sm:min-h-[3rem] flex items-center mb-2">
+            <h3 className="text-xs sm:text-sm md:text-base font-bold text-foreground leading-[1.35] tracking-tight line-clamp-2">
               <Link
                 href={`/news/${news.id}`}
                 className="hover:text-primary transition-colors duration-300"
@@ -111,8 +111,11 @@ const NewsCard = ({ news, isSaved = false, onToggleSave }: NewsCardProps) => {
                 {cleanMarkdown(news.title)}
               </Link>
             </h3>
+          </div>
 
-            <p className="text-muted-foreground text-[11px] sm:text-xs leading-relaxed line-clamp-3 font-sans">
+          {/* Summary - Fixed 2-Line Container Height */}
+          <div className="min-h-[2.4rem] sm:min-h-[2.8rem] flex items-start mb-3">
+            <p className="text-muted-foreground text-[11px] sm:text-xs leading-relaxed line-clamp-2 font-sans">
               {cleanMarkdown(news.summary)}
             </p>
           </div>

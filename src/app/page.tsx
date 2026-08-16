@@ -106,7 +106,8 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(true);
   const [currentDate, setCurrentDate] = useState("");
   const [currentTime, setCurrentTime] = useState<Date | null>(null);
-  const [isStickyExpanded, setIsStickyExpanded] = useState(false);
+  const [isStickyExpanded, setIsStickyExpanded] = useState(true);
+  const [lastScrollY, setLastScrollY] = useState(0);
 
   // Country & Region state for location-based news widget
   const [selectedCountry, setSelectedCountry] = useState(COUNTRIES[0]);
@@ -144,6 +145,34 @@ export default function Home() {
       clearInterval(interval);
     };
   }, []);
+
+  // Auto-collapse sticky bar after 3s, expand on scroll up
+  useEffect(() => {
+    let timeout: NodeJS.Timeout;
+
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      if (currentScrollY < lastScrollY) {
+        setIsStickyExpanded(true);
+      } else if (currentScrollY > lastScrollY && currentScrollY > 100) {
+        setIsStickyExpanded(false);
+      }
+      setLastScrollY(currentScrollY);
+
+      clearTimeout(timeout);
+      timeout = setTimeout(() => {
+        setIsStickyExpanded(false);
+      }, 3000);
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    timeout = setTimeout(() => setIsStickyExpanded(false), 3000);
+
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      clearTimeout(timeout);
+    };
+  }, [lastScrollY]);
 
   // Transform news for headlines
   const headlines = news.slice(0, 3).map((item: any) => ({
@@ -507,8 +536,8 @@ export default function Home() {
       {/* Floating Audio Player Component */}
       <AudioPlayer newsItems={feedItems} />
 
-      {/* Sticky Bottom Actions Bar (3-Dot Expandable Audio Dock) */}
-      <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-40 transition-all duration-300">
+      {/* Sticky Bottom Actions Bar (Synced Bot Icon Logo) */}
+      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 transition-all duration-300">
         <div className="flex items-center gap-1.5 p-1.5 bg-card/95 border border-border backdrop-blur-2xl rounded-full shadow-2xl">
           {/* 3-Dot Toggle Button */}
           <button
@@ -520,9 +549,21 @@ export default function Home() {
               <ChevronLeft className="w-4 h-4" />
             ) : (
               <div className="flex items-center gap-1 px-0.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-                <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-                <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+                <motion.span
+                  className="w-1.5 h-1.5 rounded-full bg-primary"
+                  animate={{ y: [0, -3, 0] }}
+                  transition={{ duration: 0.6, repeat: Infinity, delay: 0 }}
+                />
+                <motion.span
+                  className="w-1.5 h-1.5 rounded-full bg-primary"
+                  animate={{ y: [0, -3, 0] }}
+                  transition={{ duration: 0.6, repeat: Infinity, delay: 0.2 }}
+                />
+                <motion.span
+                  className="w-1.5 h-1.5 rounded-full bg-primary"
+                  animate={{ y: [0, -3, 0] }}
+                  transition={{ duration: 0.6, repeat: Infinity, delay: 0.4 }}
+                />
               </div>
             )}
           </button>
@@ -534,11 +575,14 @@ export default function Home() {
                 initial={{ opacity: 0, width: 0 }}
                 animate={{ opacity: 1, width: "auto" }}
                 exit={{ opacity: 0, width: 0 }}
-                className="flex items-center gap-1.5 overflow-hidden pr-1"
+                className="flex items-center gap-1.5 overflow-hidden"
               >
                 {/* 1. Listen Daily Podcast / Open Player */}
                 <button
-                  onClick={handlePlayFullAudio}
+                  onClick={() => {
+                    const audioPlayerTrigger = document.getElementById("global-audio-trigger");
+                    if (audioPlayerTrigger) audioPlayerTrigger.click();
+                  }}
                   className="flex items-center gap-2 px-3.5 py-1.5 bg-primary hover:bg-primary/90 text-primary-foreground rounded-full text-xs font-bold transition-all shadow-md shadow-primary/20 whitespace-nowrap cursor-pointer"
                 >
                   <Headphones className="w-3.5 h-3.5" />

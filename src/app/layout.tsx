@@ -4,7 +4,6 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import GoogleTranslate from "@/components/GoogleTranslate";
 
 const hindSiliguri = Hind_Siliguri({ 
   subsets: ["bengali", "latin"], 
@@ -38,8 +37,25 @@ export default function RootLayout({
           <Navbar />
           {children}
           <Footer />
-          <GoogleTranslate />
         </ThemeProvider>
+        
+        {/* Google Translate Element */}
+<<<<<<< Updated upstream
+        <div id="google_translate_element" className="hidden" suppressHydrationWarning={true}></div>
+=======
+        <div id="google_translate_element" className="hidden"></div>
+>>>>>>> Stashed changes
+        <script
+          type="text/javascript"
+          dangerouslySetInnerHTML={{
+            __html: `
+              function googleTranslateElementInit() {
+                new google.translate.TranslateElement({pageLanguage: 'bn', autoDisplay: false}, 'google_translate_element');
+              }
+            `,
+          }}
+        />
+        <script type="text/javascript" src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit" async defer></script>
       </body>
     </html>
   );
