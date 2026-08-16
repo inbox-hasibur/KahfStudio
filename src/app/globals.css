@@ -66,14 +66,14 @@
 }
 
 .dark {
-  /* Dark Mode - Deep Forest Charcoal (#0f1311), reduced eye strain */
-  --background: 150 12% 6.7%;
-  --foreground: 150 15% 96%;
-  --card: 150 13% 9.2%;
-  --card-foreground: 150 15% 96%;
+  /* Dark Mode - Deep Forest Charcoal (#0f1311), reduced eye strain, premium Kahf theme */
+  --background: 150 12% 6.7%;         /* #0f1311 Forest Charcoal background */
+  --foreground: 150 15% 96%;          /* #f0f5f2 soft off-white text */
+  --card: 150 13% 9.2%;               /* #141c18 Forest Charcoal card */
+  --card-foreground: 150 15% 96%;     /* #f0f5f2 */
   --popover: 150 13% 9.2%;
   --popover-foreground: 150 15% 96%;
-  --primary: 142 71% 45%;
+  --primary: 142 71% 45%;             /* #10b981 Kahf Emerald Green */
   --primary-foreground: 150 20% 8%;
   --secondary: 150 14% 13%;
   --secondary-foreground: 150 15% 96%;
@@ -82,14 +82,14 @@
   --accent: 142 71% 45%;
   --accent-foreground: 150 20% 8%;
   --destructive: 0 63% 31%;
-  --border: 150 12% 16%;
+  --border: 150 12% 16%;              /* #1c2621 Forest Charcoal border */
   --input: 150 12% 16%;
   --ring: 142 71% 45%;
 
   /* Custom semantic colors */
   --glass-bg: rgba(15, 19, 17, 0.90);
   --glass-strong-bg: rgba(20, 26, 23, 0.96);
-  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-border: hsl(var(--border));
   --glass-shadow: rgba(0, 0, 0, 0.4);
   --glow-primary: rgba(16, 185, 129, 0.4);
   --glow-secondary: rgba(16, 185, 129, 0.25);

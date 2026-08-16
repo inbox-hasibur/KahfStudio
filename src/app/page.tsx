@@ -542,28 +542,16 @@ export default function Home() {
           {/* 3-Dot Toggle Button */}
           <button
             onClick={() => setIsStickyExpanded((prev) => !prev)}
-            className="w-8 h-8 rounded-full bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground flex items-center justify-center transition-all cursor-pointer"
+            className="w-8 h-8 rounded-full bg-muted/80 hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition-all cursor-pointer shadow-sm"
             title={isStickyExpanded ? "Minimize Menu" : "Expand Menu"}
           >
             {isStickyExpanded ? (
               <ChevronLeft className="w-4 h-4" />
             ) : (
-              <div className="flex items-center gap-1 px-0.5">
-                <motion.span
-                  className="w-1.5 h-1.5 rounded-full bg-primary"
-                  animate={{ y: [0, -3, 0] }}
-                  transition={{ duration: 0.6, repeat: Infinity, delay: 0 }}
-                />
-                <motion.span
-                  className="w-1.5 h-1.5 rounded-full bg-primary"
-                  animate={{ y: [0, -3, 0] }}
-                  transition={{ duration: 0.6, repeat: Infinity, delay: 0.2 }}
-                />
-                <motion.span
-                  className="w-1.5 h-1.5 rounded-full bg-primary"
-                  animate={{ y: [0, -3, 0] }}
-                  transition={{ duration: 0.6, repeat: Infinity, delay: 0.4 }}
-                />
+              <div className="flex items-center gap-0.5 px-0.5">
+                <span className="w-1 h-1 rounded-full bg-primary" />
+                <span className="w-1 h-1 rounded-full bg-muted-foreground/80" />
+                <span className="w-1 h-1 rounded-full bg-muted-foreground/80" />
               </div>
             )}
           </button>
