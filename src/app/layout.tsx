@@ -40,11 +40,7 @@ export default function RootLayout({
         </ThemeProvider>
         
         {/* Google Translate Element */}
-<<<<<<< Updated upstream
         <div id="google_translate_element" className="hidden" suppressHydrationWarning={true}></div>
-=======
-        <div id="google_translate_element" className="hidden"></div>
->>>>>>> Stashed changes
         <script
           type="text/javascript"
           dangerouslySetInnerHTML={{
