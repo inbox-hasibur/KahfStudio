@@ -174,49 +174,31 @@ export default function Home() {
     };
   }, [lastScrollY]);
 
-  // Transform news for headlines
-  const headlines = news.slice(0, 3).map((item: any) => ({
+  // Helper to map news objects into standardized view props
+  const mapNewsItem = (item: any, defaultPriority: "high" | "medium" | "low" = "medium") => ({
     id: item._id || item.id,
     title: item.title || item.headline,
     summary: item.summary || item.ai_summary,
     source: item.source || "KahfNews",
     category: item.category || "General",
-    priority: "high" as const,
+    priority: (item.priority || defaultPriority) as "high" | "medium" | "low",
     publishedAt: item.published_at
       ? new Date(item.published_at).toLocaleTimeString([], {
           hour: "2-digit",
           minute: "2-digit",
         })
-      : "Just now",
+      : defaultPriority === "high" ? "Just now" : "Recent",
     imageUrl: item.image_url || item.imageUrl,
     originalUrl: item.original_url || item.originalUrl,
     audio_bn_summary: item.audio_bn_summary,
     audio_bn_full: item.audio_bn_full,
     audio_en_summary: item.audio_en_summary,
     audio_en_full: item.audio_en_full,
-  }));
+  });
 
-  // Feed items
-  const feedItems = news.map((item: any) => ({
-    id: item._id || item.id,
-    title: item.title || item.headline,
-    summary: item.summary || item.ai_summary,
-    source: item.source || "KahfNews",
-    category: item.category || "General",
-    priority: (item.priority || "medium") as "high" | "medium" | "low",
-    publishedAt: item.published_at
-      ? new Date(item.published_at).toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        })
-      : "Recent",
-    imageUrl: item.image_url || item.imageUrl,
-    originalUrl: item.original_url || item.originalUrl,
-    audio_bn_summary: item.audio_bn_summary,
-    audio_bn_full: item.audio_bn_full,
-    audio_en_summary: item.audio_en_summary,
-    audio_en_full: item.audio_en_full,
-  }));
+  // Transform news for headlines and feed items
+  const headlines = news.slice(0, 3).map((item: any) => mapNewsItem(item, "high"));
+  const feedItems = news.map((item: any) => mapNewsItem(item, "medium"));
 
   const totalStories = news.length;
 
@@ -233,7 +215,7 @@ export default function Home() {
         id: "daily-podcast",
         title: `আজকের খবরের সম্পূর্ণ এআই পডকাস্ট - ${currentDate}`,
         summary: allSummaries || "আজকের শীর্ষ সংবাদ ও বিস্তারিত খবরের সারসংক্ষেপ।",
-        imageUrl: firstHeadline?.imageUrl || firstHeadline?.image_url,
+        imageUrl: firstHeadline?.imageUrl,
         source: "KahfNews AI Podcast",
         preferredLang: "BN",
         preferredType: "summary",
@@ -538,32 +520,36 @@ export default function Home() {
 
       {/* Sticky Bottom Actions Bar (Synced Bot Icon Logo) */}
       <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 transition-all duration-300">
-        <div className="flex items-center gap-1.5 p-1.5 bg-card/95 border border-border backdrop-blur-2xl rounded-full shadow-2xl">
-          {/* 3-Dot Toggle Button */}
+        <div className="flex items-center gap-1.5 p-1.5 bg-card/90 border border-border/80 backdrop-blur-2xl rounded-full shadow-2xl">
+          {/* 3-Dot Toggle Button (Minimal, High-Aesthetic Pulse) */}
           <button
             onClick={() => setIsStickyExpanded((prev) => !prev)}
-            className="w-8 h-8 rounded-full bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground flex items-center justify-center transition-all cursor-pointer"
+            className="relative group w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-primary/10 hover:bg-primary/20 text-primary border border-primary/25 hover:border-primary/40 flex items-center justify-center transition-all cursor-pointer shrink-0 shadow-sm"
             title={isStickyExpanded ? "Minimize Menu" : "Expand Menu"}
           >
+            {!isStickyExpanded && (
+              <div className="absolute inset-0 rounded-full bg-primary/20 blur-xs animate-pulse pointer-events-none" />
+            )}
             {isStickyExpanded ? (
-              <ChevronLeft className="w-4 h-4" />
+              <ChevronLeft className="w-3.5 h-3.5 text-foreground group-hover:text-primary transition-colors" />
             ) : (
-              <div className="flex items-center gap-1 px-0.5">
-                <motion.span
-                  className="w-1.5 h-1.5 rounded-full bg-primary"
-                  animate={{ y: [0, -3, 0] }}
-                  transition={{ duration: 0.6, repeat: Infinity, delay: 0 }}
-                />
-                <motion.span
-                  className="w-1.5 h-1.5 rounded-full bg-primary"
-                  animate={{ y: [0, -3, 0] }}
-                  transition={{ duration: 0.6, repeat: Infinity, delay: 0.2 }}
-                />
-                <motion.span
-                  className="w-1.5 h-1.5 rounded-full bg-primary"
-                  animate={{ y: [0, -3, 0] }}
-                  transition={{ duration: 0.6, repeat: Infinity, delay: 0.4 }}
-                />
+              <div className="flex items-center gap-1 relative z-10">
+                {[0, 1, 2].map((i) => (
+                  <motion.span
+                    key={i}
+                    className="w-1 h-1 rounded-full bg-primary shadow-[0_0_6px_hsl(var(--primary))]"
+                    animate={{
+                      scale: [1, 1.45, 1],
+                      opacity: [0.3, 1, 0.3],
+                    }}
+                    transition={{
+                      duration: 1.2,
+                      repeat: Infinity,
+                      delay: i * 0.2,
+                      ease: "easeInOut",
+                    }}
+                  />
+                ))}
               </div>
             )}
           </button>
