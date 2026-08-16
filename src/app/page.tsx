@@ -5,6 +5,7 @@ import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import HeadlineSlider from "@/components/HeadlineSlider";
 import MainFeed from "@/components/MainFeed";
+import NewsCard from "@/components/NewsCard";
 import AudioPlayer from "@/components/AudioPlayer";
 import BreakingNewsTicker from "@/components/BreakingNewsTicker";
 import { useNews, useWeather } from "@/hooks/useNews";
@@ -190,6 +191,7 @@ export default function Home() {
       : defaultPriority === "high" ? "Just now" : "Recent",
     imageUrl: item.image_url || item.imageUrl,
     originalUrl: item.original_url || item.originalUrl,
+    isPersonalized: item.is_personalized || item.type === "personalized" || false,
     audio_bn_summary: item.audio_bn_summary,
     audio_bn_full: item.audio_bn_full,
     audio_en_summary: item.audio_en_summary,
@@ -199,6 +201,7 @@ export default function Home() {
   // Transform news for headlines and feed items
   const headlines = news.slice(0, 3).map((item: any) => mapNewsItem(item, "high"));
   const feedItems = news.map((item: any) => mapNewsItem(item, "medium"));
+  const personalizedItems = feedItems.filter((item: any) => item.isPersonalized);
 
   const totalStories = news.length;
 
@@ -506,6 +509,34 @@ export default function Home() {
       <motion.section variants={itemVariants} className="mb-3.5 sm:mb-5">
         <HeadlineSlider headlines={headlines} />
       </motion.section>
+
+      {/* 4.5 Personalized AI News Section for Premium Users */}
+      {isPremium && personalizedItems.length > 0 && (
+        <motion.section variants={itemVariants} className="mb-5 sm:mb-7">
+          <div className="flex items-center justify-between border-b border-border/80 pb-2.5 mb-3.5">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-500 shrink-0">
+                <Sparkles className="w-4 h-4" />
+              </div>
+              <div>
+                <h2 className="text-base sm:text-lg md:text-xl font-sans font-bold text-foreground flex items-center gap-2">
+                  আপনার জন্য কাস্টমাইজড খবর
+                  <span className="px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-500 text-[10px] font-bold border border-purple-500/25">
+                    PERSONALIZED
+                  </span>
+                </h2>
+                <p className="text-[11px] sm:text-xs text-muted-foreground">আপনার পছন্দ ও রুচির ওপর ভিত্তি করে এআই দিয়ে বাছাইকৃত নিউজ</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+            {personalizedItems.slice(0, 3).map((item) => (
+              <NewsCard key={`personalized-${item.id}`} news={item} />
+            ))}
+          </div>
+        </motion.section>
+      )}
 
       {/* 5. Main News Feed Section */}
       <motion.section variants={itemVariants}>

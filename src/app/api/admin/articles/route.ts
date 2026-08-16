@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { verifyAdmin } from '@/lib/admin-auth';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const auth = await verifyAdmin(req);
+  if (!auth.authorized) return auth.response;
+
   const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
   const { data, error } = await supabase.from('news_articles').select('*').order('created_at', { ascending: false });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -9,6 +13,9 @@ export async function GET() {
 }
 
 export async function PATCH(req: NextRequest) {
+  const auth = await verifyAdmin(req);
+  if (!auth.authorized) return auth.response;
+
   const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
   const { id, status } = await req.json();
   const { error } = await supabase.from('news_articles').update({ status }).eq('id', id);
@@ -17,6 +24,9 @@ export async function PATCH(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+  const auth = await verifyAdmin(req);
+  if (!auth.authorized) return auth.response;
+
   const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
   const { id } = await req.json();
   const { error } = await supabase.from('news_articles').delete().eq('id', id);
