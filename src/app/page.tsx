@@ -542,12 +542,13 @@ export default function Home() {
           {/* 3-Dot Toggle Button */}
           <button
             onClick={() => setIsStickyExpanded((prev) => !prev)}
-            className="w-8 h-8 rounded-full bg-muted/80 hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition-all cursor-pointer shadow-sm"
+            className="w-8 h-8 rounded-full bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground flex items-center justify-center transition-all cursor-pointer"
             title={isStickyExpanded ? "Minimize Menu" : "Expand Menu"}
           >
             {isStickyExpanded ? (
               <ChevronLeft className="w-4 h-4" />
             ) : (
+<<<<<<< Updated upstream
               <div className="flex items-center gap-1 px-0.5">
                 <motion.span
                   className="w-1.5 h-1.5 rounded-full bg-primary"
@@ -564,6 +565,12 @@ export default function Home() {
                   animate={{ y: [0, -3, 0] }}
                   transition={{ duration: 0.6, repeat: Infinity, delay: 0.4 }}
                 />
+=======
+              <div className="flex gap-0.5">
+                <span className="w-1 h-1 rounded-full bg-primary animate-pulse" />
+                <span className="w-1 h-1 rounded-full bg-muted-foreground" />
+                <span className="w-1 h-1 rounded-full bg-muted-foreground" />
+>>>>>>> Stashed changes
               </div>
             )}
           </button>

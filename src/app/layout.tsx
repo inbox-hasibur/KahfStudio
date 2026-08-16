@@ -4,7 +4,6 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import Script from "next/script";
 
 const hindSiliguri = Hind_Siliguri({ 
   subsets: ["bengali", "latin"], 
@@ -28,11 +27,7 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="bn" suppressHydrationWarning>
-      <body 
-        className={`${hindSiliguri.variable} ${notoSerif.variable} font-sans antialiased`} 
-        style={{ fontFamily: "var(--font-hind)" }}
-        suppressHydrationWarning
-      >
+      <body className={`${hindSiliguri.variable} ${notoSerif.variable} font-sans antialiased`} style={{ fontFamily: "var(--font-hind)" }}>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
@@ -45,26 +40,22 @@ export default function RootLayout({
         </ThemeProvider>
         
         {/* Google Translate Element */}
+<<<<<<< Updated upstream
         <div id="google_translate_element" className="hidden" suppressHydrationWarning={true}></div>
-        
-        <Script
-          id="google-translate-init"
-          strategy="afterInteractive"
+=======
+        <div id="google_translate_element" className="hidden"></div>
+>>>>>>> Stashed changes
+        <script
+          type="text/javascript"
           dangerouslySetInnerHTML={{
             __html: `
               function googleTranslateElementInit() {
-                if (window.google && window.google.translate) {
-                  new window.google.translate.TranslateElement({pageLanguage: 'bn', autoDisplay: false}, 'google_translate_element');
-                }
+                new google.translate.TranslateElement({pageLanguage: 'bn', autoDisplay: false}, 'google_translate_element');
               }
             `,
           }}
         />
-        <Script
-          id="google-translate-script"
-          strategy="afterInteractive"
-          src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"
-        />
+        <script type="text/javascript" src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit" async defer></script>
       </body>
     </html>
   );

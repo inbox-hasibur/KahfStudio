@@ -62,18 +62,32 @@ const LinuxIcon = () => (
 
 export default function AIModelsPage() {
   return (
+<<<<<<< Updated upstream
     <main className="min-h-screen bg-background text-foreground pb-20 md:pb-28 pt-[72px] sm:pt-[84px] md:pt-[96px] font-sans">
       <div className="max-w-[1200px] mx-auto px-3 sm:px-6 relative z-10">
         {/* Hero Section */}
         <div className="text-center mb-6 sm:mb-8">
           <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight mb-2 sm:mb-3 flex items-center justify-center gap-2 sm:gap-2.5 text-foreground">
             <Cpu className="w-6 h-6 sm:w-7 sm:h-7 text-primary" />
+=======
+    <main className="min-h-screen bg-background text-foreground pb-20 md:pb-28 pt-[72px] sm:pt-[84px] md:pt-[96px]">
+      <div className="max-w-[1200px] mx-auto px-4 md:px-8 relative z-10">
+        {/* Hero Section */}
+        <div>
+
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight mb-4 flex flex-col md:flex-row items-center justify-center gap-3 text-foreground">
+            <Cpu className="w-10 h-10 text-primary" />
+>>>>>>> Stashed changes
             KahfNews{" "}
             <span className="text-primary">
               AI Models
             </span>
           </h1>
+<<<<<<< Updated upstream
           <p className="text-xs sm:text-sm text-muted-foreground max-w-xl mx-auto leading-relaxed">
+=======
+          <p className="text-sm sm:text-base text-muted-foreground max-w-2xl mx-auto leading-relaxed">
+>>>>>>> Stashed changes
             Discover the inner workings of our advanced neural networks.
             Download and integrate our raw AI models, datasets, and native apps
             for unparalleled audio processing.
