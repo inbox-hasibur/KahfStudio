@@ -21,6 +21,7 @@ import {
   Star,
   ChevronLeft,
   Settings,
+  Sliders,
   Headphones,
   MapPin,
   Globe,
@@ -198,10 +199,11 @@ export default function Home() {
     audio_en_full: item.audio_en_full,
   });
 
-  // Transform news for headlines and feed items
+  // Transform news for headlines, feed items, and personalized feed
   const headlines = news.slice(0, 3).map((item: any) => mapNewsItem(item, "high"));
   const feedItems = news.map((item: any) => mapNewsItem(item, "medium"));
   const personalizedItems = feedItems.filter((item: any) => item.isPersonalized);
+  const displayPersonalized = personalizedItems.length > 0 ? personalizedItems : feedItems.slice(0, 3);
 
   const totalStories = news.length;
 
@@ -210,14 +212,28 @@ export default function Home() {
       e.preventDefault();
       e.stopPropagation();
     }
-    const allSummaries = headlines.map((h: any) => h.summary || h.ai_summary || h.title).filter(Boolean).join(". ");
+    
+    const temp = weather?.temp || 29;
+    const desc = weather?.description || "পরিষ্কার আকাশ";
+    const umbrellaAdvice = (desc.includes("rain") || desc.includes("cloud") || desc.includes("বৃষ্টি"))
+      ? "আজ বাইরে বের হওয়ার আগে ছাতা সঙ্গে রাখা জরুরি, বৃষ্টির সম্ভাবনা রয়েছে।"
+      : "আজ আকাশ পরিষ্কার থাকবে, তবে তীব্র রোদ এড়াতে প্রয়োজনে ছাতা ব্যবহার করতে পারেন।";
+
+    const newsSummaryList = headlines
+      .slice(0, 5)
+      .map((h: any, i: number) => `খবর ${i + 1}: ${h.title}. ${h.summary || ""}`)
+      .filter(Boolean)
+      .join(". ");
+
+    const dailyPodcastScript = `শুভ সকাল! আজ ${currentDate || "আজকের দিন"}। কহাফ নিউজের স্পেশাল এআই পডকাস্টে আপনাকে স্বাগতম। আজকের আবহাওয়া: তাপমাত্রা প্রায় ${temp} ডিগ্রি সেলসিয়াস, আবহাওয়া ${desc}। ${umbrellaAdvice} রাস্তাঘাটের যানজট পরিস্থিতি: প্রধান সড়ক ও মোড়গুলোতে সকালের দিকে কিছুটা স্বাভাবিক চাপ থাকতে পারে, সময় হাতে নিয়ে বের হোন। এবার দেখে নেওয়া যাক আজকের প্রধান খবরগুলো: ${newsSummaryList}। কহাফ নিউজের সাথে থাকার জন্য ধন্যবাদ। দিনটি আপনার শুভ হোক!`;
+
     const firstHeadline = headlines[0];
 
     const event = new CustomEvent('play-audio', {
       detail: {
         id: "daily-podcast",
-        title: `আজকের খবরের সম্পূর্ণ এআই পডকাস্ট - ${currentDate}`,
-        summary: allSummaries || "আজকের শীর্ষ সংবাদ ও বিস্তারিত খবরের সারসংক্ষেপ।",
+        title: `আজকের এআই পডকাস্ট - ${currentDate}`,
+        summary: dailyPodcastScript,
         imageUrl: firstHeadline?.imageUrl,
         source: "KahfNews AI Podcast",
         preferredLang: "BN",
@@ -415,8 +431,8 @@ export default function Home() {
 
           {/* 2-Column Responsive Proportional Layout (Left Content 67-75% / Right Action 25-33%) */}
           <div className="relative grid grid-cols-12 items-center gap-3 sm:gap-6 lg:gap-8">
-            {/* Left Content Column */}
-            <div className="col-span-8 md:col-span-8 lg:col-span-9 min-w-0 space-y-2.5 sm:space-y-4">
+            {/* Left Content Column (Redirects to /news/daily-summary for read) */}
+            <Link href="/news/daily-summary" className="col-span-8 md:col-span-8 lg:col-span-9 min-w-0 space-y-2.5 sm:space-y-4 group/left block cursor-pointer">
               {/* Top Badge Row: Left Tag Badge & Synced Duration Badge right beside it */}
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="inline-flex items-center gap-1 px-2.5 py-0.5 sm:px-3 sm:py-1 bg-primary/15 text-primary text-[10px] sm:text-[11px] font-black uppercase tracking-wider rounded-full border border-primary/25">
@@ -431,7 +447,7 @@ export default function Home() {
               </div>
 
               {/* Main Headline */}
-              <h1 className="text-sm sm:text-lg md:text-2xl lg:text-[2.25rem] font-sans font-bold text-foreground leading-[1.3] tracking-tight notranslate">
+              <h1 className="text-sm sm:text-lg md:text-2xl lg:text-[2.25rem] font-sans font-bold text-foreground leading-[1.3] tracking-tight notranslate group-hover/left:text-primary transition-colors">
                 আপনার দৈনিক সারসংক্ষেপ: <span className="text-primary">আজকের খবরের সম্পূর্ণ বিশ্লেষণ</span>
               </h1>
 
@@ -450,19 +466,17 @@ export default function Home() {
                   <span>শুনুন</span>
                 </Button>
 
-                <Link href="/news/daily-summary">
-                  <Button
-                    variant="outline"
-                    className="h-8 sm:h-9 md:h-10 px-4 sm:px-5 rounded-xl border-border hover:bg-muted text-foreground font-bold text-xs sm:text-sm gap-1.5 cursor-pointer transition-all"
-                  >
-                    <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
-                    <span>পড়ুন</span>
-                  </Button>
-                </Link>
+                <Button
+                  variant="outline"
+                  className="h-8 sm:h-9 md:h-10 px-4 sm:px-5 rounded-xl border-border hover:bg-muted text-foreground font-bold text-xs sm:text-sm gap-1.5 cursor-pointer transition-all"
+                >
+                  <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+                  <span>পড়ুন</span>
+                </Button>
               </div>
-            </div>
+            </Link>
 
-            {/* Right Dedicated Action Column: Centered Play Button (Shifted Leftwards to Golden Center) */}
+            {/* Right Dedicated Action Column: Centered Play Button (Triggers Audio for Busy Users) */}
             <div className="col-span-4 md:col-span-4 lg:col-span-3 flex items-center justify-center my-auto">
               <button
                 onClick={handlePlayFullAudio}
@@ -511,27 +525,27 @@ export default function Home() {
       </motion.section>
 
       {/* 4.5 Personalized AI News Section for Premium Users */}
-      {isPremium && personalizedItems.length > 0 && (
+      {isPremium && (
         <motion.section variants={itemVariants} className="mb-5 sm:mb-7">
           <div className="flex items-center justify-between border-b border-border/80 pb-2.5 mb-3.5">
             <div className="flex items-center gap-2">
-              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-500 shrink-0">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shrink-0">
                 <Sparkles className="w-4 h-4" />
               </div>
               <div>
                 <h2 className="text-base sm:text-lg md:text-xl font-sans font-bold text-foreground flex items-center gap-2">
                   আপনার জন্য কাস্টমাইজড খবর
-                  <span className="px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-500 text-[10px] font-bold border border-purple-500/25">
+                  <span className="px-2.5 py-0.5 rounded-full bg-primary/15 text-primary text-[10px] font-bold border border-primary/25">
                     PERSONALIZED
                   </span>
                 </h2>
-                <p className="text-[11px] sm:text-xs text-muted-foreground">আপনার পছন্দ ও রুচির ওপর ভিত্তি করে এআই দিয়ে বাছাইকৃত নিউজ</p>
+                <p className="text-[11px] sm:text-xs text-muted-foreground">আপনার পছন্দ ও রুচির ওপর ভিত্তি করে এআই দিয়ে বাছাইকৃত খবর</p>
               </div>
             </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-            {personalizedItems.slice(0, 3).map((item) => (
+            {displayPersonalized.slice(0, 3).map((item: any) => (
               <NewsCard key={`personalized-${item.id}`} news={item} />
             ))}
           </div>
@@ -546,34 +560,9 @@ export default function Home() {
       {/* Floating Audio Player Component */}
       <AudioPlayer newsItems={feedItems} />
 
-      {/* Sticky Bottom Actions Bar (Synced Bot Icon Logo) */}
+      {/* Sticky Bottom Actions Bar (Minimize Toggle Moved to Right of Settings) */}
       <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 transition-all duration-300">
         <div className="flex items-center gap-1.5 p-1.5 bg-card/90 border border-border/80 backdrop-blur-2xl rounded-full shadow-2xl">
-          {/* 3-Dot Toggle Button (Minimal, High-Aesthetic Pulse) */}
-          <button
-            onClick={() => setIsStickyExpanded((prev) => !prev)}
-            className="relative group w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-primary/10 hover:bg-primary/20 text-primary border border-primary/25 hover:border-primary/40 flex items-center justify-center transition-all cursor-pointer shrink-0 shadow-sm"
-            title={isStickyExpanded ? "Minimize Menu" : "Expand Menu"}
-          >
-            {isStickyExpanded ? (
-              <ChevronLeft className="w-3.5 h-3.5 text-foreground group-hover:text-primary transition-colors" />
-            ) : (
-              <motion.div
-                className="w-3.5 h-3.5 rounded-full relative z-10"
-                style={{
-                  background: "radial-gradient(circle at 30% 30%, #ecfdf5, #10b981, #064e3b)",
-                  boxShadow: "0 2px 4px rgba(16, 185, 129, 0.5), inset -1px -1px 3px rgba(0, 0, 0, 0.2)",
-                }}
-                animate={{ rotate: 360 }}
-                transition={{
-                  duration: 2.5,
-                  repeat: Infinity,
-                  ease: "linear",
-                }}
-              />
-            )}
-          </button>
-
           {/* Expandable Options */}
           <AnimatePresence>
             {isStickyExpanded && (
@@ -607,7 +596,7 @@ export default function Home() {
                   <span className="hidden sm:inline">Player</span>
                 </button>
 
-                {/* 3. Settings Button */}
+                {/* 3. Settings Button (Synced Sliders Icon) */}
                 <button
                   onClick={() => {
                     window.dispatchEvent(new CustomEvent("open-audio-settings"));
@@ -615,11 +604,36 @@ export default function Home() {
                   className="w-7 h-7 rounded-full bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground flex items-center justify-center transition-all border border-border cursor-pointer"
                   title="TTS & Voice Settings"
                 >
-                  <Settings className="w-3.5 h-3.5" />
+                  <Sliders className="w-3.5 h-3.5" />
                 </button>
               </motion.div>
             )}
           </AnimatePresence>
+
+          {/* Minimize Toggle Button (Positioned on Right Beside Settings) */}
+          <button
+            onClick={() => setIsStickyExpanded((prev) => !prev)}
+            className="relative group w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-primary/10 hover:bg-primary/20 text-primary border border-primary/25 hover:border-primary/40 flex items-center justify-center transition-all cursor-pointer shrink-0 shadow-sm"
+            title={isStickyExpanded ? "Minimize Menu" : "Expand Menu"}
+          >
+            {isStickyExpanded ? (
+              <ChevronLeft className="w-3.5 h-3.5 text-foreground group-hover:text-primary transition-colors" />
+            ) : (
+              <motion.div
+                className="w-3.5 h-3.5 rounded-full relative z-10"
+                style={{
+                  background: "radial-gradient(circle at 30% 30%, #ecfdf5, #10b981, #064e3b)",
+                  boxShadow: "0 2px 4px rgba(16, 185, 129, 0.5), inset -1px -1px 3px rgba(0, 0, 0, 0.2)",
+                }}
+                animate={{ rotate: 360 }}
+                transition={{
+                  duration: 2.5,
+                  repeat: Infinity,
+                  ease: "linear",
+                }}
+              />
+            )}
+          </button>
         </div>
       </div>
     </motion.main>

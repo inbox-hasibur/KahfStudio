@@ -53,10 +53,14 @@ export default function DailySummaryPage() {
   }));
 
   const handlePlayAudio = () => {
+    const newsSummaryList = keyPoints.map((p, i) => `খবর ${i + 1}: ${p.title}. ${p.summary}`).join(". ");
+    const podcastScript = `শুভ সকাল! আজ ${currentDate}। কহাফ নিউজের স্পেশাল এআই পডকাস্টে আপনাকে স্বাগতম। আজকের আবহাওয়া: তাপমাত্রা প্রায় ২৯ ডিগ্রি সেলসিয়াস, আবহাওয়া পরিষ্কার। আজ বাইরে বের হওয়ার আগে তীব্র রোদ এড়াতে প্রয়োজনে ছাতা বা সানগ্লাস সঙ্গে রাখতে পারেন। রাস্তাঘাটের যানজট পরিস্থিতি: প্রধান প্রধান সড়ক ও মোড়গুলোতে সকালের দিকে কিছুটা স্বাভাবিক চাপ থাকতে পারে, সময় হাতে নিয়ে বের হোন। এবার দেখে নেওয়া যাক আজকের প্রধান খবরগুলো: ${newsSummaryList}। কহাফ নিউজের সাথে থাকার জন্য ধন্যবাদ। দিনটি আপনার শুভ হোক!`;
+
     const event = new CustomEvent('play-audio', {
       detail: {
-        title: `আজকের খবরের সারসংক্ষেপ - ${currentDate}`,
-        summary: keyPoints.map(p => p.summary).join(". ")
+        id: "daily-podcast",
+        title: `আজকের এআই পডকাস্ট - ${currentDate}`,
+        summary: podcastScript
       }
     });
     window.dispatchEvent(event);
@@ -101,14 +105,32 @@ export default function DailySummaryPage() {
           </p>
 
           <div className="grid grid-cols-2 gap-3 w-full">
-            <Button onClick={handlePlayAudio} className="w-full bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl font-bold py-2.5 text-xs sm:text-sm gap-2 shadow-sm transition-all">
+            <Button onClick={handlePlayAudio} className="w-full bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl font-bold py-2.5 text-xs sm:text-sm gap-2 shadow-sm transition-all cursor-pointer">
               <Volume2 className="w-4 h-4 shrink-0" />
               <span>শুনুন (Listen)</span>
             </Button>
-            <Button variant="outline" className="w-full rounded-xl font-bold py-2.5 text-xs sm:text-sm gap-2 border-border hover:bg-muted text-foreground">
+            <Button variant="outline" className="w-full rounded-xl font-bold py-2.5 text-xs sm:text-sm gap-2 border-border hover:bg-muted text-foreground cursor-pointer">
               <FileText className="w-4 h-4 shrink-0" />
               <span>পড়ুন (Read)</span>
             </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Everyday Morning Briefing: Weather & Traffic Card */}
+      <div className="mb-6 p-4 sm:p-5 bg-card border border-primary/20 rounded-2xl bg-gradient-to-r from-primary/5 via-card to-card">
+        <h3 className="text-xs sm:text-sm font-bold text-primary uppercase tracking-wider mb-2 flex items-center gap-2">
+          <Sparkles className="w-4 h-4" />
+          আজকের আবহাওয়া, রোদ-বৃষ্টি ও ট্রাফিক গাইডলাইন
+        </h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs sm:text-sm text-muted-foreground">
+          <div className="p-3 bg-muted/40 rounded-xl border border-border">
+            <span className="font-bold text-foreground block mb-1">🌤️ আবহাওয়া ও ছাতা টিপস:</span>
+            তাপমাত্রা প্রায় ২৯°C, পরিষ্কার আকাশ। তীব্র রোদ এড়াতে প্রয়োজনে ছাতা বা সানগ্লাস সঙ্গে নিয়ে বের হোন।
+          </div>
+          <div className="p-3 bg-muted/40 rounded-xl border border-border">
+            <span className="font-bold text-foreground block mb-1">🚗 ট্রাফিক ও সড়ক পরিস্থিতি:</span>
+            শহরের প্রধান মোড়গুলোতে সকালের স্বাভাবিক গাড়ি চলাচলের চাপ রয়েছে। গন্তব্যে বের হওয়ার আগে অতিরিক্ত সময় হাতে রাখুন।
           </div>
         </div>
       </div>

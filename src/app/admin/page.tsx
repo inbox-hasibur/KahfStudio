@@ -23,12 +23,43 @@ export default function AdminDashboard() {
   const [reportsData, setReportsData] = useState<any>(null);
   const [recentLogs, setRecentLogs] = useState<any[]>([]);
 
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [selectedPreset, setSelectedPreset] = useState("all");
+
+  const handleApplyPreset = (preset: string) => {
+    setSelectedPreset(preset);
+    const now = new Date();
+    let start = "";
+    let end = now.toISOString().split("T")[0];
+
+    if (preset === "this-month") {
+      start = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
+    } else if (preset === "last-3-months") {
+      start = new Date(now.getFullYear(), now.getMonth() - 3, 1).toISOString().split("T")[0];
+    } else if (preset === "last-6-months") {
+      start = new Date(now.getFullYear(), now.getMonth() - 6, 1).toISOString().split("T")[0];
+    } else if (preset === "ytd") {
+      start = new Date(now.getFullYear(), 0, 1).toISOString().split("T")[0];
+    } else if (preset === "all") {
+      start = "";
+      end = "";
+    }
+    setStartDate(start);
+    setEndDate(end);
+  };
+
   useEffect(() => {
     async function loadData() {
       try {
+        const queryParams = new URLSearchParams();
+        if (startDate) queryParams.set("startDate", startDate);
+        if (endDate) queryParams.set("endDate", endDate);
+        const queryStr = queryParams.toString() ? `?${queryParams.toString()}` : "";
+
         const [statsRes, reportsRes] = await Promise.all([
-          fetch('/api/admin/stats'),
-          fetch('/api/admin/reports')
+          fetch(`/api/admin/stats${queryStr}`),
+          fetch(`/api/admin/reports${queryStr}`)
         ]);
 
         const statsJson = await statsRes.json();
@@ -47,7 +78,7 @@ export default function AdminDashboard() {
     }
 
     loadData();
-  }, []);
+  }, [startDate, endDate]);
 
   const revenue = reportsData?.revenue || {
     mrrBDT: stats.premiumUsers * 499,
@@ -147,6 +178,60 @@ export default function AdminDashboard() {
             <FileSpreadsheet className="w-4 h-4" />
             <span>Excel Report (.csv)</span>
           </Button>
+        </div>
+      </div>
+
+      {/* 1.5 Custom Month-to-Month Date Filter Bar */}
+      <div className="p-3.5 bg-card/60 border border-border rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-sm">
+        <div className="flex items-center gap-2">
+          <Calendar className="w-4 h-4 text-primary" />
+          <span className="text-xs font-bold text-foreground">Date Range Filter:</span>
+        </div>
+
+        {/* Quick Presets */}
+        <div className="flex flex-wrap items-center gap-1.5">
+          {[
+            { id: "all", label: "All Time" },
+            { id: "this-month", label: "This Month" },
+            { id: "last-3-months", label: "Last 3 Months" },
+            { id: "last-6-months", label: "Last 6 Months" },
+            { id: "ytd", label: "YTD" },
+          ].map((preset) => (
+            <Button
+              key={preset.id}
+              size="sm"
+              variant={selectedPreset === preset.id ? "default" : "outline"}
+              className="h-7 text-xs rounded-lg cursor-pointer"
+              onClick={() => handleApplyPreset(preset.id)}
+            >
+              {preset.label}
+            </Button>
+          ))}
+        </div>
+
+        {/* Custom Start & End Month Inputs */}
+        <div className="flex items-center gap-2">
+          <input
+            type="date"
+            value={startDate}
+            onChange={(e) => {
+              setSelectedPreset("custom");
+              setStartDate(e.target.value);
+            }}
+            className="h-7 px-2 text-xs bg-muted border border-border rounded-lg text-foreground font-mono"
+            title="Start Date"
+          />
+          <span className="text-xs text-muted-foreground">to</span>
+          <input
+            type="date"
+            value={endDate}
+            onChange={(e) => {
+              setSelectedPreset("custom");
+              setEndDate(e.target.value);
+            }}
+            className="h-7 px-2 text-xs bg-muted border border-border rounded-lg text-foreground font-mono"
+            title="End Date"
+          />
         </div>
       </div>
 

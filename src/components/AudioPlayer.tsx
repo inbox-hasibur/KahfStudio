@@ -161,18 +161,21 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
       const pref = ttsSettings.languagePreference === "auto" ? siteLang : ttsSettings.languagePreference.toUpperCase();
       const wantFull = preferredType === "full";
 
+      let targetMode: AudioMode = "bn_summary";
       if (pref === "EN") {
-        if (wantFull && audioUrls?.en_full) setAudioMode("en_full");
-        else if (audioUrls?.en_summary) setAudioMode("en_summary");
-        else if (audioUrls?.en_full) setAudioMode("en_full");
-        else setAudioMode("bn_summary");
+        if (wantFull && audioUrls?.en_full) targetMode = "en_full";
+        else if (audioUrls?.en_summary) targetMode = "en_summary";
+        else if (audioUrls?.en_full) targetMode = "en_full";
+        else if (audioUrls?.bn_summary) targetMode = "bn_summary";
+        else if (audioUrls?.bn_full) targetMode = "bn_full";
       } else {
-        if (wantFull && audioUrls?.bn_full) setAudioMode("bn_full");
-        else if (audioUrls?.bn_summary) setAudioMode("bn_summary");
-        else if (audioUrls?.bn_full) setAudioMode("bn_full");
-        else if (audioUrls?.en_summary) setAudioMode("en_summary");
-        else setAudioMode("bn_summary");
+        if (wantFull && audioUrls?.bn_full) targetMode = "bn_full";
+        else if (audioUrls?.bn_summary) targetMode = "bn_summary";
+        else if (audioUrls?.bn_full) targetMode = "bn_full";
+        else if (audioUrls?.en_summary) targetMode = "en_summary";
+        else if (audioUrls?.en_full) targetMode = "en_full";
       }
+      setAudioMode(targetMode);
 
       setIsOpen(true);
       setIsPlaying(true);
@@ -192,10 +195,22 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
     };
   }, [ttsSettings]);
 
-  // Sync index change to activeTrack
+  // Sync index change to activeTrack & auto select available audio mode
   useEffect(() => {
     if (playlist.length > 0 && playlist[currentIndex]) {
-      setActiveTrack(playlist[currentIndex]);
+      const track = playlist[currentIndex];
+      setActiveTrack(track);
+
+      // Auto-pick best available Gemini TTS URL if current mode has no URL for this track
+      const urls = track.audioUrls;
+      if (urls) {
+        if (!urls[audioMode as keyof AudioUrls]) {
+          if (urls.bn_summary) setAudioMode("bn_summary");
+          else if (urls.bn_full) setAudioMode("bn_full");
+          else if (urls.en_summary) setAudioMode("en_summary");
+          else if (urls.en_full) setAudioMode("en_full");
+        }
+      }
     }
   }, [currentIndex, playlist]);
 
@@ -277,11 +292,13 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
       }
     } else {
       if (typeof window !== "undefined" && window.speechSynthesis) {
+        const text = activeTrack.text || activeTrack.title;
+        const estDuration = Math.max(8, Math.round((text.length || 100) / 12));
+
         setProgress(0);
         setCurrentTime(0);
-        setDuration(25);
+        setDuration(estDuration);
 
-        const text = activeTrack.text || activeTrack.title;
         const utterance = new SpeechSynthesisUtterance(text);
         const isEnglish = audioMode.includes("en") || getSiteLanguage() === "EN";
         const matchedVoice = voices.find((v) =>
@@ -291,9 +308,17 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
 
         utterance.rate = ttsSettings.speed || 1.0;
         utterance.volume = isMuted ? 0 : volume;
-        utterance.onend = () => handleNext();
+        utterance.onend = () => {
+          setCurrentTime(estDuration);
+          setProgress(1);
+          handleNext();
+        };
         utterance.onboundary = (event) => {
-          if (text.length > 0) setProgress(event.charIndex / text.length);
+          if (text.length > 0) {
+            const p = event.charIndex / text.length;
+            setProgress(p);
+            setCurrentTime(Math.min(estDuration, Math.round(p * estDuration)));
+          }
         };
 
         utteranceRef.current = utterance;
@@ -306,6 +331,29 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
       if (audioRef.current) audioRef.current.pause();
     };
   }, [activeTrack?.id, audioMode]);
+
+  // 6.5 WebSpeech Active Ticker (Smoothly increments currentTime 0:01, 0:02... during native voice playback)
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    const hasAudioFile = !!activeTrack?.audioUrls?.[audioMode as keyof AudioUrls];
+
+    if (isPlaying && !hasAudioFile && duration > 0) {
+      interval = setInterval(() => {
+        setCurrentTime((prev) => {
+          if (prev < duration) {
+            const next = prev + 1;
+            setProgress(next / duration);
+            return next;
+          }
+          return prev;
+        });
+      }, 1000 / (ttsSettings.speed || 1.0));
+    }
+
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isPlaying, activeTrack?.id, audioMode, duration, ttsSettings.speed]);
 
   // 7. Play/Pause toggle
   useEffect(() => {
@@ -510,43 +558,59 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
               </div>
             </div>
 
-            {/* Main Player Bottom Bar */}
-            <div className="flex items-center justify-between pt-0.5">
-              {/* Left: Volume Slider */}
-              <div className="flex items-center gap-1.5 sm:gap-2">
+            {/* Main Player Bottom Bar - 3-Column Equal Grid for Absolute Container Centering */}
+            <div className="grid grid-cols-3 items-center w-full pt-1 gap-2">
+              {/* Left Column: Volume Slider with Floating Tooltip & Progress Track */}
+              <div className="flex items-center gap-1.5 sm:gap-2 justify-start min-w-0">
                 <button
                   onClick={() => setIsMuted(!isMuted)}
-                  className="text-muted-foreground hover:text-foreground transition-colors"
+                  className="text-muted-foreground hover:text-foreground transition-colors shrink-0 cursor-pointer"
+                  title={isMuted ? "Unmute" : "Mute"}
                 >
-                  {isMuted || volume === 0 ? <VolumeX className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <Volume2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
+                  {isMuted || volume === 0 ? (
+                    <VolumeX className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-red-400" />
+                  ) : (
+                    <Volume2 className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${volume > 1.0 ? "text-amber-400 animate-pulse" : "text-primary"}`} />
+                  )}
                 </button>
-                <input
-                  type="range"
-                  min={0}
-                  max={1}
-                  step={0.01}
-                  value={isMuted ? 0 : volume}
-                  onChange={(e) => {
-                    setVolume(parseFloat(e.target.value));
-                    if (isMuted) setIsMuted(false);
-                  }}
-                  className="w-12 sm:w-16 h-1 bg-muted rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-2.5 [&::-webkit-slider-thumb]:h-2.5 [&::-webkit-slider-thumb]:bg-primary [&::-webkit-slider-thumb]:rounded-full"
-                />
+
+                <div className="relative flex items-center w-14 sm:w-20 group/vol">
+                  {/* Floating Volume % Tooltip (Appears on Hover / Change Above Slider) */}
+                  <div className="absolute -top-7 left-1/2 -translate-x-1/2 px-1.5 py-0.5 rounded bg-popover border border-border text-[10px] font-mono font-bold text-popover-foreground opacity-0 group-hover/vol:opacity-100 transition-all pointer-events-none shadow-md whitespace-nowrap z-30">
+                    {Math.round((isMuted ? 0 : volume) * 100)}%
+                  </div>
+
+                  {/* Slider Progress Bar Background Track */}
+                  <div className="absolute inset-y-0 my-auto h-1.5 w-full bg-muted rounded-full overflow-hidden pointer-events-none">
+                    <div
+                      className={`h-full transition-all ${
+                        volume > 1.0
+                          ? "bg-gradient-to-r from-primary to-amber-400"
+                          : "bg-primary"
+                      }`}
+                      style={{ width: `${(isMuted ? 0 : volume / 1.2) * 100}%` }}
+                    />
+                  </div>
+                  <input
+                    type="range"
+                    min={0}
+                    max={1.2}
+                    step={0.01}
+                    value={isMuted ? 0 : volume}
+                    onChange={(e) => {
+                      setVolume(parseFloat(e.target.value));
+                      if (isMuted) setIsMuted(false);
+                    }}
+                    className="relative z-10 w-full h-3 opacity-0 cursor-pointer"
+                  />
+                </div>
               </div>
 
-              {/* Center: Playback Controls & 10s Skip */}
-              <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3">
-                <button
-                  onClick={() => skipSeconds(-10)}
-                  className="p-1 sm:p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-full transition-all"
-                  title="Rewind 10s"
-                >
-                  <RotateCcw className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                </button>
-
+              {/* Center Column: Playback Controls (Play/Pause Button ABSOLUTELY Centered in AudioPlayer Container) */}
+              <div className="flex items-center justify-center gap-2 sm:gap-3">
                 <button
                   onClick={handlePrev}
-                  className="p-1.5 sm:p-2 text-foreground/80 hover:text-foreground hover:bg-muted rounded-full transition-all"
+                  className="p-1.5 sm:p-2 text-foreground/80 hover:text-foreground hover:bg-muted rounded-full transition-all cursor-pointer"
                   title="Previous News"
                 >
                   <SkipBack className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -554,43 +618,35 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
 
                 <button
                   onClick={togglePlay}
-                  className="p-2.5 sm:p-3.5 bg-primary text-primary-foreground font-black rounded-full hover:scale-105 active:scale-95 transition-all shadow-lg shadow-primary/20"
+                  className="p-2.5 sm:p-3.5 bg-primary text-primary-foreground font-black rounded-full hover:scale-105 active:scale-95 transition-all shadow-lg shadow-primary/20 cursor-pointer shrink-0"
                 >
                   {isPlaying ? <Pause className="w-4 h-4 sm:w-6 sm:h-6 fill-current" /> : <Play className="w-4 h-4 sm:w-6 sm:h-6 fill-current ml-0.5" />}
                 </button>
 
                 <button
                   onClick={handleNext}
-                  className="p-1.5 sm:p-2 text-foreground/80 hover:text-foreground hover:bg-muted rounded-full transition-all"
+                  className="p-1.5 sm:p-2 text-foreground/80 hover:text-foreground hover:bg-muted rounded-full transition-all cursor-pointer"
                   title="Next News"
                 >
                   <SkipForward className="w-4 h-4 sm:w-5 sm:h-5" />
                 </button>
-
-                <button
-                  onClick={() => skipSeconds(10)}
-                  className="p-1.5 sm:p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-full transition-all"
-                  title="Forward 10s"
-                >
-                  <RotateCw className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                </button>
               </div>
 
-              {/* Right: Speed Button (1x), Settings (Model selection), Earbuds Icon */}
-              <div className="flex items-center gap-1 sm:gap-1.5">
+              {/* Right Column: Speed Button (1x), Settings (Model Selection with Sliders Icon), Earbuds Icon */}
+              <div className="flex items-center justify-end gap-1 sm:gap-1.5">
                 {/* Speed Button (Cycles 1x -> 1.25x -> 1.5x -> 0.75x) */}
                 <button
                   onClick={cycleSpeed}
-                  className="px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-lg bg-muted hover:bg-muted/80 border border-border text-[10px] sm:text-[11px] font-mono font-bold text-primary transition-colors"
+                  className="px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-lg bg-muted hover:bg-muted/80 border border-border text-[10px] sm:text-[11px] font-mono font-bold text-primary transition-colors cursor-pointer"
                   title="Playback Speed"
                 >
                   {ttsSettings.speed || 1.0}x
                 </button>
 
-                {/* Model Selection / Settings Icon */}
+                {/* Model Selection / Settings Icon (Synced Sliders Icon) */}
                 <button
                   onClick={() => setIsSettingsOpen(true)}
-                  className="p-1 sm:p-1.5 rounded-lg bg-muted hover:bg-muted/80 border border-border text-muted-foreground hover:text-foreground transition-colors"
+                  className="p-1 sm:p-1.5 rounded-lg bg-muted hover:bg-muted/80 border border-border text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
                   title="TTS Model & Voice Settings"
                 >
                   <Sliders className="w-3.5 h-3.5" />

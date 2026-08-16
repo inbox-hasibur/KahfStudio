@@ -30,7 +30,7 @@ export default function AdminLibraryPage() {
   const fetchArticles = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/admin/articles");
+      const res = await fetch(`/api/admin/articles?role=${userRole}`);
       if (res.ok) {
         const { data } = await res.json();
         if (data) setArticles(data);
@@ -44,7 +44,7 @@ export default function AdminLibraryPage() {
   useEffect(() => {
     fetchArticles();
     fetchSettings();
-  }, []);
+  }, [userRole]);
 
   const fetchSettings = async () => {
     try {

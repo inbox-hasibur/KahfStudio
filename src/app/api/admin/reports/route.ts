@@ -1,24 +1,49 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { verifyAdmin } from '@/lib/admin-auth';
+import { checkAdminAuth } from '@/lib/admin-auth';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(req: NextRequest) {
-  const auth = await verifyAdmin(req);
-  if (!auth.authorized) return auth.response;
-
+export async function GET(req: Request) {
+  const auth = await checkAdminAuth(req);
+  if (!auth.isAdmin && auth.response) return auth.response;
   try {
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
+    const { searchParams } = new URL(req.url);
+    const startDate = searchParams.get('startDate');
+    const endDate = searchParams.get('endDate');
+
+    let profilesQuery = supabase.from('profiles').select('id, tier, role, created_at, gemini_api_key');
+    let premiumQuery = supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('tier', 'premium');
+    let byokQuery = supabase.from('profiles').select('*', { count: 'exact', head: true }).not('gemini_api_key', 'is', null);
+    let subsQuery = supabase.from('subscriptions').select('*');
+
+    if (startDate) {
+      const startIso = `${startDate}T00:00:00.000Z`;
+      profilesQuery = profilesQuery.gte('created_at', startIso);
+      premiumQuery = premiumQuery.gte('created_at', startIso);
+      byokQuery = byokQuery.gte('created_at', startIso);
+      subsQuery = subsQuery.gte('created_at', startIso);
+    }
+
+    if (endDate) {
+      const endIso = `${endDate}T23:59:59.999Z`;
+      profilesQuery = profilesQuery.lte('created_at', endIso);
+      premiumQuery = premiumQuery.lte('created_at', endIso);
+      byokQuery = byokQuery.lte('created_at', endIso);
+      subsQuery = subsQuery.lte('created_at', endIso);
+    }
+
     // 1. Fetch Profile and User statistics
-    const [profilesRes, premiumProfilesRes, byokProfilesRes] = await Promise.all([
-      supabase.from('profiles').select('id, tier, role, created_at, gemini_api_key'),
-      supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('tier', 'premium'),
-      supabase.from('profiles').select('*', { count: 'exact', head: true }).not('gemini_api_key', 'is', null)
+    const [profilesRes, premiumProfilesRes, byokProfilesRes, subscriptionsRes] = await Promise.all([
+      profilesQuery,
+      premiumQuery,
+      byokQuery,
+      subsQuery
     ]);
 
     const profiles = profilesRes.data || [];
@@ -29,8 +54,6 @@ export async function GET(req: NextRequest) {
     const byokRate = totalUsers > 0 ? Math.round((byokUsers / totalUsers) * 100) : 0;
     const conversionRate = totalUsers > 0 ? Number(((premiumUsers / totalUsers) * 100).toFixed(1)) : 0;
 
-    // 2. Fetch Subscriptions & Financial metrics
-    const subscriptionsRes = await supabase.from('subscriptions').select('*');
     const subscriptions = subscriptionsRes.data || [];
 
     // Monthly Plan Price is ৳499 (~$4.50), Annual is ৳4999 (~$45)

@@ -18,7 +18,7 @@ export default function AdminScrapingPage() {
   const userRole = (session?.user as any)?.role || "user";
   const userTier = (session?.user as any)?.tier || "free";
   
-  const isLocked = userRole !== "admin" && userTier !== "premium";
+  const isLocked = userRole !== "admin";
 
   const [isActive, setIsActive] = useState(false);
   const [urlToIngest, setUrlToIngest] = useState("");

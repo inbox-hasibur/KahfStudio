@@ -6,7 +6,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { 
   Clock, Globe, ArrowLeft, Play, Share2, Bookmark, 
-  ThumbsUp, MessageCircle, ExternalLink, Tag, Volume2, AlignLeft, Sparkles, Bot, ChevronUp, ChevronDown, ChevronLeft, Settings, Headphones, Check
+  ThumbsUp, MessageCircle, ExternalLink, Tag, Volume2, AlignLeft, Sparkles, Bot, ChevronUp, ChevronDown, ChevronLeft, Settings, Sliders, Headphones, Check
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import AudioPlayer from "@/components/AudioPlayer";
@@ -531,31 +531,6 @@ export default function NewsDetailPage() {
       {/* Sticky Bottom Actions Bar (Synced with Home Design System) */}
       <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 transition-all duration-300">
         <div className="flex items-center gap-1.5 p-1.5 bg-card/90 border border-border/80 backdrop-blur-2xl rounded-full shadow-2xl">
-          {/* Sphere Toggle Button (Greenish-White 3D Spinning Sphere) */}
-          <button
-            onClick={() => setIsStickyExpanded((prev) => !prev)}
-            className="relative group w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-primary/10 hover:bg-primary/20 text-primary border border-primary/25 hover:border-primary/40 flex items-center justify-center transition-all cursor-pointer shrink-0 shadow-sm"
-            title={isStickyExpanded ? "Minimize Menu" : "Expand Menu"}
-          >
-            {isStickyExpanded ? (
-              <ChevronLeft className="w-3.5 h-3.5 text-foreground group-hover:text-primary transition-colors" />
-            ) : (
-              <motion.div
-                className="w-3.5 h-3.5 rounded-full relative z-10"
-                style={{
-                  background: "radial-gradient(circle at 30% 30%, #ecfdf5, #10b981, #064e3b)",
-                  boxShadow: "0 2px 4px rgba(16, 185, 129, 0.5), inset -1px -1px 3px rgba(0, 0, 0, 0.2)",
-                }}
-                animate={{ rotate: 360 }}
-                transition={{
-                  duration: 2.5,
-                  repeat: Infinity,
-                  ease: "linear",
-                }}
-              />
-            )}
-          </button>
-
           {/* Expandable Options */}
           <AnimatePresence>
             {isStickyExpanded && (
@@ -583,7 +558,7 @@ export default function NewsDetailPage() {
                   <span>Full Audio</span>
                 </button>
 
-                {/* 3. Voice Settings */}
+                {/* 3. Voice Settings (Synced Sliders Icon) */}
                 <button
                   onClick={() => {
                     const event = new CustomEvent("open-audio-settings");
@@ -592,11 +567,36 @@ export default function NewsDetailPage() {
                   className="w-7 h-7 rounded-full bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground flex items-center justify-center transition-all border border-border cursor-pointer shrink-0"
                   title="Voice Settings"
                 >
-                  <Settings className="w-3.5 h-3.5" />
+                  <Sliders className="w-3.5 h-3.5" />
                 </button>
               </motion.div>
             )}
           </AnimatePresence>
+
+          {/* Sphere Toggle Button (Positioned on Right Beside Settings) */}
+          <button
+            onClick={() => setIsStickyExpanded((prev) => !prev)}
+            className="relative group w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-primary/10 hover:bg-primary/20 text-primary border border-primary/25 hover:border-primary/40 flex items-center justify-center transition-all cursor-pointer shrink-0 shadow-sm"
+            title={isStickyExpanded ? "Minimize Menu" : "Expand Menu"}
+          >
+            {isStickyExpanded ? (
+              <ChevronLeft className="w-3.5 h-3.5 text-foreground group-hover:text-primary transition-colors" />
+            ) : (
+              <motion.div
+                className="w-3.5 h-3.5 rounded-full relative z-10"
+                style={{
+                  background: "radial-gradient(circle at 30% 30%, #ecfdf5, #10b981, #064e3b)",
+                  boxShadow: "0 2px 4px rgba(16, 185, 129, 0.5), inset -1px -1px 3px rgba(0, 0, 0, 0.2)",
+                }}
+                animate={{ rotate: 360 }}
+                transition={{
+                  duration: 2.5,
+                  repeat: Infinity,
+                  ease: "linear",
+                }}
+              />
+            )}
+          </button>
         </div>
       </div>
       

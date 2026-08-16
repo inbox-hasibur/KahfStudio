@@ -165,8 +165,8 @@ export default function ArchivePage() {
       <motion.div variants={itemVariants} className="mb-3 sm:mb-4 flex flex-col lg:flex-row lg:items-start justify-between gap-3 sm:gap-4">
         <div>
           <div className="flex items-center gap-2.5 sm:gap-3 mb-2 sm:mb-3">
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-purple-500/10 flex items-center justify-center border border-purple-500/20 shrink-0">
-              <ArchiveIcon className="w-4 h-4 sm:w-5 sm:h-5 text-purple-500" />
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/20 shrink-0">
+              <ArchiveIcon className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
             </div>
             <div>
               <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-foreground">Archive</h1>

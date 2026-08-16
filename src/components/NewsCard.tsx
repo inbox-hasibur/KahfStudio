@@ -61,10 +61,10 @@ const NewsCard = ({ news, isSaved = false, onToggleSave }: NewsCardProps) => {
         preferredLang,
         preferredType: "summary",
         audioUrls: {
-          bn_full: news.audio_bn_full,
-          bn_summary: news.audio_bn_summary,
-          en_full: news.audio_en_full,
-          en_summary: news.audio_en_summary,
+          bn_full: news.audio_bn_full || (news as any).audioUrls?.bn_full || (news as any).audio_full,
+          bn_summary: news.audio_bn_summary || (news as any).audioUrls?.bn_summary || (news as any).audio_summary,
+          en_full: news.audio_en_full || (news as any).audioUrls?.en_full,
+          en_summary: news.audio_en_summary || (news as any).audioUrls?.en_summary,
         },
       },
     });

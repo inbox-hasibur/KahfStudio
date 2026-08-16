@@ -239,12 +239,12 @@ const Navbar = () => {
               <div className="flex items-center gap-1.5 my-auto">
                 <motion.button 
                   onClick={() => signOut()}
-                  className="px-2.5 sm:px-3 py-1.5 bg-transparent text-muted-foreground rounded-full text-[12px] font-bold hover:bg-muted hover:text-foreground transition-all flex items-center gap-1 h-8 cursor-pointer"
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
+                  className="w-8 h-8 rounded-full bg-muted hover:bg-red-600 text-muted-foreground hover:text-white border border-border transition-all flex items-center justify-center cursor-pointer shadow-sm"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  title="Log out of your account"
                 >
                   <LogOut className="w-3.5 h-3.5" />
-                  <span className="hidden xl:inline">Logout</span>
                 </motion.button>
                 
                 <div className="relative">
@@ -279,7 +279,7 @@ const Navbar = () => {
                                 </div>
                               </Link>
                               <Link href="/admin/users" onClick={() => setIsProfileDropdownOpen(false)}>
-                                <div className="px-3 py-2 text-[13px] font-medium hover:bg-slate-800 rounded-xl cursor-pointer transition-colors text-muted-foreground hover:text-foreground">
+                                <div className="px-3 py-2 text-[13px] font-medium hover:bg-muted rounded-xl cursor-pointer transition-colors text-muted-foreground hover:text-foreground">
                                   User Management
                                 </div>
                               </Link>
@@ -290,30 +290,9 @@ const Navbar = () => {
                               </Link>
                               <Link href="/admin/library" onClick={() => setIsProfileDropdownOpen(false)}>
                                 <div className="px-3 py-2 text-[13px] font-medium hover:bg-muted rounded-xl cursor-pointer transition-colors text-muted-foreground hover:text-foreground">
-                                  News Library
-                                </div>
-                              </Link>
-                            </>
-                          ) : (
-                            <>
-                              <Link href="/profile" onClick={() => setIsProfileDropdownOpen(false)}>
-                                <div className="px-3 py-2 text-[13px] font-medium hover:bg-muted rounded-xl cursor-pointer transition-colors text-muted-foreground hover:text-foreground">
-                                  Dashboard
-                                </div>
-                              </Link>
-                              
-                              {/* Show Scraping Control and News Approval for All non-admin users */}
-                              <Link href="/profile/scraping" onClick={() => setIsProfileDropdownOpen(false)}>
-                                <div className={`px-3 py-2 text-[13px] font-medium hover:bg-muted rounded-xl cursor-pointer transition-colors flex items-center gap-2 ${(session?.user as any)?.tier === "premium" ? "text-primary hover:text-primary/90" : "text-muted-foreground hover:text-foreground"}`}>
-                                  Scraping Control
-                                </div>
-                              </Link>
-                              <Link href="/profile/library" onClick={() => setIsProfileDropdownOpen(false)}>
-                                <div className={`px-3 py-2 text-[13px] font-medium hover:bg-muted rounded-xl cursor-pointer transition-colors flex items-center gap-2 ${(session?.user as any)?.tier === "premium" ? "text-primary hover:text-primary/90" : "text-muted-foreground hover:text-foreground"}`}>
                                   News Approval
                                 </div>
                               </Link>
-
                               <Link href="/profile/byok" onClick={() => setIsProfileDropdownOpen(false)}>
                                 <div className="px-3 py-2 text-[13px] font-medium hover:bg-muted rounded-xl cursor-pointer transition-colors text-muted-foreground hover:text-foreground">
                                   BYOK & API Management
@@ -325,7 +304,50 @@ const Navbar = () => {
                                 </div>
                               </Link>
                             </>
+                          ) : (
+                            <>
+                              <Link href="/profile" onClick={() => setIsProfileDropdownOpen(false)}>
+                                <div className="px-3 py-2 text-[13px] font-medium hover:bg-muted rounded-xl cursor-pointer transition-colors text-muted-foreground hover:text-foreground">
+                                  Dashboard
+                                </div>
+                              </Link>
+
+                              <Link href="/profile/scraping" onClick={() => setIsProfileDropdownOpen(false)}>
+                                <div className="px-3 py-2 text-[13px] font-medium hover:bg-muted rounded-xl cursor-pointer transition-colors text-muted-foreground hover:text-foreground">
+                                  Scraping Control
+                                </div>
+                              </Link>
+
+                              <Link href="/profile/library" onClick={() => setIsProfileDropdownOpen(false)}>
+                                <div className="px-3 py-2 text-[13px] font-medium hover:bg-muted rounded-xl cursor-pointer transition-colors text-muted-foreground hover:text-foreground">
+                                  News Approval
+                                </div>
+                              </Link>
+                              
+                              <Link href="/profile/byok" onClick={() => setIsProfileDropdownOpen(false)}>
+                                <div className="px-3 py-2 text-[13px] font-medium hover:bg-muted rounded-xl cursor-pointer transition-colors text-muted-foreground hover:text-foreground">
+                                  BYOK & API Management
+                                </div>
+                              </Link>
+
+                              <Link href="/profile/preferences" onClick={() => setIsProfileDropdownOpen(false)}>
+                                <div className="px-3 py-2 text-[13px] font-medium hover:bg-muted rounded-xl cursor-pointer transition-colors text-muted-foreground hover:text-foreground">
+                                  Preferences
+                                </div>
+                              </Link>
+                            </>
                           )}
+
+                          <button
+                            onClick={() => {
+                              setIsProfileDropdownOpen(false);
+                              signOut();
+                            }}
+                            className="w-full text-left px-3 py-2 text-[13px] font-bold text-red-600 dark:text-red-400 hover:bg-red-600 hover:text-white dark:hover:text-white rounded-xl cursor-pointer transition-colors flex items-center gap-2 mt-1 border-t border-border/50 pt-2"
+                          >
+                            <LogOut className="w-3.5 h-3.5" />
+                            Sign Out
+                          </button>
                         </div>
                       </motion.div>
                     )}
@@ -427,10 +449,11 @@ const Navbar = () => {
                     <div className="flex-1">
                       <motion.button 
                         onClick={() => { signOut(); setIsMenuOpen(false); }}
-                        className="w-full py-3 bg-destructive/10 text-destructive rounded-xl text-[13px] font-bold hover:bg-destructive hover:text-destructive-foreground transition-all min-h-[44px]"
+                        className="w-full py-3 bg-red-500/15 text-red-600 dark:text-red-400 border border-red-500/30 rounded-xl text-[13px] font-bold hover:bg-red-600 hover:text-white dark:hover:text-white transition-all min-h-[44px] cursor-pointer flex items-center justify-center gap-1.5 shadow-sm"
                         whileTap={{ scale: 0.98 }}
                       >
-                        Logout
+                        <LogOut className="w-4 h-4" />
+                        <span>Logout</span>
                       </motion.button>
                     </div>
                   </>
