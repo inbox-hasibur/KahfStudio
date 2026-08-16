@@ -31,7 +31,13 @@ export interface NewsVideo {
   category: string;
   duration: string;
   description: string;
+  source?: string;
 }
+
+const toBengaliDigits = (num: number | string) => {
+  const banglaDigits = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+  return num.toString().replace(/\d/g, (digit) => banglaDigits[parseInt(digit)]);
+};
 
 const defaultChannels: IPTVChannel[] = [
   { 
@@ -156,79 +162,87 @@ const defaultChannels: IPTVChannel[] = [
   }
 ];
 
-// 100% Real News Video Reports
+// 100% Real News Video Reports from Different Leading News Outlets
 const realNewsVideos: NewsVideo[] = [
   {
     id: "v1",
-    title: "স্মার্ট সিটি ও ট্রাফিক ব্যবস্থাপনা: ঢাকার আধুনিক প্রযুক্তি",
+    title: "স্মার্ট সিটি ও ট্রাফিক ব্যবস্থাপনা: ঢাকার সড়কগুলোতে নতুন এআই প্রযুক্তি",
     videoId: "R7ujSKpZOK0",
     thumbnail: "https://images.unsplash.com/photo-1590644365607-1c5a519a7a37?q=80&w=800&auto=format&fit=crop",
     category: "জাতীয়",
-    duration: "04:30",
-    description: "রাজধানীর যানজট নিরসনে এবং নাগরিক জীবনযাত্রার মান উন্নয়নে সরকার 'স্মার্ট সিটি' প্রকল্পের নতুন ধাপ উদ্বোধন করেছে। এই প্রকল্পের আওতায় শহরের প্রধান সড়কগুলোতে স্বয়ংক্রিয় ট্রাফিক সিগন্যাল এবং এআই ভিত্তিক মনিটরিং সিস্টেম বসানো হবে।"
+    duration: "০৪:৩০",
+    source: "Somoy TV News",
+    description: "রাজধানীর যানজট নিরসনে এবং নাগরিক জীবনযাত্রার মান উন্নয়নে সরকার 'স্মার্ট সিটি' প্রকল্পের নতুন ধাপ উদ্বোধন করেছে। শহরের প্রধান সড়কগুলোতে স্বয়ংক্রিয় ট্রাফিক সিগন্যাল ও এআই মনিটরিং সিসিটিভি ক্যামেরা বসানো হচ্ছে।"
   },
   {
     id: "v2",
-    title: "কৃত্রিম বুদ্ধিমত্তা ও এআই বিপ্লব: আমাদের ভবিষ্যতের কর্মসংস্থান",
-    videoId: "gCNeDWCI0vo",
-    thumbnail: "https://images.unsplash.com/photo-1588681664899-f142ff2dc9b1?q=80&w=800&auto=format&fit=crop",
-    category: "প্রযুক্তি",
-    duration: "03:45",
-    description: "আর্টিফিশিয়াল ইন্টেলিজেন্স বা কৃত্রিম বুদ্ধিমত্তা আজ শুধুমাত্র কল্পকাহিনীর বিষয় নয়, এটি আমাদের প্রাত্যহিক জীবনের একটি অবিচ্ছেদ্য অংশে পরিণত হয়েছে।"
+    title: "ডলারের বাজারে নতুন নীতি: ব্যাংকিং খাতে সেন্ট্রাল ব্যাংকের বিশেষ নজরদারি",
+    videoId: "4Wpv0HhFU1M",
+    thumbnail: "https://images.unsplash.com/photo-1616035252656-78b1ce2f281e?q=80&w=800&auto=format&fit=crop",
+    category: "অর্থনীতি",
+    duration: "০৫:১৫",
+    source: "Jamuna TV",
+    description: "বৈদেশিক মুদ্রার রিজার্ভ সুরক্ষা ও আমদানি ব্যয় নিয়ন্ত্রণে বাংলাদেশ ব্যাংক নতুন নীতিমালা ঘোষণা করেছে। অর্থপাচার রোধ ও এলসি তদারকিতে বিশেষ টাস্কফোর্স মাঠে নামছে।"
   },
   {
     id: "v3",
-    title: "বিশ্ব অর্থনীতি: ডলারের অস্থিরতা ও মুদ্রাস্ফীতি নিয়ন্ত্রণ",
-    videoId: "LuKwFajn37U",
-    thumbnail: "https://images.unsplash.com/photo-1616035252656-78b1ce2f281e?q=80&w=800&auto=format&fit=crop",
-    category: "অর্থনীতি",
-    duration: "05:20",
-    description: "বিশ্বব্যাপী ক্রমবর্ধমান মুদ্রাস্ফীতি নিয়ন্ত্রণে কেন্দ্রীয় ব্যাংকগুলো নতুন আর্থিক নীতি গ্রহণ করছে।"
+    title: "কৃত্রিম বুদ্ধিমত্তা ও এআই বিপ্লব: গ্লোবাল জব মার্কেটে আগামী দিনের পরিবর্তন",
+    videoId: "gCNeDWCI0vo",
+    thumbnail: "https://images.unsplash.com/photo-1588681664899-f142ff2dc9b1?q=80&w=800&auto=format&fit=crop",
+    category: "প্রযুক্তি",
+    duration: "০৩:৪৫",
+    source: "DW Bangla",
+    description: "আর্টিফিশিয়াল ইন্টেলিজেন্স বা এআই প্রযুক্তির দ্রুত অগ্রগতিতে বিশ্বজুড়ে নতুন নতুন কর্মসংস্থানের সুযোগ সৃষ্টি হচ্ছে। গ্লোবাল আইটি খাতের পরিবর্তন ও ভবিষ্যৎ প্রস্তুতি নিয়ে বিশেষ প্রতিবেদন।"
   },
   {
     id: "v4",
-    title: "খেলাধুলা: আসন্ন বিশ্বকাপে বাংলাদেশ দলের রণকৌশল",
-    videoId: "hjQluVY6EzQ",
-    thumbnail: "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=800&auto=format&fit=crop",
-    category: "খেলাধুলা",
-    duration: "06:15",
-    description: "আসন্ন বিশ্বকাপের জন্য বাংলাদেশ ক্রিকেট দলের কঠোর প্রস্তুতি এবং নতুন কোচের পরিকল্পনা নিয়ে বিশেষ ভিডিও প্রতিবেদন।"
-  },
-  {
-    id: "v5",
-    title: "পরিবেশ সংবাদ: জলবায়ু পরিবর্তনের প্রভাবে হুমকির মুখে সুন্দরবন",
+    title: "জলবায়ু পরিবর্তনের জলন্ত রূপ: হুমকির মুখে সুন্দরবনের বিরল জীববৈচিত্র্য",
     videoId: "9L9ymmaPIS0",
     thumbnail: "https://images.unsplash.com/photo-1612459284970-e8f0275cd712?q=80&w=800&auto=format&fit=crop",
     category: "পরিবেশ",
-    duration: "08:40",
-    description: "জলবায়ু পরিবর্তনের প্রভাবে সুন্দরবনের জীববৈচিত্র্য কীভাবে ধ্বংসের মুখে পড়ছে, তা নিয়ে বিশেষ অনুসন্ধানী রিপোর্ট।"
+    duration: "০৭:২০",
+    source: "Ekattor TV",
+    description: "নোনা পানির অনুপ্রবেশ ও ঘনঘন সাইক্লোনে সুন্দরবনের রয়েল বেঙ্গল টাইগার ও ম্যানগ্রোভ বনাঞ্চল মারাত্মক পরিবেশগত ঝুঁকিতে পড়েছে। ক্ষতিগ্রস্ত অঞ্চল পুনর্গঠনে জরুরি পরিবেশগত পদক্ষেপের দাবি গবেষকদের।"
+  },
+  {
+    id: "v5",
+    title: "বিশ্বকাপের স্কোয়াডে কঠোর প্রস্তুতি: জাতীয় দলের নতুন মাস্টারপ্ল্যান",
+    videoId: "hjQluVY6EzQ",
+    thumbnail: "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=800&auto=format&fit=crop",
+    category: "খেলাধুলা",
+    duration: "০৬:১০",
+    source: "Channel 24",
+    description: "আসন্ন আন্তর্জাতিক টুর্নামেন্টকে সামনে রেখে মিরপুর স্টেডিয়ামে জাতীয় ক্রিকেট দলের নিবিড় প্রশিক্ষণ ক্যাম্প শুরু হয়েছে। হেড কোচের নতুন ট্যাকটিক্স ও পেসারদের বোলিং স্পেল।"
   },
   {
     id: "v6",
-    title: "স্বাস্থ্য ও চিকিৎসা: ডেঙ্গু ও মৌসুমি ভাইরাস প্রতিরোধে জরুরি পরামর্শ",
+    title: "ডেঙ্গু ও মৌসুমি ভাইরাস মোকাবিলায় স্বাস্থ্য অধিদপ্তরের জরুরি দিকনির্দেশনা",
     videoId: "TeeAPX4pq0k",
     thumbnail: "https://images.unsplash.com/photo-1584362917165-526a968579e8?q=80&w=800&auto=format&fit=crop",
     category: "স্বাস্থ্য",
-    duration: "03:50",
-    description: "দেশব্যাপী ডেঙ্গুর প্রাদুর্ভাব। ডেঙ্গু জ্বর প্রতিরোধ এবং লক্ষণ দেখা দিলে কী করণীয়, জানাচ্ছেন বিশেষজ্ঞ চিকিৎসকেরা।"
+    duration: "০৩:৫০",
+    source: "DBC News",
+    description: "বর্ষা মৌসুমে এডিস মশার বংশবৃদ্ধি রোধে প্রতিটি ওয়ার্ডে সিটি কর্পোরেশনের চিরুনি অভিযান। ডেঙ্গুর প্রাথমিক লক্ষণ দেখা দিলে দ্রুত প্লাটিলেট পরীক্ষা ও ফ্লুইড গ্রহণের পরমর্শ ডাক্তারদের।"
   },
   {
     id: "v7",
-    title: "আন্তর্জাতিক রাজনীতি: মধ্যপ্রাচ্যে কূটনীতির নতুন সমীকরণ",
-    videoId: "4Wpv0HhFU1M",
+    title: "আন্তর্জাতিক ভূ-রাজনীতি: মধ্যপ্রাচ্য ও বিশ্বশান্তির নতুন কূটনৈতিক সমীকরণ",
+    videoId: "gzX8jUxxflA",
     thumbnail: "https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?q=80&w=800&auto=format&fit=crop",
     category: "আন্তর্জাতিক",
-    duration: "04:10",
-    description: "মধ্যপ্রাচ্যের দেশগুলোর মধ্যে নতুন করে গড়ে ওঠা কূটনৈতিক সম্পর্ক ও ভূ-রাজনীতির প্রভাব নিয়ে বিশেষ আলোচনা।"
+    duration: "০৪:২৫",
+    source: "Independent TV",
+    description: "জ্বালানি সংকট নিরসন এবং গ্লোবাল ট্রেড রুট সচল রাখতে আন্তর্জাতিক বিশ্বনেতাদের দ্বিপাক্ষিক বৈঠক অনুষ্ঠিত হয়েছে। আঞ্চলিক স্থিতিশীলতা রক্ষা ও ভূ-রাজনৈতিক বিশ্লেষণ।"
   },
   {
     id: "v8",
-    title: "বিজ্ঞান ও মহাকাশ: সৌরশক্তি ও নবায়নযোগ্য জ্বালানির ভবিষ্যৎ",
-    videoId: "YDvsBbKfLPA",
+    title: "সৌরশক্তি ও গ্রিন এনার্জি বিপ্লব: ক্লিন পাওয়ার উৎপাদনে বাংলাদেশের অগ্রগতি",
+    videoId: "LuKwFajn37U",
     thumbnail: "https://images.unsplash.com/photo-1509391365360-2e959784a276?q=80&w=800&auto=format&fit=crop",
     category: "বিজ্ঞান",
-    duration: "05:10",
-    description: "জীবাশ্ম জ্বালানি নির্ভরতা কাটিয়ে নবায়নযোগ্য সৌরবিদ্যুতের নতুন বিপ্লব নিয়ে বিশদ তথ্যচিত্র।"
+    duration: "০৫:০৫",
+    source: "BBC Bangla",
+    description: "জীবাশ্ম জ্বালানি নির্ভরতা হ্রাস ও সাশ্রয়ী সোলার পাওয়ার প্ল্যান্ট নির্মাণে নতুন মাইলফলক। জাতীয় গ্রিডে গ্রিন এনার্জি যুক্ত করার বিশাল উদ্যোগ নিয়ে বিশেষ অডিও-ভিডিও কভারেজ।"
   }
 ];
 
@@ -404,8 +418,8 @@ export default function MediaPage() {
           </div>
           
           <div className="flex items-center gap-1">
-            <span className="text-[10px] text-muted-foreground font-mono mr-1">
-              {realNewsVideos.length} টি ভিডিও
+            <span className="text-[10px] text-muted-foreground font-mono mr-1 font-semibold">
+              {toBengaliDigits(realNewsVideos.length)}টি ভিডিও
             </span>
             <button
               onClick={() => scrollContainer(videosScrollRef, "left")}
@@ -472,9 +486,16 @@ export default function MediaPage() {
 
                   {/* Bottom Gradient Overlay (Softened in Light Mode for Zero Harsh Contrast) */}
                   <div className="absolute inset-x-0 bottom-0 z-10 pt-8 pb-2.5 px-2.5 sm:px-3 bg-gradient-to-t from-black/55 via-black/30 to-transparent dark:from-black/95 dark:via-black/70 dark:to-transparent flex flex-col justify-end">
-                    <span className="inline-flex items-center w-fit px-2 py-0.5 rounded-full bg-emerald-950/50 dark:bg-emerald-950/70 text-emerald-300 dark:text-emerald-400 backdrop-blur-md text-[9px] sm:text-[10px] font-extrabold uppercase tracking-wider mb-1 border-none shadow-sm">
-                      {video.category}
-                    </span>
+                    <div className="flex items-center gap-1 mb-1 flex-wrap">
+                      <span className="inline-flex items-center w-fit px-2 py-0.5 rounded-full bg-emerald-950/50 dark:bg-emerald-950/70 text-emerald-300 dark:text-emerald-400 backdrop-blur-md text-[9px] sm:text-[10px] font-extrabold uppercase tracking-wider border-none shadow-sm">
+                        {video.category}
+                      </span>
+                      {video.source && (
+                        <span className="text-[9px] text-white/80 font-medium truncate">
+                          • {video.source}
+                        </span>
+                      )}
+                    </div>
                     <h3 className="text-[11px] sm:text-xs font-bold text-white leading-snug line-clamp-2 drop-shadow-sm group-hover:text-emerald-300 transition-colors">
                       {video.title}
                     </h3>

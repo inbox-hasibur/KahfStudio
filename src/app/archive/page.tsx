@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import { useSession } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Archive as ArchiveIcon, ArrowLeft, Clock, Search, Calendar, Filter, Sparkles, Lock, LayoutGrid, List } from "lucide-react";
+import { Archive as ArchiveIcon, ArrowLeft, Clock, Search, Calendar, Filter, Sparkles, Lock, LayoutGrid, List, Bookmark } from "lucide-react";
 import NewsCard from "@/components/NewsCard";
 
 const getPlaceholderImage = (category: string) => {
@@ -28,10 +28,11 @@ const itemVariants = {
 
 export default function ArchivePage() {
   const { data: session, status } = useSession();
+  const userId = session?.user?.id;
   const isPremium = (session?.user as any)?.tier === "premium" || (session?.user as any)?.role === "admin";
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState<"general" | "personalized">("general");
+  const [activeTab, setActiveTab] = useState<"general" | "personalized" | "saved">("general");
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
   const [savedIds, setSavedIds] = useState<string[]>([]);
 
@@ -72,26 +73,65 @@ export default function ArchivePage() {
   }, []);
 
   React.useEffect(() => {
+    async function fetchSavedBookmarks() {
+      if (!userId) return;
+      try {
+        const res = await fetch(`/api/bookmarks?userId=${userId}`);
+        const data = await res.json();
+        if (data.success && data.savedIds) {
+          setSavedIds(data.savedIds);
+        }
+      } catch (err) {
+        console.error("Failed to fetch bookmarks:", err);
+      }
+    }
+    fetchSavedBookmarks();
+  }, [userId]);
+
+  React.useEffect(() => {
     if (status === "unauthenticated") {
       router.push("/register"); // Or /login if it exists
     }
   }, [status, router]);
 
-  const toggleSave = (id: string) => {
+  const toggleSave = async (id: string) => {
+    const isCurrentlySaved = savedIds.includes(id);
     setSavedIds(prev => 
-      prev.includes(id) ? prev.filter(savedId => savedId !== id) : [...prev, id]
+      isCurrentlySaved ? prev.filter(savedId => savedId !== id) : [...prev, id]
     );
+
+    if (!userId) return;
+
+    try {
+      if (!isCurrentlySaved) {
+        await fetch('/api/bookmarks', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId, newsId: id }),
+        });
+      } else {
+        await fetch(`/api/bookmarks?userId=${userId}&newsId=${id}`, {
+          method: 'DELETE',
+        });
+      }
+    } catch (e) {
+      console.error("Failed to toggle bookmark in DB:", e);
+    }
   };
 
   const filteredArchive = articles.filter(
     (item) => {
       const matchesSearch = item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                             item.category.toLowerCase().includes(searchQuery.toLowerCase());
-      // Show only personalized news in the personalized tab, and general news in the general tab
-      const matchesTab = activeTab === "general" 
-        ? !item.isPersonalized 
-        : !!item.isPersonalized;
-      return matchesSearch && matchesTab;
+      if (!matchesSearch) return false;
+
+      if (activeTab === "saved") {
+        return savedIds.includes(item.id);
+      } else if (activeTab === "personalized") {
+        return !!item.isPersonalized;
+      } else {
+        return !item.isPersonalized;
+      }
     }
   );
 
@@ -145,16 +185,23 @@ export default function ArchivePage() {
           <div className="flex-1 sm:flex-initial flex items-center gap-1 p-1 bg-card border border-border rounded-xl">
             <button
               onClick={() => setActiveTab("general")}
-              className={`flex-1 sm:flex-initial px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-all ${activeTab === "general" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}
+              className={`flex-1 sm:flex-initial px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-all ${activeTab === "general" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}
             >
               General
             </button>
             <button
               onClick={() => setActiveTab("personalized")}
-              className={`flex-1 sm:flex-initial px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-all flex items-center justify-center gap-1.5 ${activeTab === "personalized" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}
+              className={`flex-1 sm:flex-initial px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-all flex items-center justify-center gap-1.5 ${activeTab === "personalized" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}
             >
               <Sparkles className="w-3.5 h-3.5" />
               Personalized
+            </button>
+            <button
+              onClick={() => setActiveTab("saved")}
+              className={`flex-1 sm:flex-initial px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-all flex items-center justify-center gap-1.5 ${activeTab === "saved" ? "bg-amber-500 text-white shadow-sm font-bold" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}
+            >
+              <Bookmark className="w-3.5 h-3.5" fill={activeTab === "saved" ? "currentColor" : "none"} />
+              Saved ({savedIds.length})
             </button>
           </div>
 

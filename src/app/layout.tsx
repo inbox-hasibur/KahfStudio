@@ -4,6 +4,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import GoogleTranslateLoader from "@/components/GoogleTranslateLoader";
 
 const hindSiliguri = Hind_Siliguri({ 
   subsets: ["bengali", "latin"], 
@@ -27,7 +28,7 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="bn" suppressHydrationWarning>
-      <body className={`${hindSiliguri.variable} ${notoSerif.variable} font-sans antialiased`} style={{ fontFamily: "var(--font-hind)" }}>
+      <body className={`${hindSiliguri.variable} ${notoSerif.variable} font-sans antialiased`} style={{ fontFamily: "var(--font-hind)" }} suppressHydrationWarning>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
@@ -39,19 +40,8 @@ export default function RootLayout({
           <Footer />
         </ThemeProvider>
         
-        {/* Google Translate Element */}
-        <div id="google_translate_element" className="hidden" suppressHydrationWarning={true}></div>
-        <script
-          type="text/javascript"
-          dangerouslySetInnerHTML={{
-            __html: `
-              function googleTranslateElementInit() {
-                new google.translate.TranslateElement({pageLanguage: 'bn', autoDisplay: false}, 'google_translate_element');
-              }
-            `,
-          }}
-        />
-        <script type="text/javascript" src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit" async defer></script>
+        {/* Dynamic Client-Side Google Translate Loader (Zero Hydration Mismatch) */}
+        <GoogleTranslateLoader />
       </body>
     </html>
   );

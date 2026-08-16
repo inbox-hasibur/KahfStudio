@@ -1,15 +1,16 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { 
   Clock, Globe, ArrowLeft, Play, Share2, Bookmark, 
-  ThumbsUp, MessageCircle, ExternalLink, Tag, Volume2, AlignLeft, Sparkles, Bot, ChevronUp, ChevronDown, Settings
+  ThumbsUp, MessageCircle, ExternalLink, Tag, Volume2, AlignLeft, Sparkles, Bot, ChevronUp, ChevronDown, ChevronLeft, Settings, Headphones, Check
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import AudioPlayer from "@/components/AudioPlayer";
+import { useSession } from "@/lib/auth-client";
 
 // Using Unsplash source for placeholder images based on category
 const getPlaceholderImage = (category: string) => {
@@ -33,14 +34,53 @@ const itemVariants = {
 export default function NewsDetailPage() {
   const params = useParams();
   const id = params.id as string;
+  const { data: sessionData } = useSession();
+  const userId = sessionData?.user?.id;
+
   const [newsItem, setNewsItem] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
+  const [isCopied, setIsCopied] = useState(false);
   const [relatedStories, setRelatedStories] = useState<any[]>([]);
   const [activeView, setActiveView] = useState<"full" | "summary">("summary");
   const [isStickyExpanded, setIsStickyExpanded] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
+
+  const handleShare = async () => {
+    try {
+      if (typeof window !== "undefined") {
+        await navigator.clipboard.writeText(window.location.href);
+        setIsCopied(true);
+        setTimeout(() => setIsCopied(false), 2000);
+      }
+    } catch (e) {
+      console.error("Failed to copy link:", e);
+    }
+  };
+
+  const handleToggleBookmark = async () => {
+    const nextState = !isBookmarked;
+    setIsBookmarked(nextState);
+
+    if (!userId || !id) return;
+
+    try {
+      if (nextState) {
+        await fetch('/api/bookmarks', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId, newsId: id }),
+        });
+      } else {
+        await fetch(`/api/bookmarks?userId=${userId}&newsId=${id}`, {
+          method: 'DELETE',
+        });
+      }
+    } catch (e) {
+      console.error("Failed to update bookmark in DB:", e);
+    }
+  };
 
   // Auto-collapse sticky bar after 3s, expand on scroll up
   useEffect(() => {
@@ -112,12 +152,26 @@ export default function NewsDetailPage() {
         console.error(err);
       }
     }
+
+    async function checkSavedStatus() {
+      if (!userId || !id) return;
+      try {
+        const res = await fetch(`/api/bookmarks?userId=${userId}`);
+        const data = await res.json();
+        if (data.success && data.savedIds) {
+          setIsBookmarked(data.savedIds.includes(id));
+        }
+      } catch (err) {
+        console.error("Failed to check saved status:", err);
+      }
+    }
     
     if (id) {
       fetchArticle();
       fetchRelated();
+      checkSavedStatus();
     }
-  }, [id]);
+  }, [id, userId]);
 
   if (loading) {
     return (
@@ -216,26 +270,26 @@ export default function NewsDetailPage() {
     });
 
     return (
-      <div className="space-y-4">
+      <div className="space-y-3.5">
         {paragraphs.map((p, i) => (
-          <p key={i} className="text-sm sm:text-base leading-relaxed text-foreground/90 font-normal">
+          <p key={i} className="text-xs sm:text-sm md:text-[15px] leading-relaxed text-foreground/90 font-normal">
             {p.replace(/\*\*(.*?)\*\*/g, '$1').replace(/\*(.*?)\*/g, '$1')}
           </p>
         ))}
         
         {images.length > 0 && (
-          <div className="flex flex-col gap-4 my-8">
+          <div className="flex flex-col gap-3 my-4">
             {images.map((img, i) => (
-              <img key={i} src={img} alt={`Article image ${i + 1}`} className="w-full rounded-2xl object-cover border border-border shadow-sm" />
+              <img key={i} src={img} alt="" className="w-full max-h-[260px] sm:max-h-[300px] rounded-xl object-cover border border-border shadow-sm mx-auto" />
             ))}
           </div>
         )}
 
         {metadata.length > 0 && (
-          <div className="mt-10 p-5 bg-muted/30 rounded-xl border border-border text-sm text-muted-foreground">
-            <h4 className="font-bold mb-3 text-foreground">Metadata / Credits</h4>
+          <div className="mt-8 p-4 bg-muted/30 rounded-xl border border-border text-xs text-muted-foreground">
+            <h4 className="font-bold mb-2 text-foreground text-xs">Metadata / Credits</h4>
             {metadata.map((meta, i) => (
-              <div key={i} className="mb-1 last:mb-0">{meta}</div>
+              <div key={i} className="mb-0.5 last:mb-0">{meta}</div>
             ))}
           </div>
         )}
@@ -282,36 +336,36 @@ export default function NewsDetailPage() {
         {/* Title */}
         <motion.h1
           variants={itemVariants}
-          className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-foreground leading-[1.25] tracking-tight mb-4 sm:mb-6"
+          className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold text-foreground leading-snug tracking-tight mb-3 sm:mb-5 notranslate"
         >
           {newsItem.title}
         </motion.h1>
 
         {/* View Toggle & Play Buttons */}
-        <motion.div variants={itemVariants} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-4 mb-6 sm:mb-8 bg-muted/40 p-1.5 sm:p-2 rounded-xl sm:rounded-2xl border border-border">
+        <motion.div variants={itemVariants} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3.5 mb-5 sm:mb-6 bg-muted/40 p-1.5 rounded-xl border border-border">
           {/* Slider Toggle */}
-          <div className="relative flex items-center bg-card rounded-lg sm:rounded-xl p-1 border border-border w-full sm:w-[280px] md:w-[320px] shadow-sm">
+          <div className="relative flex items-center bg-card rounded-lg p-1 border border-border w-full sm:w-[260px] md:w-[290px] shadow-sm">
             <motion.div
-              className="absolute top-1 bottom-1 w-[calc(50%-4px)] bg-primary rounded-md sm:rounded-lg shadow-sm"
+              className="absolute top-1 bottom-1 w-[calc(50%-4px)] bg-primary rounded-md shadow-sm"
               animate={{ left: activeView === "summary" ? "4px" : "calc(50% + 0px)" }}
               transition={{ type: "spring", stiffness: 400, damping: 30 }}
             />
             <button
               onClick={() => setActiveView("summary")}
-              className={`relative flex-1 flex items-center justify-center gap-1.5 py-1.5 sm:py-2 text-xs sm:text-sm font-bold z-10 transition-colors ${
+              className={`relative flex-1 flex items-center justify-center gap-1.5 py-1 text-xs font-bold z-10 transition-colors ${
                 activeView === "summary" ? "text-primary-foreground" : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              <Sparkles className="w-3.5 h-3.5" />
+              <Sparkles className="w-3 h-3" />
               Summary
             </button>
             <button
               onClick={() => setActiveView("full")}
-              className={`relative flex-1 flex items-center justify-center gap-1.5 py-1.5 sm:py-2 text-xs sm:text-sm font-bold z-10 transition-colors ${
+              className={`relative flex-1 flex items-center justify-center gap-1.5 py-1 text-xs font-bold z-10 transition-colors ${
                 activeView === "full" ? "text-primary-foreground" : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              <AlignLeft className="w-3.5 h-3.5" />
+              <AlignLeft className="w-3 h-3" />
               Full News
             </button>
           </div>
@@ -319,10 +373,10 @@ export default function NewsDetailPage() {
           {/* Audio Play Button */}
           <div className="flex items-center gap-2 w-full sm:w-auto">
             <Button 
-              className="flex-1 sm:flex-none h-8 sm:h-9 text-xs sm:text-sm rounded-lg sm:rounded-xl gap-1.5 font-bold bg-primary text-primary-foreground hover:bg-primary/90 shadow-md shadow-primary/20"
+              className="flex-1 sm:flex-none h-8 text-xs rounded-lg gap-1.5 font-bold bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm"
               onClick={() => handlePlayAudio("summary")}
             >
-              <Play className="w-3.5 h-3.5 fill-current" />
+              <Play className="w-3 h-3 fill-current" />
               Listen Summary
             </Button>
           </div>
@@ -331,44 +385,47 @@ export default function NewsDetailPage() {
         {/* Author & Actions Row */}
         <motion.div
           variants={itemVariants}
-          className="flex items-center justify-between mb-8 pb-6 border-b border-border"
+          className="flex items-center justify-between mb-6 pb-4 border-b border-border"
         >
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs">
               {newsItem.author?.split(" ").map((n: string) => n[0]).join("") || "K"}
             </div>
             <div>
-              <p className="text-[14px] font-semibold text-foreground">{newsItem.author || "KahfNews"}</p>
-              <p className="text-[12px] text-muted-foreground">{newsItem.source}</p>
+              <p className="text-xs sm:text-sm font-semibold text-foreground">{newsItem.author || "KahfNews"}</p>
+              <p className="text-[11px] text-muted-foreground">{newsItem.source}</p>
             </div>
           </div>
 
           <div className="flex items-center gap-1">
             <motion.button
-              className={`p-2.5 rounded-full transition-colors ${isLiked ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}
+              className={`p-2 rounded-full transition-colors ${isLiked ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
               onClick={() => setIsLiked(!isLiked)}
               aria-label="Like"
             >
-              <ThumbsUp className="w-4 h-4" />
+              <ThumbsUp className="w-3.5 h-3.5" />
             </motion.button>
             <motion.button
-              className={`p-2.5 rounded-full transition-colors ${isBookmarked ? "text-amber-500 bg-amber-500/10" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}
+              className={`p-2 rounded-full transition-colors ${isBookmarked ? "text-amber-500 bg-amber-500/10" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
-              onClick={() => setIsBookmarked(!isBookmarked)}
+              onClick={handleToggleBookmark}
               aria-label="Bookmark"
+              title={isBookmarked ? "সেভ করা থেকে সরান" : "খবরটি সেভ করুন"}
             >
-              <Bookmark className="w-4 h-4" fill={isBookmarked ? "currentColor" : "none"} />
+              <Bookmark className="w-3.5 h-3.5" fill={isBookmarked ? "currentColor" : "none"} />
             </motion.button>
             <motion.button
-              className="p-2.5 text-muted-foreground hover:text-foreground transition-colors rounded-full hover:bg-muted"
+              className={`p-2 rounded-full transition-colors ${isCopied ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
+              onClick={handleShare}
               aria-label="Share"
+              title={isCopied ? "লিংক কপি হয়েছে!" : "শেয়ার করুন"}
             >
-              <Share2 className="w-4 h-4" />
+              {isCopied ? <Check className="w-3.5 h-3.5 text-primary" /> : <Share2 className="w-3.5 h-3.5" />}
             </motion.button>
           </div>
         </motion.div>
@@ -376,26 +433,24 @@ export default function NewsDetailPage() {
         {/* Hero Image */}
         <motion.div
           variants={itemVariants}
-          className="relative w-full aspect-video rounded-[24px] overflow-hidden mb-10 border border-border"
+          className="relative w-full aspect-[21/9] max-h-[260px] sm:max-h-[320px] md:max-h-[360px] rounded-xl overflow-hidden mb-5 border border-border shadow-sm bg-muted/40"
         >
           <img
             src={newsItem.imageUrl}
-            alt={newsItem.title}
+            alt=""
             className="object-cover w-full h-full"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent pointer-events-none" />
         </motion.div>
 
-
-
         {/* Article Content */}
-        <motion.div variants={itemVariants} className="mb-10 min-h-[300px]">
+        <motion.div variants={itemVariants} className="mb-8 min-h-[250px]">
           {activeView === "summary" ? (
-            <div className="space-y-6">
+            <div className="space-y-4">
               {paragraphs.map((paragraph: string, index: number) => (
                 <p
                   key={`summary-${index}`}
-                  className="text-[17px] md:text-[18px] leading-[1.8] text-foreground/85 font-medium"
+                  className="text-xs sm:text-sm md:text-[15px] leading-relaxed text-foreground/85 font-medium notranslate"
                 >
                   {paragraph}
                 </p>
@@ -407,33 +462,33 @@ export default function NewsDetailPage() {
         </motion.div>
 
         {/* Tags */}
-        <motion.div variants={itemVariants} className="flex flex-wrap gap-2 mb-8">
+        <motion.div variants={itemVariants} className="flex flex-wrap gap-1.5 mb-6">
           {newsItem.tags?.map((tag: string) => (
             <span
               key={tag}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-muted rounded-full text-[12px] font-semibold text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1 px-2.5 py-1 bg-muted rounded-lg text-[11px] font-semibold text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
             >
-              <Tag className="w-3 h-3" />
+              <Tag className="w-2.5 h-2.5" />
               {tag}
             </span>
           ))}
         </motion.div>
 
         {/* Divider */}
-        <div className="h-px bg-border my-8" />
+        <div className="h-px bg-border my-6" />
 
         {/* Source & Original Link */}
         <motion.div
           variants={itemVariants}
-          className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-12"
+          className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-8"
         >
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
-              <Globe className="w-5 h-5 text-muted-foreground" />
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+              <Globe className="w-4 h-4 text-muted-foreground" />
             </div>
             <div>
-              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Source</p>
-              <p className="text-foreground font-semibold">{newsItem.source}</p>
+              <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Source</p>
+              <p className="text-foreground font-semibold text-xs sm:text-sm">{newsItem.source}</p>
             </div>
           </div>
 
@@ -441,9 +496,9 @@ export default function NewsDetailPage() {
             href={newsItem.originalUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-card border border-border rounded-full font-semibold text-[13px] text-foreground hover:bg-muted hover:border-primary/20 transition-all active:scale-95"
+            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 bg-card border border-border rounded-xl font-semibold text-xs text-foreground hover:bg-muted hover:border-primary/20 transition-all active:scale-95 shadow-sm"
           >
-            <ExternalLink className="w-4 h-4" />
+            <ExternalLink className="w-3.5 h-3.5" />
             Read Original Article
           </a>
         </motion.div>
@@ -451,18 +506,18 @@ export default function NewsDetailPage() {
         {/* Related Stories */}
         {relatedStories.length > 0 && (
           <motion.div variants={itemVariants}>
-            <h3 className="text-lg font-bold text-foreground mb-4">Related Stories</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <h3 className="text-sm sm:text-base font-bold text-foreground mb-3">Related Stories</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               {relatedStories.map((story) => (
                 <Link key={story.id} href={`/news/${story.id}`}>
                   <motion.div
-                    className="p-4 bg-card border border-border rounded-2xl hover:border-primary/20 transition-all group"
+                    className="p-3 bg-card border border-border rounded-xl hover:border-primary/20 transition-all group"
                     whileHover={{ y: -2 }}
                   >
-                    <span className="text-[10px] font-bold text-primary uppercase tracking-wider">
+                    <span className="text-[9px] font-bold text-primary uppercase tracking-wider">
                       {story.category || "General"}
                     </span>
-                    <p className="text-[14px] font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-2 mt-1.5">
+                    <p className="text-xs font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-2 mt-1">
                       {story.headline || story.title}
                     </p>
                   </motion.div>
@@ -473,76 +528,77 @@ export default function NewsDetailPage() {
         )}
       </article>
 
-      {/* Sticky Bottom Collapsible Action Bar */}
-      <motion.div
-        className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center justify-center"
-        initial={{ y: 100, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ delay: 1, duration: 0.5 }}
-        onMouseEnter={() => setIsStickyExpanded(true)}
-        onMouseLeave={() => setIsStickyExpanded(false)}
-      >
-        <motion.div
-          className="bg-black/80 backdrop-blur-xl border border-white/10 p-1.5 rounded-full shadow-2xl flex items-center overflow-hidden cursor-pointer"
-          animate={{
-            width: isStickyExpanded ? "auto" : "56px",
-            height: "56px",
-          }}
-          transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-        >
-          {/* Expanded Content */}
-          <div className="flex items-center gap-1.5 px-1 whitespace-nowrap opacity-100" style={{ display: isStickyExpanded ? 'flex' : 'none' }}>
-            <Button 
-              variant="ghost" 
-              className="rounded-full text-white hover:bg-white/10 hover:text-white font-semibold text-[13px] h-11 px-4"
-              onClick={() => handlePlayAudio("full")}
-            >
-              <Play className="w-4 h-4 mr-1.5" /> Full News
-            </Button>
-            <div className="w-px h-6 bg-white/20 mx-1" />
-            <Button 
-              variant="ghost" 
-              className="rounded-full text-white hover:bg-white/10 hover:text-white font-semibold text-[13px] h-11 px-4"
-              onClick={() => handlePlayAudio("summary")}
-            >
-              <Sparkles className="w-4 h-4 mr-1.5" /> Summary
-            </Button>
-            <div className="w-px h-6 bg-white/20 mx-1" />
-            <Button 
-              className="rounded-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-[13px] h-11 px-5 shadow-lg shadow-primary/20"
-              onClick={() => alert("Chat feature coming soon!")}
-            >
-              <Bot className="w-4 h-4 mr-1.5" /> Chat with News
-            </Button>
-            
-            <div className="w-px h-6 bg-white/20 mx-1" />
-            
-            <button 
-              className="w-10 h-10 rounded-full flex items-center justify-center text-white hover:text-primary bg-white/5 hover:bg-white/10 transition-colors"
-              onClick={() => {
-                const event = new CustomEvent('open-audio-settings');
-                window.dispatchEvent(event);
-              }}
-              title="Voice Settings"
-            >
-              <Settings className="w-4 h-4" />
-            </button>
-            
-            <button 
-              className="w-10 h-10 rounded-full flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-colors ml-1"
-            >
-              <ChevronDown className="w-4 h-4" />
-            </button>
-          </div>
+      {/* Sticky Bottom Actions Bar (Synced with Home Design System) */}
+      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 transition-all duration-300">
+        <div className="flex items-center gap-1.5 p-1.5 bg-card/90 border border-border/80 backdrop-blur-2xl rounded-full shadow-2xl">
+          {/* Sphere Toggle Button (Greenish-White 3D Spinning Sphere) */}
+          <button
+            onClick={() => setIsStickyExpanded((prev) => !prev)}
+            className="relative group w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-primary/10 hover:bg-primary/20 text-primary border border-primary/25 hover:border-primary/40 flex items-center justify-center transition-all cursor-pointer shrink-0 shadow-sm"
+            title={isStickyExpanded ? "Minimize Menu" : "Expand Menu"}
+          >
+            {isStickyExpanded ? (
+              <ChevronLeft className="w-3.5 h-3.5 text-foreground group-hover:text-primary transition-colors" />
+            ) : (
+              <motion.div
+                className="w-3.5 h-3.5 rounded-full relative z-10"
+                style={{
+                  background: "radial-gradient(circle at 30% 30%, #ecfdf5, #10b981, #064e3b)",
+                  boxShadow: "0 2px 4px rgba(16, 185, 129, 0.5), inset -1px -1px 3px rgba(0, 0, 0, 0.2)",
+                }}
+                animate={{ rotate: 360 }}
+                transition={{
+                  duration: 2.5,
+                  repeat: Infinity,
+                  ease: "linear",
+                }}
+              />
+            )}
+          </button>
 
-          {/* Collapsed Content (3 animated dots like listening) */}
-          <div className="absolute inset-0 flex items-center justify-center opacity-100 gap-1" style={{ display: !isStickyExpanded ? 'flex' : 'none' }}>
-            <motion.div className="w-1.5 h-1.5 bg-white/70 rounded-full" animate={{ y: [0, -3, 0] }} transition={{ repeat: Infinity, duration: 1, delay: 0 }} />
-            <motion.div className="w-1.5 h-1.5 bg-white/70 rounded-full" animate={{ y: [0, -3, 0] }} transition={{ repeat: Infinity, duration: 1, delay: 0.2 }} />
-            <motion.div className="w-1.5 h-1.5 bg-white/70 rounded-full" animate={{ y: [0, -3, 0] }} transition={{ repeat: Infinity, duration: 1, delay: 0.4 }} />
-          </div>
-        </motion.div>
-      </motion.div>
+          {/* Expandable Options */}
+          <AnimatePresence>
+            {isStickyExpanded && (
+              <motion.div
+                initial={{ opacity: 0, width: 0 }}
+                animate={{ opacity: 1, width: "auto" }}
+                exit={{ opacity: 0, width: 0 }}
+                className="flex items-center gap-1.5 overflow-hidden"
+              >
+                {/* 1. Listen Summary */}
+                <button
+                  onClick={() => handlePlayAudio("summary")}
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 bg-primary hover:bg-primary/90 text-primary-foreground rounded-full text-xs font-bold transition-all shadow-md shadow-primary/20 whitespace-nowrap cursor-pointer"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Listen Summary</span>
+                </button>
+
+                {/* 2. Listen Full News */}
+                <button
+                  onClick={() => handlePlayAudio("full")}
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 bg-muted hover:bg-muted/80 text-foreground rounded-full text-xs font-semibold transition-all border border-border whitespace-nowrap cursor-pointer"
+                >
+                  <Headphones className="w-3.5 h-3.5 text-primary" />
+                  <span>Full Audio</span>
+                </button>
+
+                {/* 3. Voice Settings */}
+                <button
+                  onClick={() => {
+                    const event = new CustomEvent("open-audio-settings");
+                    window.dispatchEvent(event);
+                  }}
+                  className="w-7 h-7 rounded-full bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground flex items-center justify-center transition-all border border-border cursor-pointer shrink-0"
+                  title="Voice Settings"
+                >
+                  <Settings className="w-3.5 h-3.5" />
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
       
       <AudioPlayer />
     </motion.main>

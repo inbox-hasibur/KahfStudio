@@ -5,7 +5,7 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Play, Clock, ArrowUpRight, Bookmark, Share2 } from "lucide-react";
+import { Play, Clock, ArrowUpRight, Bookmark, Share2, Check } from "lucide-react";
 
 interface NewsCardProps {
   news: {
@@ -40,6 +40,8 @@ const cleanMarkdown = (text: string) => {
 };
 
 const NewsCard = ({ news, isSaved = false, onToggleSave }: NewsCardProps) => {
+  const [isCopied, setIsCopied] = React.useState(false);
+
   const handlePlayAudio = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -162,12 +164,24 @@ const NewsCard = ({ news, isSaved = false, onToggleSave }: NewsCardProps) => {
                 <Bookmark className="w-4 h-4" fill={isSaved ? "currentColor" : "none"} />
               </motion.button>
               <motion.button
-                className="p-2 text-muted-foreground hover:text-foreground transition-colors rounded-full hover:bg-muted"
+                className={`p-2 transition-colors rounded-full hover:bg-muted ${
+                  isCopied ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground"
+                }`}
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
                 aria-label="Share"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (typeof window !== "undefined") {
+                    navigator.clipboard.writeText(`${window.location.origin}/news/${news.id}`);
+                    setIsCopied(true);
+                    setTimeout(() => setIsCopied(false), 2000);
+                  }
+                }}
+                title={isCopied ? "লিংক কপি হয়েছে!" : "শেয়ার করুন"}
               >
-                <Share2 className="w-4 h-4" />
+                {isCopied ? <Check className="w-4 h-4 text-primary" /> : <Share2 className="w-4 h-4" />}
               </motion.button>
             </div>
           </div>

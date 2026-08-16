@@ -184,9 +184,9 @@ export default function Home() {
     priority: (item.priority || defaultPriority) as "high" | "medium" | "low",
     publishedAt: item.published_at
       ? new Date(item.published_at).toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        })
+        hour: "2-digit",
+        minute: "2-digit",
+      })
       : defaultPriority === "high" ? "Just now" : "Recent",
     imageUrl: item.image_url || item.imageUrl,
     originalUrl: item.original_url || item.originalUrl,
@@ -209,7 +209,7 @@ export default function Home() {
     }
     const allSummaries = headlines.map((h: any) => h.summary || h.ai_summary || h.title).filter(Boolean).join(". ");
     const firstHeadline = headlines[0];
-    
+
     const event = new CustomEvent('play-audio', {
       detail: {
         id: "daily-podcast",
@@ -255,7 +255,7 @@ export default function Home() {
       <motion.section variants={itemVariants} className="mb-2 sm:mb-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 sm:gap-3 bg-transparent p-0 border-none">
           {/* ROW 1 ON MOBILE (Left Cluster on Desktop): Date, Time, Weather */}
-          <div className="flex items-center justify-between sm:justify-start gap-1 sm:gap-2.5 text-[10px] sm:text-xs w-full sm:w-auto">
+          <div className="flex items-center justify-between sm:justify-start gap-1 sm:gap-2.5 text-[11px] sm:text-xs w-full sm:w-auto">
             {/* 1. Date */}
             <div className="flex-1 sm:flex-initial flex items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg sm:rounded-xl bg-card/80 border border-border text-foreground font-semibold shadow-sm">
               <Calendar className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-primary shrink-0" />
@@ -268,11 +268,11 @@ export default function Home() {
               <span className="whitespace-nowrap">
                 {currentTime
                   ? currentTime.toLocaleTimeString("en-US", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                      second: "2-digit",
-                      hour12: true,
-                    })
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    second: "2-digit",
+                    hour12: true,
+                  })
                   : "--:--:--"}
               </span>
             </div>
@@ -318,9 +318,8 @@ export default function Home() {
                   <span className="text-primary font-medium truncate max-w-[100px] sm:max-w-none">{selectedRegion}</span>
                 </div>
                 <ChevronDown
-                  className={`w-3 h-3 sm:w-3.5 sm:h-3.5 text-muted-foreground transition-transform duration-200 shrink-0 ml-1 ${
-                    isLocationDropdownOpen ? "rotate-180" : ""
-                  }`}
+                  className={`w-3 h-3 sm:w-3.5 sm:h-3.5 text-muted-foreground transition-transform duration-200 shrink-0 ml-1 ${isLocationDropdownOpen ? "rotate-180" : ""
+                    }`}
                 />
               </button>
 
@@ -355,11 +354,10 @@ export default function Home() {
                               setSelectedCountry(c);
                               setSelectedRegion(c.regions[0]);
                             }}
-                            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium transition-all ${
-                              selectedCountry.code === c.code
-                                ? "bg-primary text-primary-foreground font-bold"
-                                : "bg-muted hover:bg-muted/80 text-muted-foreground"
-                            }`}
+                            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium transition-all ${selectedCountry.code === c.code
+                              ? "bg-primary text-primary-foreground font-bold"
+                              : "bg-muted hover:bg-muted/80 text-muted-foreground"
+                              }`}
                           >
                             <span>{c.flag}</span>
                             <span className="truncate">{c.name}</span>
@@ -380,11 +378,10 @@ export default function Home() {
                               setSelectedRegion(region);
                               setIsLocationDropdownOpen(false);
                             }}
-                            className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${
-                              selectedRegion === region
-                                ? "bg-primary/20 text-primary border border-primary/30 font-bold"
-                                : "bg-muted/60 hover:bg-muted text-muted-foreground"
-                            }`}
+                            className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${selectedRegion === region
+                              ? "bg-primary/20 text-primary border border-primary/30 font-bold"
+                              : "bg-muted/60 hover:bg-muted text-muted-foreground"
+                              }`}
                           >
                             <span>{region}</span>
                             {selectedRegion === region && (
@@ -521,7 +518,7 @@ export default function Home() {
       {/* Sticky Bottom Actions Bar (Synced Bot Icon Logo) */}
       <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 transition-all duration-300">
         <div className="flex items-center gap-1.5 p-1.5 bg-card/90 border border-border/80 backdrop-blur-2xl rounded-full shadow-2xl">
-          {/* Toggle Button (Greenish-White 3D Sphere) */}
+          {/* 3-Dot Toggle Button (Minimal, High-Aesthetic Pulse) */}
           <button
             onClick={() => setIsStickyExpanded((prev) => !prev)}
             className="relative group w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-primary/10 hover:bg-primary/20 text-primary border border-primary/25 hover:border-primary/40 flex items-center justify-center transition-all cursor-pointer shrink-0 shadow-sm"
@@ -531,13 +528,18 @@ export default function Home() {
               <ChevronLeft className="w-3.5 h-3.5 text-foreground group-hover:text-primary transition-colors" />
             ) : (
               <motion.div
-                className="w-4.5 h-4.5 rounded-full relative bg-[radial-gradient(circle_at_35%_35%,#ffffff_0%,#a7f3d0_35%,#10b981_70%,#047857_100%)] shadow-[0_0_12px_rgba(16,185,129,0.7),inset_-2px_-2px_4px_rgba(4,120,87,0.7),inset_2px_2px_4px_rgba(255,255,255,0.95)] overflow-hidden flex items-center justify-center"
+                className="w-3.5 h-3.5 rounded-full relative z-10"
+                style={{
+                  background: "radial-gradient(circle at 30% 30%, #ecfdf5, #10b981, #064e3b)",
+                  boxShadow: "0 2px 4px rgba(16, 185, 129, 0.5), inset -1px -1px 3px rgba(0, 0, 0, 0.2)",
+                }}
                 animate={{ rotate: 360 }}
-                transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
-              >
-                {/* 3D Specular Orbit Ring for realistic spinning visual */}
-                <div className="absolute inset-0.5 rounded-full border-2 border-white/80 border-t-emerald-200 border-r-transparent animate-spin" style={{ animationDuration: "1.5s" }} />
-              </motion.div>
+                transition={{
+                  duration: 2.5,
+                  repeat: Infinity,
+                  ease: "linear",
+                }}
+              />
             )}
           </button>
 
