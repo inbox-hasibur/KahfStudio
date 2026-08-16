@@ -139,52 +139,52 @@ function CheckoutContent() {
   };
 
   if (status === "loading") {
-    return <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center text-primary"><Loader2 className="w-8 h-8 animate-spin" /></div>;
+    return <div className="min-h-screen bg-background flex items-center justify-center text-primary"><Loader2 className="w-8 h-8 animate-spin" /></div>;
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 pt-24 pb-12 px-4 font-sans selection:bg-primary/20 text-slate-900 dark:text-slate-100 transition-colors">
-      <div className="max-w-5xl mx-auto bg-white dark:bg-slate-900 rounded-[2rem] shadow-2xl shadow-slate-200/50 dark:shadow-none overflow-hidden flex flex-col md:flex-row border border-slate-200/60 dark:border-slate-800 transition-colors">
+    <div className="min-h-screen bg-background pt-24 pb-12 px-4 font-sans selection:bg-primary/20 text-foreground transition-colors">
+      <div className="max-w-5xl mx-auto bg-card rounded-[2rem] shadow-2xl overflow-hidden flex flex-col md:flex-row border border-border transition-colors">
         
         {/* Left Side: Order Summary */}
-        <div className="w-full md:w-[40%] lg:w-[35%] bg-slate-50/50 dark:bg-slate-800/20 p-8 md:p-10 flex flex-col justify-between relative overflow-hidden border-r border-slate-200/60 dark:border-slate-800 transition-colors">
+        <div className="w-full md:w-[40%] lg:w-[35%] bg-muted/40 p-8 md:p-10 flex flex-col justify-between relative overflow-hidden border-r border-border transition-colors">
           {/* Background Glow */}
-          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 dark:bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none"></div>
-          <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-500/10 dark:bg-blue-500/5 rounded-full blur-3xl translate-y-1/3 -translate-x-1/3 pointer-events-none"></div>
+          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none"></div>
+          <div className="absolute bottom-0 left-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl translate-y-1/3 -translate-x-1/3 pointer-events-none"></div>
           
           <div className="relative z-10">
-            <Link href="/pricing" className="inline-flex items-center text-xs font-bold text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors mb-10 bg-slate-200/50 dark:bg-slate-800/50 hover:bg-slate-200 dark:hover:bg-slate-800 px-4 py-2 rounded-full backdrop-blur-sm">
+            <Link href="/pricing" className="inline-flex items-center text-xs font-bold text-muted-foreground hover:text-foreground transition-colors mb-10 bg-muted hover:bg-muted/80 px-4 py-2 rounded-full backdrop-blur-sm">
               <ArrowLeft className="w-4 h-4 mr-2" /> Back to Pricing
             </Link>
 
-            <h1 className="text-4xl font-extrabold mb-10 tracking-tight">Checkout</h1>
+            <h1 className="text-4xl font-extrabold mb-10 tracking-tight text-foreground">Checkout</h1>
 
-            <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md rounded-3xl p-6 border border-slate-200 dark:border-slate-700/50 mb-6 shadow-xl shadow-slate-100 dark:shadow-none transition-colors">
+            <div className="bg-card/90 backdrop-blur-md rounded-3xl p-6 border border-border mb-6 shadow-xl transition-colors">
               
               {/* Monthly/Yearly Toggle Slider in Summary */}
-              <div className="flex bg-slate-200/80 dark:bg-slate-900/80 p-1 rounded-xl mb-6 shadow-inner relative">
+              <div className="flex bg-muted/80 p-1 rounded-xl mb-6 shadow-inner relative">
                 <div 
-                  className="absolute inset-y-1 left-1 w-[calc(50%-0.25rem)] bg-white dark:bg-slate-700 rounded-lg shadow-sm transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
+                  className="absolute inset-y-1 left-1 w-[calc(50%-0.25rem)] bg-card rounded-lg shadow-sm border border-border/40 transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
                   style={{ transform: isAnnual ? 'translateX(100%)' : 'translateX(0)' }}
                 />
                 <button
                   onClick={() => setIsAnnual(false)}
-                  className={`relative z-10 flex-1 py-2 text-xs font-bold rounded-lg transition-colors ${!isAnnual ? "text-slate-900 dark:text-white" : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"}`}
+                  className={`relative z-10 flex-1 py-2 text-xs font-bold rounded-lg transition-colors ${!isAnnual ? "text-foreground" : "text-muted-foreground hover:text-foreground"}`}
                 >
                   Monthly
                 </button>
                 <button
                   onClick={() => setIsAnnual(true)}
-                  className={`relative z-10 flex-1 py-2 text-xs font-bold rounded-lg transition-colors ${isAnnual ? "text-primary dark:text-white" : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"}`}
+                  className={`relative z-10 flex-1 py-2 text-xs font-bold rounded-lg transition-colors ${isAnnual ? "text-primary font-extrabold" : "text-muted-foreground hover:text-foreground"}`}
                 >
-                  Yearly <span className="text-[10px] bg-primary/10 dark:bg-white/20 text-primary dark:text-white px-1.5 py-0.5 rounded ml-1">-20%</span>
+                  Yearly <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded ml-1">-20%</span>
                 </button>
               </div>
 
               <div className="flex justify-between items-start mb-4">
                 <div>
-                  <h3 className="font-bold text-lg">{planName}</h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Full access to all features</p>
+                  <h3 className="font-bold text-lg text-foreground">{planName}</h3>
+                  <p className="text-xs text-muted-foreground mt-1">Full access to all features</p>
                 </div>
                 <div className="text-right">
                   <motion.span 
@@ -198,32 +198,32 @@ function CheckoutContent() {
                 </div>
               </div>
 
-              <div className="border-t border-slate-100 dark:border-slate-700/50 my-5 transition-colors"></div>
+              <div className="border-t border-border my-5 transition-colors"></div>
 
               <ul className="space-y-4">
                 <li className="flex items-start gap-3">
-                  <div className="bg-amber-100 dark:bg-amber-500/20 p-1.5 rounded-lg mt-0.5">
-                    <Zap className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400 shrink-0" />
+                  <div className="bg-amber-500/10 p-1.5 rounded-lg mt-0.5">
+                    <Zap className="w-3.5 h-3.5 text-amber-500 shrink-0" />
                   </div>
-                  <span className="text-slate-700 dark:text-slate-300 text-sm font-medium">Personalized Summarized News</span>
+                  <span className="text-foreground text-sm font-medium">Personalized Summarized News</span>
                 </li>
                 <li className="flex items-start gap-3">
-                  <div className="bg-blue-100 dark:bg-blue-500/20 p-1.5 rounded-lg mt-0.5">
-                    <Shield className="w-3.5 h-3.5 text-blue-500 dark:text-blue-400 shrink-0" />
+                  <div className="bg-blue-500/10 p-1.5 rounded-lg mt-0.5">
+                    <Shield className="w-3.5 h-3.5 text-blue-500 shrink-0" />
                   </div>
-                  <span className="text-slate-700 dark:text-slate-300 text-sm font-medium">Halal Mode (Music Filtering)</span>
+                  <span className="text-foreground text-sm font-medium">Halal Mode (Music Filtering)</span>
                 </li>
                 <li className="flex items-start gap-3">
-                  <div className="bg-purple-100 dark:bg-purple-500/20 p-1.5 rounded-lg mt-0.5">
-                    <Globe className="w-3.5 h-3.5 text-purple-500 dark:text-purple-400 shrink-0" />
+                  <div className="bg-purple-500/10 p-1.5 rounded-lg mt-0.5">
+                    <Globe className="w-3.5 h-3.5 text-purple-500 shrink-0" />
                   </div>
-                  <span className="text-slate-700 dark:text-slate-300 text-sm font-medium">News Source Control</span>
+                  <span className="text-foreground text-sm font-medium">News Source Control</span>
                 </li>
                 <li className="flex items-start gap-3">
-                  <div className="bg-green-100 dark:bg-green-500/20 p-1.5 rounded-lg mt-0.5">
-                    <Check className="w-3.5 h-3.5 text-green-600 dark:text-green-400 shrink-0" />
+                  <div className="bg-green-500/10 p-1.5 rounded-lg mt-0.5">
+                    <Check className="w-3.5 h-3.5 text-green-500 shrink-0" />
                   </div>
-                  <span className="text-slate-700 dark:text-slate-300 text-sm font-medium">Custom API Support</span>
+                  <span className="text-foreground text-sm font-medium">Custom API Support</span>
                 </li>
               </ul>
             </div>
@@ -232,16 +232,15 @@ function CheckoutContent() {
           </div>
 
         {/* Right Side: Payment Methods */}
-        <div className="w-full md:w-[60%] lg:w-[65%] p-6 md:p-10 lg:p-12 bg-white dark:bg-slate-900 flex flex-col justify-center transition-colors">
+        <div className="w-full md:w-[60%] lg:w-[65%] p-6 md:p-10 lg:p-12 bg-card flex flex-col justify-center transition-colors">
           <div className="w-full">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4">
-              <h2 className="text-2xl lg:text-3xl font-extrabold tracking-tight">Select Payment Method</h2>
-              <div className="text-xs font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-4 py-2 rounded-full border border-slate-200 dark:border-slate-700 inline-flex items-center gap-2 w-fit transition-colors">
+              <h2 className="text-2xl lg:text-3xl font-extrabold tracking-tight text-foreground">Select Payment Method</h2>
+              <div className="text-xs font-bold text-foreground bg-muted px-4 py-2 rounded-full border border-border inline-flex items-center gap-2 w-fit transition-colors">
                 <div className="w-2 h-2 rounded-full bg-green-500"></div>
                 {sessionData?.user?.email}
               </div>
             </div>
-
 
             {/* Side-by-side Layout for Options */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 relative">
@@ -249,13 +248,13 @@ function CheckoutContent() {
               {/* LOCAL BD PAYMENTS COLUMN */}
               <div className="space-y-4">
                 <div className="flex items-center justify-between mb-4">
-                  <h4 className="font-bold text-slate-700 dark:text-slate-300 text-sm uppercase tracking-wider">Local Gateways</h4>
+                  <h4 className="font-bold text-muted-foreground text-sm uppercase tracking-wider">Local Gateways</h4>
                 </div>
                 
                 <div className="flex flex-col gap-3">
                   <div 
                     onClick={() => { setActiveTab("local"); setSelectedMethod("sslcommerz"); }}
-                    className={`relative border-2 rounded-2xl p-4 flex flex-row items-center justify-center cursor-pointer transition-all hover:shadow-md hover:border-blue-600 hover:-translate-y-0.5 h-16 bg-white dark:bg-slate-800 group ${selectedMethod === "sslcommerz" && activeTab === "local" ? "border-blue-600 shadow-lg shadow-blue-600/20 bg-blue-50/50 dark:bg-blue-600/10 ring-4 ring-blue-600/10" : "border-slate-200 dark:border-slate-700"}`}
+                    className={`relative border-2 rounded-2xl p-4 flex flex-row items-center justify-center cursor-pointer transition-all hover:shadow-md hover:border-blue-600 hover:-translate-y-0.5 h-16 bg-background group ${selectedMethod === "sslcommerz" && activeTab === "local" ? "border-blue-600 shadow-lg shadow-blue-600/20 bg-blue-500/10 ring-4 ring-blue-600/10" : "border-border"}`}
                   >
                     {selectedMethod === "sslcommerz" && activeTab === "local" && (
                       <div className="absolute top-1/2 -translate-y-1/2 right-4 bg-blue-600 rounded-full p-1 shadow-sm">
@@ -267,7 +266,7 @@ function CheckoutContent() {
 
                   <div 
                     onClick={() => { setActiveTab("local"); setSelectedMethod("aamarpay"); }}
-                    className={`relative border-2 rounded-2xl p-4 flex flex-row items-center justify-center cursor-pointer transition-all hover:shadow-md hover:border-emerald-500 hover:-translate-y-0.5 h-16 bg-white dark:bg-slate-800 group ${selectedMethod === "aamarpay" && activeTab === "local" ? "border-emerald-500 shadow-lg shadow-emerald-500/20 bg-emerald-50/50 dark:bg-emerald-500/10 ring-4 ring-emerald-500/10" : "border-slate-200 dark:border-slate-700"}`}
+                    className={`relative border-2 rounded-2xl p-4 flex flex-row items-center justify-center cursor-pointer transition-all hover:shadow-md hover:border-emerald-500 hover:-translate-y-0.5 h-16 bg-background group ${selectedMethod === "aamarpay" && activeTab === "local" ? "border-emerald-500 shadow-lg shadow-emerald-500/20 bg-emerald-500/10 ring-4 ring-emerald-500/10" : "border-border"}`}
                   >
                     {selectedMethod === "aamarpay" && activeTab === "local" && (
                       <div className="absolute top-1/2 -translate-y-1/2 right-4 bg-emerald-500 rounded-full p-1 shadow-sm">
@@ -278,23 +277,23 @@ function CheckoutContent() {
                   </div>
                 </div>
 
-                <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 flex items-start gap-3 mt-4 transition-colors">
-                  <Shield className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
-                  <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">Processed securely by <span className="font-bold text-slate-700 dark:text-slate-300">{selectedMethod === 'sslcommerz' ? 'SSLCommerz' : 'aamarPay'} PGW</span> in BDT.</p>
+                <div className="bg-muted/50 border border-border rounded-2xl p-4 flex items-start gap-3 mt-4 transition-colors">
+                  <Shield className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
+                  <p className="text-xs text-muted-foreground leading-relaxed">Processed securely by <span className="font-bold text-foreground">{selectedMethod === 'sslcommerz' ? 'SSLCommerz' : 'aamarPay'} PGW</span> in BDT.</p>
                 </div>
               </div>
 
               {/* GLOBAL PAYMENTS COLUMN */}
               <div className="space-y-4">
                 <div className="flex items-center justify-between mb-4">
-                  <h4 className="font-bold text-slate-700 dark:text-slate-300 text-sm uppercase tracking-wider">Global Gateways</h4>
+                  <h4 className="font-bold text-muted-foreground text-sm uppercase tracking-wider">Global Gateways</h4>
                 </div>
 
                 <div className="flex flex-col gap-3">
                   {/* Stripe - ENABLED */}
                   <div 
                     onClick={() => { setActiveTab("global"); setSelectedMethod("stripe"); }}
-                    className={`relative border-2 rounded-2xl p-4 flex flex-row items-center justify-center cursor-pointer transition-all hover:shadow-md hover:border-[#635BFF] hover:-translate-y-0.5 h-16 bg-white dark:bg-slate-800 group ${selectedMethod === "stripe" && activeTab === "global" ? "border-[#635BFF] shadow-lg shadow-[#635BFF]/20 bg-[#635BFF]/5 dark:bg-[#635BFF]/10 ring-4 ring-[#635BFF]/10" : "border-slate-200 dark:border-slate-700"}`}
+                    className={`relative border-2 rounded-2xl p-4 flex flex-row items-center justify-center cursor-pointer transition-all hover:shadow-md hover:border-[#635BFF] hover:-translate-y-0.5 h-16 bg-background group ${selectedMethod === "stripe" && activeTab === "global" ? "border-[#635BFF] shadow-lg shadow-[#635BFF]/20 bg-[#635BFF]/10 ring-4 ring-[#635BFF]/10" : "border-border"}`}
                   >
                     {selectedMethod === "stripe" && activeTab === "global" && (
                       <div className="absolute top-1/2 -translate-y-1/2 right-4 bg-[#635BFF] rounded-full p-1 shadow-sm">
@@ -307,20 +306,20 @@ function CheckoutContent() {
                   {/* Paddle - ENABLED */}
                   <div 
                     onClick={() => { setActiveTab("global"); setSelectedMethod("paddle"); }}
-                    className={`relative border-2 rounded-2xl p-4 flex flex-row items-center justify-center cursor-pointer transition-all hover:shadow-md hover:border-[#FF5A00] hover:-translate-y-0.5 h-16 bg-white dark:bg-slate-800 group ${selectedMethod === "paddle" && activeTab === "global" ? "border-[#FF5A00] shadow-lg shadow-[#FF5A00]/20 bg-[#FF5A00]/5 dark:bg-[#FF5A00]/10 ring-4 ring-[#FF5A00]/10" : "border-slate-200 dark:border-slate-700"}`}
+                    className={`relative border-2 rounded-2xl p-4 flex flex-row items-center justify-center cursor-pointer transition-all hover:shadow-md hover:border-[#FF5A00] hover:-translate-y-0.5 h-16 bg-background group ${selectedMethod === "paddle" && activeTab === "global" ? "border-[#FF5A00] shadow-lg shadow-[#FF5A00]/20 bg-[#FF5A00]/10 ring-4 ring-[#FF5A00]/10" : "border-border"}`}
                   >
                     {selectedMethod === "paddle" && activeTab === "global" && (
                       <div className="absolute top-1/2 -translate-y-1/2 right-4 bg-[#FF5A00] rounded-full p-1 shadow-sm">
                         <Check className="w-3 h-3 text-white" />
                       </div>
                     )}
-                    <span className="font-bold text-slate-800 dark:text-slate-200 text-xl tracking-tight">Paddle</span>
+                    <span className="font-bold text-foreground text-xl tracking-tight">Paddle</span>
                   </div>
                 </div>
 
-                <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 flex items-start gap-3 mt-4 transition-colors">
-                  <Globe className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
-                  <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">Processed by <span className="font-bold text-slate-700 dark:text-slate-300">Stripe / Paddle</span> in USD.</p>
+                <div className="bg-muted/50 border border-border rounded-2xl p-4 flex items-start gap-3 mt-4 transition-colors">
+                  <Globe className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
+                  <p className="text-xs text-muted-foreground leading-relaxed">Processed by <span className="font-bold text-foreground">Stripe / Paddle</span> in USD.</p>
                 </div>
               </div>
 
@@ -330,7 +329,7 @@ function CheckoutContent() {
               <Button 
                 onClick={handlePayClick}
                 disabled={isCheckoutLoading}
-                className="w-full h-14 md:h-16 text-lg md:text-xl font-bold rounded-2xl shadow-xl shadow-primary/25 hover:shadow-primary/40 hover:-translate-y-1 transition-all bg-gradient-to-r from-emerald-500 to-emerald-400 hover:from-emerald-600 hover:to-emerald-500 text-white border-0"
+                className="w-full h-14 md:h-16 text-lg md:text-xl font-bold rounded-2xl shadow-xl shadow-primary/25 hover:shadow-primary/40 hover:-translate-y-1 transition-all bg-primary text-primary-foreground hover:bg-primary/90 border-0"
               >
                 {isCheckoutLoading ? (
                   <><Loader2 className="w-5 h-5 mr-2 animate-spin" /> Processing...</>
@@ -338,7 +337,7 @@ function CheckoutContent() {
                   <>Proceed to Pay {displayCurrency}{displayAmount.toLocaleString()}</>
                 )}
               </Button>
-              <div className="mt-4 flex items-center justify-center gap-2 text-slate-400 dark:text-slate-500 text-xs font-medium">
+              <div className="mt-4 flex items-center justify-center gap-2 text-muted-foreground text-xs font-medium">
                 <Lock className="w-3 h-3" /> Payments are secure and encrypted.
               </div>
             </div>
@@ -351,7 +350,7 @@ function CheckoutContent() {
 
 export default function CheckoutPage() {
   return (
-    <React.Suspense fallback={<div className="min-h-screen bg-slate-950 flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-white" /></div>}>
+    <React.Suspense fallback={<div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>}>
       <CheckoutContent />
     </React.Suspense>
   )

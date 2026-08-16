@@ -25,21 +25,18 @@ export default function ProfileLayout({
   }
 
   const isPremium = (session?.user as any)?.tier === "premium" || (session?.user as any)?.role === "admin";
+  const isAdmin = (session?.user as any)?.role === "admin";
 
   const navItems = [
-    { name: "Dashboard", href: "/profile", icon: LayoutDashboard },
+    { name: "Dashboard", href: isAdmin ? "/admin" : "/profile", icon: LayoutDashboard },
     { name: "Scraping Control", href: "/profile/scraping", icon: Database, isPremiumFeature: true },
     { name: "News Approval", href: "/profile/library", icon: Library, isPremiumFeature: true },
     { name: "BYOK & API Management", href: "/profile/byok", icon: Key, isPremiumFeature: true },
     { name: "Preferences", href: "/profile/preferences", icon: Settings, isPremiumFeature: false },
   ];
 
-  if ((session?.user as any)?.role === "admin") {
-    navItems.push({ name: "Admin Panel", href: "/admin", icon: Cpu, isPremiumFeature: false });
-  }
-
   return (
-    <div className="max-w-[1200px] mx-auto px-4 md:px-8 pt-28 md:pt-36 pb-32">
+    <div className="max-w-[1200px] mx-auto px-3 sm:px-6 pt-[72px] sm:pt-[84px] md:pt-[96px] pb-20 md:pb-28">
       <div className="flex flex-col md:flex-row gap-8">
         
         {/* Sidebar */}

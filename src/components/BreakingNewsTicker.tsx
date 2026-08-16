@@ -11,18 +11,24 @@ export default function BreakingNewsTicker({ items = [] }: BreakingNewsTickerPro
   const displayItems = items.length > 0 ? items : ["নতুন কোনো খবর নেই"];
 
   return (
-    <div className="w-full bg-[#111116]/60 backdrop-blur-md border border-primary/30 rounded-2xl text-white flex items-center relative overflow-hidden mb-8 shadow-sm">
-      <div className="flex-shrink-0 bg-primary/20 text-primary font-bold px-4 py-2.5 border-r border-primary/30 flex items-center gap-2 z-10 backdrop-blur-md">
-        <span className="w-2 h-2 rounded-full bg-primary animate-pulse-glow"></span>
-        <span className="font-serif">নিউজ</span>
+    <div className="w-full bg-card/80 backdrop-blur-md border border-border rounded-xl sm:rounded-2xl text-foreground flex items-center relative overflow-hidden shadow-sm h-8 sm:h-9 md:h-10">
+      {/* Ticker Tag Badge */}
+      <div className="flex-shrink-0 bg-primary/10 text-primary font-bold px-2.5 sm:px-3.5 h-full border-r border-border flex items-center gap-1.5 z-10 select-none text-[11px] sm:text-xs">
+        <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
+        <span className="font-semibold">নিউজ</span>
       </div>
-      
-      <div className="flex-1 overflow-hidden whitespace-nowrap relative flex items-center h-10">
-        <div className="flex gap-8 px-4 animate-marquee min-w-max">
-          {/* Double the items to make the infinite scroll seamless */}
+
+      {/* Marquee Scroller */}
+      <div className="flex-1 overflow-hidden whitespace-nowrap relative flex items-center h-full">
+        <div className="flex gap-6 sm:gap-8 px-3 sm:px-4 animate-marquee min-w-max">
           {[...displayItems, ...displayItems].map((item, index) => (
-            <Link href={`/news/${index}`} key={index} className="text-sm md:text-base text-gray-200 hover:text-primary transition-colors flex items-center">
-              {item} <span className="mx-6 text-primary/50">|</span>
+            <Link
+              href={`/news/${index}`}
+              key={index}
+              className="text-xs sm:text-sm text-foreground/80 hover:text-primary transition-colors flex items-center"
+            >
+              <span>{item}</span>
+              <span className="mx-4 sm:mx-6 text-border font-light">|</span>
             </Link>
           ))}
         </div>

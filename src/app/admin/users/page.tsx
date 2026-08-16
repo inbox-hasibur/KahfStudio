@@ -47,22 +47,22 @@ export default function AdminUsersPage() {
           </div>
           
           {/* Integrated Tab Switcher */}
-          <div className="flex bg-[#0f172a] p-1 rounded-xl w-full sm:w-auto border border-[#1e293b]">
+          <div className="flex bg-muted/80 p-1 rounded-xl w-full sm:w-auto border border-border">
             <button 
               onClick={() => setActiveTab("all")}
-              className={`flex-1 sm:w-24 px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${activeTab === "all" ? "bg-white text-black shadow-sm" : "text-white/70 hover:text-white"}`}
+              className={`flex-1 sm:w-24 px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${activeTab === "all" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}
             >
               All Users
             </button>
             <button 
               onClick={() => setActiveTab("free")}
-              className={`flex-1 sm:w-24 px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${activeTab === "free" ? "bg-white text-black shadow-sm" : "text-white/70 hover:text-white"}`}
+              className={`flex-1 sm:w-24 px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${activeTab === "free" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}
             >
               Free
             </button>
             <button 
               onClick={() => setActiveTab("premium")}
-              className={`flex-1 sm:w-24 px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${activeTab === "premium" ? "bg-white text-black shadow-sm" : "text-white/70 hover:text-white"}`}
+              className={`flex-1 sm:w-24 px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${activeTab === "premium" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}
             >
               Premium
             </button>
@@ -74,7 +74,7 @@ export default function AdminUsersPage() {
           ) : (
             <div className="border border-border rounded-xl overflow-hidden shadow-sm">
               <table className="w-full text-sm text-left">
-                <thead className="bg-[#0f172a] text-white">
+                <thead className="bg-muted/70 text-foreground">
                   <tr>
                     <th className="px-4 py-3 font-medium">User ID</th>
                     <th className="px-4 py-3 font-medium">Name</th>

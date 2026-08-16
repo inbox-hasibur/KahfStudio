@@ -151,7 +151,7 @@ export default function AdminLibraryPage() {
               key={tab.id}
               variant={activeTab === tab.id ? "default" : "ghost"}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 ${activeTab === tab.id ? "bg-white text-black hover:bg-slate-200" : ""}`}
+              className={`flex items-center gap-2 rounded-xl text-xs sm:text-sm font-semibold ${activeTab === tab.id ? "bg-primary text-primary-foreground hover:bg-primary/90" : "text-muted-foreground hover:text-foreground"}`}
             >
               <tab.icon className="w-4 h-4" />
               {tab.label}
@@ -162,15 +162,15 @@ export default function AdminLibraryPage() {
         <div className="flex flex-col items-end gap-1">
           <div 
             onClick={handleToggleAutoApprove}
-            className={`relative w-20 h-8 shrink-0 rounded-full p-1 cursor-pointer transition-colors duration-300 ${autoApprove ? "bg-green-500" : "bg-[#0f172a]"}`}
+            className={`relative w-20 h-8 shrink-0 rounded-full p-1 cursor-pointer transition-colors duration-300 border border-border ${autoApprove ? "bg-emerald-500" : "bg-muted"}`}
           >
             <motion.div
-              className="w-9 h-6 bg-white rounded-full shadow-sm flex items-center justify-center"
+              className="w-9 h-6 bg-card rounded-full shadow-sm flex items-center justify-center border border-border/50"
               initial={false}
               animate={{ x: autoApprove ? 36 : 0 }}
               transition={{ type: "spring", stiffness: 500, damping: 30 }}
             >
-              <span className={`text-[10px] font-bold leading-none ${autoApprove ? "text-green-600" : "text-[#0f172a]"}`}>
+              <span className={`text-[10px] font-bold leading-none ${autoApprove ? "text-emerald-500" : "text-muted-foreground"}`}>
                 {autoApprove ? "ON" : "OFF"}
               </span>
             </motion.div>

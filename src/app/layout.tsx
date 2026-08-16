@@ -45,7 +45,7 @@ export default function RootLayout({
         </ThemeProvider>
         
         {/* Google Translate Element */}
-        <div id="google_translate_element" className="hidden" suppressHydrationWarning />
+        <div id="google_translate_element" className="hidden" suppressHydrationWarning={true}></div>
         
         <Script
           id="google-translate-init"

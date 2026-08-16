@@ -62,19 +62,18 @@ const LinuxIcon = () => (
 
 export default function AIModelsPage() {
   return (
-    <main className="min-h-screen bg-background text-foreground pb-32 pt-28 md:pt-36">
-      <div className="max-w-[1200px] mx-auto px-4 md:px-8 relative z-10">
+    <main className="min-h-screen bg-background text-foreground pb-20 md:pb-28 pt-[72px] sm:pt-[84px] md:pt-[96px] font-sans">
+      <div className="max-w-[1200px] mx-auto px-3 sm:px-6 relative z-10">
         {/* Hero Section */}
-        <div>
-
-          <h1 className="text-4xl md:text-6xl font-black tracking-tighter mb-6 flex flex-col md:flex-row items-center justify-center gap-3 text-zinc-900 dark:text-white">
-            <Cpu className="w-12 h-12 text-emerald-600 dark:text-emerald-500" />
+        <div className="text-center mb-6 sm:mb-8">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight mb-2 sm:mb-3 flex items-center justify-center gap-2 sm:gap-2.5 text-foreground">
+            <Cpu className="w-6 h-6 sm:w-7 sm:h-7 text-primary" />
             KahfNews{" "}
-            <span className="text-emerald-600 dark:text-emerald-500">
+            <span className="text-primary">
               AI Models
             </span>
           </h1>
-          <p className="text-lg text-zinc-600 dark:text-zinc-400 max-w-2xl mx-auto leading-relaxed">
+          <p className="text-xs sm:text-sm text-muted-foreground max-w-xl mx-auto leading-relaxed">
             Discover the inner workings of our advanced neural networks.
             Download and integrate our raw AI models, datasets, and native apps
             for unparalleled audio processing.
@@ -82,46 +81,46 @@ export default function AIModelsPage() {
         </div>
 
         {/* Visual Presentation Section (Model Architecture) */}
-        <section className="mb-24">
-          <div className="bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 md:p-10 shadow-xl overflow-hidden relative">
+        <section className="mb-6 sm:mb-8">
+          <div className="bg-card border border-border rounded-2xl sm:rounded-3xl p-4 sm:p-6 md:p-8 shadow-sm overflow-hidden relative">
             {/* Visual background element */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full max-w-3xl max-h-[400px] bg-emerald-500/5 rounded-full blur-[80px] pointer-events-none" />
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full max-w-2xl max-h-[300px] bg-primary/5 rounded-full blur-[80px] pointer-events-none" />
 
-            <div className="text-center mb-12 relative z-10">
-              <h2 className="text-2xl md:text-3xl font-bold mb-4">
+            <div className="text-center mb-6 sm:mb-8 relative z-10">
+              <h2 className="text-base sm:text-lg md:text-xl font-bold text-foreground mb-1.5">
                 How Our Model Works
               </h2>
-              <p className="text-zinc-500 dark:text-zinc-400 max-w-xl mx-auto">
+              <p className="text-xs sm:text-sm text-muted-foreground max-w-lg mx-auto">
                 A state-of-the-art transformer architecture designed to separate
                 vocals and instruments with zero latency and high fidelity.
               </p>
             </div>
 
             {/* Architecture Diagram (CSS based aesthetic visual) */}
-            <div className="flex flex-col md:flex-row items-center justify-center gap-4 md:gap-8 relative z-10 py-8">
+            <div className="flex flex-col md:flex-row items-center justify-center gap-3 sm:gap-6 relative z-10 py-3 sm:py-5">
               {/* Input Node */}
               <div className="flex flex-col items-center group">
-                <div className="w-20 h-20 bg-white dark:bg-zinc-800 border-2 border-zinc-200 dark:border-zinc-700 rounded-2xl flex items-center justify-center shadow-lg group-hover:border-emerald-500 transition-colors z-10 relative">
-                  <Play className="w-8 h-8 text-zinc-700 dark:text-zinc-300 group-hover:text-emerald-600 transition-colors" />
+                <div className="w-14 h-14 sm:w-16 sm:h-16 bg-card border border-border rounded-xl flex items-center justify-center shadow-sm group-hover:border-primary/50 transition-colors z-10 relative">
+                  <Play className="w-5 h-5 sm:w-6 sm:h-6 text-foreground group-hover:text-primary transition-colors ml-0.5" />
                 </div>
-                <span className="mt-4 font-semibold text-sm text-center">
-                  Raw News Video/Audio Input
+                <span className="mt-2.5 font-semibold text-xs sm:text-[13px] text-center text-foreground">
+                  Raw News Audio/Video
                 </span>
-                <span className="text-xs text-zinc-500">
-                  Mixed news & noise
+                <span className="text-[11px] text-muted-foreground">
+                  Mixed news & background music
                 </span>
               </div>
 
-              <div className="hidden md:flex flex-1 max-w-[100px] h-0.5 bg-zinc-200 dark:bg-zinc-700 relative overflow-hidden">
+              <div className="hidden md:flex flex-1 max-w-[80px] h-0.5 bg-border relative overflow-hidden">
                 <motion.div 
-                  className="absolute inset-y-0 left-0 w-1/3 bg-emerald-500 rounded-full"
+                  className="absolute inset-y-0 left-0 w-1/3 bg-primary rounded-full"
                   animate={{ x: ["-100%", "300%"] }}
                   transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
                 />
               </div>
-              <div className="md:hidden w-0.5 h-10 bg-zinc-200 dark:bg-zinc-700 my-2 relative overflow-hidden">
+              <div className="md:hidden w-0.5 h-8 bg-border my-1 relative overflow-hidden">
                 <motion.div 
-                  className="absolute inset-x-0 top-0 h-1/3 bg-emerald-500 rounded-full"
+                  className="absolute inset-x-0 top-0 h-1/3 bg-primary rounded-full"
                   animate={{ y: ["-100%", "300%"] }}
                   transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
                 />
@@ -130,12 +129,12 @@ export default function AIModelsPage() {
               {/* Neural Network Core */}
               <div className="relative group">
                 <motion.div 
-                  className="w-40 h-40 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-2xl flex flex-col items-center justify-center shadow-2xl relative z-10 border border-emerald-300 dark:border-emerald-700 text-white p-4"
-                  animate={{ boxShadow: ["0 0 0 0 rgba(16, 185, 129, 0)", "0 0 0 15px rgba(16, 185, 129, 0.2)", "0 0 0 30px rgba(16, 185, 129, 0)"] }}
+                  className="w-28 h-28 sm:w-32 sm:h-32 bg-primary rounded-xl sm:rounded-2xl flex flex-col items-center justify-center shadow-lg relative z-10 border border-primary/40 text-primary-foreground p-3"
+                  animate={{ boxShadow: ["0 0 0 0 rgba(16, 185, 129, 0)", "0 0 0 10px rgba(16, 185, 129, 0.15)", "0 0 0 20px rgba(16, 185, 129, 0)"] }}
                   transition={{ duration: 2, repeat: Infinity, ease: "easeOut" }}
                 >
-                  <Layers className="w-12 h-12 mb-3" />
-                  <span className="font-bold text-center leading-tight">
+                  <Layers className="w-7 h-7 sm:w-8 sm:h-8 mb-1.5" />
+                  <span className="font-bold text-xs sm:text-[13px] text-center leading-tight">
                     KahfNews
                     <br />
                     Music Remover
@@ -143,45 +142,44 @@ export default function AIModelsPage() {
                 </motion.div>
               </div>
 
-              <div className="hidden md:flex flex-1 max-w-[100px] h-0.5 bg-zinc-200 dark:bg-zinc-700 relative overflow-hidden">
+              <div className="hidden md:flex flex-1 max-w-[80px] h-0.5 bg-border relative overflow-hidden">
                 <motion.div 
-                  className="absolute inset-y-0 left-0 w-1/3 bg-emerald-500 rounded-full"
+                  className="absolute inset-y-0 left-0 w-1/3 bg-primary rounded-full"
                   animate={{ x: ["-100%", "300%"] }}
                   transition={{ duration: 1.5, repeat: Infinity, ease: "linear", delay: 0.75 }}
                 />
               </div>
-              <div className="md:hidden w-0.5 h-10 bg-zinc-200 dark:bg-zinc-700 my-2 relative overflow-hidden">
+              <div className="md:hidden w-0.5 h-8 bg-border my-1 relative overflow-hidden">
                 <motion.div 
-                  className="absolute inset-x-0 top-0 h-1/3 bg-emerald-500 rounded-full"
+                  className="absolute inset-x-0 top-0 h-1/3 bg-primary rounded-full"
                   animate={{ y: ["-100%", "300%"] }}
                   transition={{ duration: 1.5, repeat: Infinity, ease: "linear", delay: 0.75 }}
                 />
               </div>
 
               {/* Output Nodes */}
-              <div className="flex flex-col gap-6">
-                <div className="flex items-center gap-4 group">
-                  <div className="w-14 h-14 bg-white dark:bg-zinc-800 border-2 border-emerald-500 rounded-xl flex items-center justify-center shadow-lg relative">
-                    <Zap className="w-6 h-6 text-emerald-600" />
-                    <div className="absolute inset-0 bg-emerald-500/20 rounded-xl" />
+              <div className="flex flex-col gap-3 sm:gap-4">
+                <div className="flex items-center gap-2.5 sm:gap-3 group">
+                  <div className="w-10 h-10 sm:w-11 sm:h-11 bg-primary/10 border border-primary/30 rounded-lg sm:rounded-xl flex items-center justify-center shadow-sm relative">
+                    <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
                   </div>
                   <div>
-                    <div className="font-bold text-emerald-600 dark:text-emerald-400">
-                      Natural Sound
+                    <div className="font-bold text-xs sm:text-sm text-primary">
+                      Natural Speech Voice
                     </div>
-                    <div className="text-xs text-zinc-500">
-                      Filtered & isolated
+                    <div className="text-[10px] sm:text-[11px] text-muted-foreground">
+                      Filtered & crystal clear
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-4 group opacity-50">
-                  <div className="w-14 h-14 bg-white dark:bg-zinc-800 border-2 border-zinc-200 dark:border-zinc-700 rounded-xl flex items-center justify-center shadow-lg">
-                    <span className="text-xl">🎵</span>
+                <div className="flex items-center gap-2.5 sm:gap-3 group opacity-60">
+                  <div className="w-10 h-10 sm:w-11 sm:h-11 bg-card border border-border rounded-lg sm:rounded-xl flex items-center justify-center shadow-sm">
+                    <span className="text-base sm:text-lg">🎵</span>
                   </div>
                   <div>
-                    <div className="font-bold text-zinc-500">Music / Noise</div>
-                    <div className="text-xs text-zinc-400">
-                      Removed entirely
+                    <div className="font-bold text-xs sm:text-sm text-muted-foreground">Music & Background Noise</div>
+                    <div className="text-[10px] sm:text-[11px] text-muted-foreground/70">
+                      Removed completely
                     </div>
                   </div>
                 </div>
@@ -190,51 +188,51 @@ export default function AIModelsPage() {
           </div>
         </section>
 
-        <h2 className="text-3xl font-bold mb-8 text-center text-zinc-900 dark:text-white">
+        <h2 className="text-base sm:text-lg md:text-xl font-bold mb-3 sm:mb-4 text-center text-foreground">
           Downloads & Extensions
         </h2>
 
-        {/* Downloads Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10">
+        {/* Downloads Grid (Synced Proportions and Spacing) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 lg:gap-5 relative z-10">
           {/* Raw Model */}
           <div>
-            <Card className="h-full glass hover:border-emerald-500/50 dark:hover:border-emerald-500/50 transition-all shadow-sm hover:shadow-md">
-              <CardHeader>
-                <div className="w-12 h-12 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-2xl flex items-center justify-center mb-4">
-                  <Terminal className="w-6 h-6" />
+            <Card className="h-full bg-card border-border hover:border-primary/40 transition-all shadow-sm hover:shadow-md rounded-2xl flex flex-col justify-between p-4 sm:p-5">
+              <CardHeader className="p-0 mb-3">
+                <div className="w-9 h-9 sm:w-10 sm:h-10 bg-primary/10 text-primary rounded-xl flex items-center justify-center mb-2.5 sm:mb-3">
+                  <Terminal className="w-4 h-4 sm:w-5 sm:h-5" />
                 </div>
-                <CardTitle className="text-2xl text-zinc-900 dark:text-white">
+                <CardTitle className="text-sm sm:text-base md:text-lg font-bold text-foreground">
                   Raw Sound Remover Model
                 </CardTitle>
-                <CardDescription className="text-zinc-500">
-                  Advanced neural network for separating vocals and instruments.
+                <CardDescription className="text-xs sm:text-[13px] text-muted-foreground mt-0.5">
+                  Advanced neural network for separating vocals and background music.
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-3 text-sm text-zinc-600 dark:text-zinc-400">
-                  <div className="flex justify-between border-b border-zinc-100 dark:border-zinc-800 pb-2">
+              <CardContent className="p-0 mb-4">
+                <div className="space-y-2 text-xs sm:text-[13px] text-muted-foreground">
+                  <div className="flex justify-between border-b border-border/60 pb-1.5">
                     <span>Format</span>{" "}
-                    <span className="font-mono text-zinc-900 dark:text-zinc-200">
+                    <span className="font-mono text-foreground font-semibold">
                       .onnx / .pt
                     </span>
                   </div>
-                  <div className="flex justify-between border-b border-zinc-100 dark:border-zinc-800 pb-2">
+                  <div className="flex justify-between border-b border-border/60 pb-1.5">
                     <span>Size</span>{" "}
-                    <span className="font-mono text-zinc-900 dark:text-zinc-200">
+                    <span className="font-mono text-foreground font-semibold">
                       1.2 GB
                     </span>
                   </div>
-                  <div className="flex justify-between pb-2">
+                  <div className="flex justify-between pb-1">
                     <span>Architecture</span>{" "}
-                    <span className="font-mono text-zinc-900 dark:text-zinc-200">
+                    <span className="font-mono text-foreground font-semibold">
                       Transformer based
                     </span>
                   </div>
                 </div>
               </CardContent>
-              <CardFooter>
-                <Button className="w-full gap-2 font-bold bg-emerald-600 hover:bg-emerald-700 text-white">
-                  <Download className="w-4 h-4" /> Request Model Access
+              <CardFooter className="p-0 pt-2">
+                <Button className="w-full h-8 sm:h-9 text-xs sm:text-sm gap-2 font-bold bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl shadow-sm cursor-pointer">
+                  <Download className="w-3.5 h-3.5" /> Request Model Access
                 </Button>
               </CardFooter>
             </Card>
@@ -242,49 +240,49 @@ export default function AIModelsPage() {
 
           {/* Dataset */}
           <div>
-            <Card className="h-full glass hover:border-emerald-500/50 transition-all shadow-sm hover:shadow-md">
-              <CardHeader>
-                <div className="w-12 h-12 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-2xl flex items-center justify-center mb-4">
-                  <Database className="w-6 h-6" />
+            <Card className="h-full bg-card border-border hover:border-primary/40 transition-all shadow-sm hover:shadow-md rounded-2xl flex flex-col justify-between p-4 sm:p-5">
+              <CardHeader className="p-0 mb-3">
+                <div className="w-9 h-9 sm:w-10 sm:h-10 bg-blue-500/10 text-blue-500 rounded-xl flex items-center justify-center mb-2.5 sm:mb-3">
+                  <Database className="w-4 h-4 sm:w-5 sm:h-5" />
                 </div>
-                <CardTitle className="text-2xl text-zinc-900 dark:text-white">
+                <CardTitle className="text-sm sm:text-base md:text-lg font-bold text-foreground">
                   Training Dataset
                 </CardTitle>
-                <CardDescription className="text-zinc-500">
-                  Open-source dataset used to train the KahfNews AI models.
+                <CardDescription className="text-xs sm:text-[13px] text-muted-foreground mt-0.5">
+                  Open-source dataset used to train the KahfNews AI audio models.
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-3 text-sm text-zinc-600 dark:text-zinc-400">
-                  <div className="flex justify-between border-b border-zinc-100 dark:border-zinc-800 pb-2">
+              <CardContent className="p-0 mb-4">
+                <div className="space-y-2 text-xs sm:text-[13px] text-muted-foreground">
+                  <div className="flex justify-between border-b border-border/60 pb-1.5">
                     <span>Format</span>{" "}
-                    <span className="font-mono text-zinc-900 dark:text-zinc-200">
+                    <span className="font-mono text-foreground font-semibold">
                       .wav + JSON
                     </span>
                   </div>
-                  <div className="flex justify-between border-b border-zinc-100 dark:border-zinc-800 pb-2">
+                  <div className="flex justify-between border-b border-border/60 pb-1.5">
                     <span>Size</span>{" "}
-                    <span className="font-mono text-zinc-900 dark:text-zinc-200">
+                    <span className="font-mono text-foreground font-semibold">
                       45 GB
                     </span>
                   </div>
-                  <div className="flex justify-between pb-2">
+                  <div className="flex justify-between pb-1">
                     <span>License</span>{" "}
-                    <span className="font-mono text-zinc-900 dark:text-zinc-200">
+                    <span className="font-mono text-foreground font-semibold">
                       MIT Open Source
                     </span>
                   </div>
                 </div>
               </CardContent>
-              <CardFooter className="flex gap-2">
+              <CardFooter className="p-0 pt-2 flex gap-2">
                 <Button
-                  className="flex-1 gap-2 font-bold border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300"
+                  className="flex-1 h-8 sm:h-9 text-xs sm:text-sm font-semibold border-border hover:bg-muted text-foreground rounded-xl cursor-pointer"
                   variant="outline"
                 >
-                  View Demo Data
+                  Demo Data
                 </Button>
-                <Button className="flex-1 gap-2 font-bold bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-200">
-                  <Download className="w-4 h-4" /> Get Dataset
+                <Button className="flex-1 h-8 sm:h-9 text-xs sm:text-sm gap-1.5 font-bold bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl shadow-sm cursor-pointer">
+                  <Download className="w-3.5 h-3.5" /> Get Dataset
                 </Button>
               </CardFooter>
             </Card>
@@ -292,28 +290,28 @@ export default function AIModelsPage() {
 
           {/* Chrome Extension */}
           <div>
-            <Card className="h-full glass hover:border-emerald-500/50 transition-all shadow-sm hover:shadow-md">
-              <CardHeader>
-                <div className="w-12 h-12 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 rounded-2xl flex items-center justify-center mb-4">
-                  <Chrome className="w-6 h-6" />
+            <Card className="h-full bg-card border-border hover:border-primary/40 transition-all shadow-sm hover:shadow-md rounded-2xl flex flex-col justify-between p-4 sm:p-5">
+              <CardHeader className="p-0 mb-3">
+                <div className="w-9 h-9 sm:w-10 sm:h-10 bg-emerald-500/10 text-emerald-500 rounded-xl flex items-center justify-center mb-2.5 sm:mb-3">
+                  <Chrome className="w-4 h-4 sm:w-5 sm:h-5" />
                 </div>
-                <CardTitle className="text-2xl text-zinc-900 dark:text-white">
+                <CardTitle className="text-sm sm:text-base md:text-lg font-bold text-foreground">
                   Chrome Web Extension
                 </CardTitle>
-                <CardDescription className="text-zinc-500">
-                  Filter background music directly in your browser.
+                <CardDescription className="text-xs sm:text-[13px] text-muted-foreground mt-0.5">
+                  Filter background music directly inside your browser.
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <p className="text-zinc-600 dark:text-zinc-400 text-sm leading-relaxed">
+              <CardContent className="p-0 mb-4">
+                <p className="text-muted-foreground text-xs sm:text-sm leading-relaxed">
                   Seamlessly integrates with your browser. Uses our lightweight
                   WebAssembly model to process audio locally, ensuring privacy
                   and zero latency on YouTube, Spotify, and more.
                 </p>
               </CardContent>
-              <CardFooter>
-                <Button className="w-full gap-2 bg-green-600 hover:bg-green-700 text-white font-bold">
-                  <Chrome className="w-4 h-4" /> Add to Chrome (Free)
+              <CardFooter className="p-0 pt-2">
+                <Button className="w-full h-8 sm:h-9 text-xs sm:text-sm gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-xl shadow-sm cursor-pointer">
+                  <Chrome className="w-3.5 h-3.5" /> Add to Chrome (Free)
                 </Button>
               </CardFooter>
             </Card>
@@ -321,56 +319,56 @@ export default function AIModelsPage() {
 
           {/* Desktop App */}
           <div>
-            <Card className="h-full glass hover:border-emerald-500/50 transition-all shadow-sm hover:shadow-md">
-              <CardHeader>
-                <div className="w-12 h-12 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 rounded-2xl flex items-center justify-center mb-4">
-                  <Monitor className="w-6 h-6" />
+            <Card className="h-full bg-card border-border hover:border-primary/40 transition-all shadow-sm hover:shadow-md rounded-2xl flex flex-col justify-between p-4 sm:p-5">
+              <CardHeader className="p-0 mb-3">
+                <div className="w-9 h-9 sm:w-10 sm:h-10 bg-purple-500/10 text-purple-500 rounded-xl flex items-center justify-center mb-2.5 sm:mb-3">
+                  <Monitor className="w-4 h-4 sm:w-5 sm:h-5" />
                 </div>
-                <CardTitle className="text-2xl text-zinc-900 dark:text-white">
+                <CardTitle className="text-sm sm:text-base md:text-lg font-bold text-foreground">
                   Kahf Sound Remover App
                 </CardTitle>
-                <CardDescription className="text-zinc-500">
+                <CardDescription className="text-xs sm:text-[13px] text-muted-foreground mt-0.5">
                   Native desktop application for bulk audio processing.
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <p className="text-zinc-600 dark:text-zinc-400 text-sm leading-relaxed mb-6">
+              <CardContent className="p-0 mb-4">
+                <p className="text-muted-foreground text-xs sm:text-sm leading-relaxed mb-3">
                   Available for Windows, macOS, and Linux. Process gigabytes of
                   audio using your system's GPU for maximum performance.
                 </p>
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-3 gap-2 sm:gap-2.5">
                   <Button
                     variant="outline"
-                    className="group flex flex-col h-auto py-3 gap-2 border-zinc-200 dark:border-zinc-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 hover:border-emerald-500 hover:text-emerald-600 dark:hover:text-emerald-400 transition-all"
+                    className="group flex flex-col h-auto py-2 px-1 gap-1.5 border-border hover:bg-primary/10 hover:border-primary/30 hover:text-primary transition-all rounded-xl cursor-pointer"
                   >
                     <WindowsIcon />
                     <div className="flex flex-col items-center">
-                      <span className="font-bold text-xs">Windows</span>
-                      <span className="text-[9px] text-zinc-400 group-hover:text-emerald-500/70 transition-colors">
+                      <span className="font-bold text-[11px] sm:text-xs">Windows</span>
+                      <span className="text-[9px] text-muted-foreground group-hover:text-primary/70 transition-colors">
                         .exe
                       </span>
                     </div>
                   </Button>
                   <Button
                     variant="outline"
-                    className="group flex flex-col h-auto py-3 gap-2 border-zinc-200 dark:border-zinc-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 hover:border-emerald-500 hover:text-emerald-600 dark:hover:text-emerald-400 transition-all"
+                    className="group flex flex-col h-auto py-2 px-1 gap-1.5 border-border hover:bg-primary/10 hover:border-primary/30 hover:text-primary transition-all rounded-xl cursor-pointer"
                   >
                     <MacIcon />
                     <div className="flex flex-col items-center">
-                      <span className="font-bold text-xs">Mac</span>
-                      <span className="text-[9px] text-zinc-400 group-hover:text-emerald-500/70 transition-colors">
+                      <span className="font-bold text-[11px] sm:text-xs">Mac</span>
+                      <span className="text-[9px] text-muted-foreground group-hover:text-primary/70 transition-colors">
                         .dmg
                       </span>
                     </div>
                   </Button>
                   <Button
                     variant="outline"
-                    className="group flex flex-col h-auto py-3 gap-2 border-zinc-200 dark:border-zinc-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 hover:border-emerald-500 hover:text-emerald-600 dark:hover:text-emerald-400 transition-all"
+                    className="group flex flex-col h-auto py-2 px-1 gap-1.5 border-border hover:bg-primary/10 hover:border-primary/30 hover:text-primary transition-all rounded-xl cursor-pointer"
                   >
                     <LinuxIcon />
                     <div className="flex flex-col items-center">
-                      <span className="font-bold text-xs">Linux</span>
-                      <span className="text-[9px] text-zinc-400 group-hover:text-emerald-500/70 transition-colors">
+                      <span className="font-bold text-[11px] sm:text-xs">Linux</span>
+                      <span className="text-[9px] text-muted-foreground group-hover:text-primary/70 transition-colors">
                         .AppImage
                       </span>
                     </div>

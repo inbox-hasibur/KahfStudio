@@ -95,7 +95,7 @@ export default function RegisterPage() {
             
             {error && <p className="text-sm text-red-500 text-center font-medium">{error}</p>}
             
-            <Button className="w-full bg-white text-zinc-900 border border-zinc-200 dark:border-transparent hover:bg-zinc-100 h-12 rounded-xl font-bold text-[15px] mt-2 shadow-sm" type="submit" disabled={isSubmitting}>
+            <Button className="w-full bg-primary text-primary-foreground hover:bg-primary/90 h-12 rounded-xl font-bold text-[15px] mt-2 shadow-sm transition-all" type="submit" disabled={isSubmitting}>
               {isSubmitting ? "Creating account..." : "Sign up"}
             </Button>
           </form>

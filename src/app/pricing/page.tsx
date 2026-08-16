@@ -71,36 +71,36 @@ export default function PricingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-50 flex flex-col font-sans selection:bg-primary/30">
+    <div className="min-h-screen bg-background text-foreground flex flex-col font-sans selection:bg-primary/30">
       <Navbar />
       
-      <main className="flex-1 flex flex-col items-center justify-center pt-32 pb-24 px-4 md:px-6 relative overflow-hidden">
-        <motion.div className="text-center max-w-3xl mx-auto mb-10 z-10" {...fadeIn}>
-          <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-6">
+      <main className="flex-1 flex flex-col items-center justify-center pt-20 sm:pt-28 md:pt-32 pb-20 px-3 sm:px-6 relative overflow-hidden">
+        <motion.div className="text-center max-w-3xl mx-auto mb-6 sm:mb-10 z-10" {...fadeIn}>
+          <h1 className="text-2xl sm:text-4xl md:text-5xl font-bold tracking-tight mb-3 sm:mb-6 text-foreground">
             Choose Your Plan
           </h1>
-          <p className="text-lg md:text-xl text-slate-400 font-medium mb-8">
+          <p className="text-xs sm:text-base md:text-lg text-muted-foreground font-medium mb-5 sm:mb-8 max-w-2xl mx-auto leading-relaxed">
             Join the personalized news ecosystem. Automate your daily briefings and enjoy an ad-free, halal audio experience.
           </p>
 
-          <div className="flex items-center justify-center gap-3 bg-slate-900/50 p-1.5 rounded-full border border-slate-800 w-fit mx-auto">
+          <div className="flex items-center justify-center gap-2 sm:gap-3 bg-muted/80 p-1 sm:p-1.5 rounded-full border border-border w-fit mx-auto">
             <button
               onClick={() => setIsAnnual(false)}
-              className={`px-4 py-2 rounded-full text-sm font-bold transition-all ${!isAnnual ? 'bg-primary text-white shadow-md' : 'text-slate-400 hover:text-white'}`}
+              className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-bold transition-all ${!isAnnual ? 'bg-primary text-primary-foreground shadow-md' : 'text-muted-foreground hover:text-foreground'}`}
             >
               Monthly
             </button>
             <button
               onClick={() => setIsAnnual(true)}
-              className={`px-4 py-2 rounded-full text-sm font-bold transition-all flex items-center gap-2 ${isAnnual ? 'bg-primary text-white shadow-md' : 'text-slate-400 hover:text-white'}`}
+              className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5 ${isAnnual ? 'bg-primary text-primary-foreground shadow-md' : 'text-muted-foreground hover:text-foreground'}`}
             >
               Yearly
-              <span className="bg-green-500/20 text-green-400 text-[10px] px-2 py-0.5 rounded-full">Save 16%</span>
+              <span className="bg-green-500/20 text-green-500 text-[9px] sm:text-[10px] px-1.5 sm:px-2 py-0.5 rounded-full font-bold">Save 16%</span>
             </button>
           </div>
         </motion.div>
 
-        <div className="flex flex-col md:flex-row justify-center items-stretch w-full max-w-5xl mx-auto z-10 gap-8">
+        <div className="flex flex-col md:flex-row justify-center items-stretch w-full max-w-5xl mx-auto z-10 gap-4 sm:gap-8">
           {/* Free Plan */}
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
@@ -108,40 +108,40 @@ export default function PricingPage() {
             transition={{ duration: 0.5, delay: 0.1 }}
             className="w-full md:w-1/2 relative"
           >
-            <Card className="bg-slate-950/80 border border-slate-800 h-full flex flex-col rounded-[24px] overflow-hidden relative p-2 backdrop-blur-md">
-              <CardHeader className="pb-6 pt-6 px-8 relative overflow-hidden">
-                <CardTitle className="text-2xl font-bold flex items-center gap-2 text-white">
+            <Card className="bg-card border border-border h-full flex flex-col rounded-2xl sm:rounded-[24px] overflow-hidden relative p-1 sm:p-2 backdrop-blur-md">
+              <CardHeader className="pb-4 sm:pb-6 pt-4 sm:pt-6 px-4 sm:px-8 relative overflow-hidden">
+                <CardTitle className="text-xl sm:text-2xl font-bold flex items-center gap-2 text-foreground">
                   Free
                 </CardTitle>
-                <CardDescription className="text-slate-400 text-sm mt-2 font-medium max-w-[85%] relative z-10 leading-relaxed">
+                <CardDescription className="text-muted-foreground text-xs sm:text-sm mt-1 sm:mt-2 font-medium max-w-[85%] relative z-10 leading-relaxed">
                   Basic access to stay informed with standard news updates.
                 </CardDescription>
 
-                <div className="mt-4 flex items-baseline text-4xl font-bold relative z-10">
-                  <span className="text-3xl mr-1 font-bold text-white">৳</span>0
-                  <span className="text-base text-slate-400 font-medium ml-2">/forever</span>
+                <div className="mt-3 sm:mt-4 flex items-baseline text-2xl sm:text-4xl font-bold relative z-10 text-foreground">
+                  <span className="text-xl sm:text-3xl mr-1 font-bold text-foreground">৳</span>0
+                  <span className="text-xs sm:text-base text-muted-foreground font-medium ml-1.5 sm:ml-2">/forever</span>
                 </div>
               </CardHeader>
               
-              <CardContent className="px-8 flex-1">
-                <ul className="space-y-4">
+              <CardContent className="px-4 sm:px-8 flex-1">
+                <ul className="space-y-2.5 sm:space-y-4">
                   <li className="flex items-start gap-3">
                     <Check className="w-5 h-5 text-green-500 shrink-0 mt-0.5" />
-                    <span className="text-slate-300 text-sm">Platform-generated daily news</span>
+                    <span className="text-foreground text-sm">Platform-generated daily news</span>
                   </li>
                   <li className="flex items-start gap-3">
                     <Check className="w-5 h-5 text-green-500 shrink-0 mt-0.5" />
-                    <span className="text-slate-300 text-sm">Basic Text-to-Speech audio</span>
+                    <span className="text-foreground text-sm">Basic Text-to-Speech audio</span>
                   </li>
                   <li className="flex items-start gap-3">
-                    <Archive className="w-4 h-4 text-slate-500 shrink-0 mt-1" />
-                    <span className="text-slate-300 text-sm">General Podcast Archive</span>
+                    <Archive className="w-4 h-4 text-muted-foreground shrink-0 mt-1" />
+                    <span className="text-foreground text-sm">General Podcast Archive</span>
                   </li>
                 </ul>
               </CardContent>
               <CardFooter className="px-8 pb-8 pt-4">
                 <Link href="/register" className="w-full">
-                  <Button className="w-full bg-slate-800 text-white hover:bg-slate-700 h-12 rounded-xl font-bold text-[15px]">
+                  <Button className="w-full bg-muted text-foreground hover:bg-muted/80 h-12 rounded-xl font-bold text-[15px] border border-border">
                     Current Plan
                   </Button>
                 </Link>
@@ -156,51 +156,51 @@ export default function PricingPage() {
             transition={{ duration: 0.5, delay: 0.2 }}
             className="w-full md:w-1/2 relative"
           >
-            <Card className="bg-slate-950 border border-primary/50 shadow-[0_0_30px_-10px_rgba(59,130,246,0.3)] h-full flex flex-col rounded-[24px] overflow-hidden relative p-2">
+            <Card className="bg-card border border-primary/50 shadow-[0_0_30px_-10px_rgba(16,185,129,0.3)] h-full flex flex-col rounded-[24px] overflow-hidden relative p-2">
               <div className="absolute top-4 right-4 bg-primary text-primary-foreground text-[10px] font-bold px-3 py-1.5 rounded-full uppercase tracking-wider">
                 Most Popular
               </div>
               
               <CardHeader className="pb-6 pt-6 px-8 relative overflow-hidden">
-                <CardTitle className="text-2xl font-bold flex items-center gap-2 text-white">
-                  <Star className="w-5 h-5 text-amber-500" />
+                <CardTitle className="text-2xl font-bold flex items-center gap-2 text-foreground">
+                  <Star className="w-5 h-5 text-amber-500 fill-amber-500" />
                   Premium
                 </CardTitle>
-                <CardDescription className="text-slate-400 text-sm mt-2 font-medium max-w-[85%] relative z-10 leading-relaxed">
+                <CardDescription className="text-muted-foreground text-sm mt-2 font-medium max-w-[85%] relative z-10 leading-relaxed">
                   Everything you need. Full power of AI for your personalized news ecosystem.
                 </CardDescription>
 
-                <div className="mt-4 flex items-baseline text-4xl font-bold relative z-10">
-                  <span className="text-3xl mr-1 font-bold text-white">৳</span>
+                <div className="mt-4 flex items-baseline text-4xl font-bold relative z-10 text-foreground">
+                  <span className="text-3xl mr-1 font-bold text-foreground">৳</span>
                   {isAnnual ? "1,000" : "100"}
-                  <span className="text-base text-slate-400 font-medium ml-2">/{isAnnual ? 'yr' : 'mo'}</span>
+                  <span className="text-base text-muted-foreground font-medium ml-2">/{isAnnual ? 'yr' : 'mo'}</span>
                 </div>
               </CardHeader>
               
               <CardContent className="px-8 flex-1">
                 <ul className="space-y-4">
                   <li className="flex items-start gap-3">
-                    <Zap className="w-4 h-4 text-amber-400 shrink-0 mt-1" />
-                    <span className="text-slate-100 text-sm font-bold">Personalized Summarized News</span>
+                    <Zap className="w-4 h-4 text-amber-500 shrink-0 mt-1" />
+                    <span className="text-foreground text-sm font-bold">Personalized Summarized News</span>
                   </li>
                   <li className="flex items-start gap-3">
-                    <Shield className="w-4 h-4 text-blue-400 shrink-0 mt-1" />
-                    <span className="text-slate-100 text-sm font-bold">Halal Mode (Music Filtering)</span>
+                    <Shield className="w-4 h-4 text-blue-500 shrink-0 mt-1" />
+                    <span className="text-foreground text-sm font-bold">Halal Mode (Music Filtering)</span>
                   </li>
                   <li className="flex items-start gap-3">
-                    <Globe className="w-4 h-4 text-purple-400 shrink-0 mt-1" />
-                    <span className="text-slate-100 text-sm font-bold">News Source Control</span>
+                    <Globe className="w-4 h-4 text-purple-500 shrink-0 mt-1" />
+                    <span className="text-foreground text-sm font-bold">News Source Control</span>
                   </li>
                   <li className="flex items-start gap-3">
-                    <Check className="w-4 h-4 text-green-400 shrink-0 mt-1" />
-                    <span className="text-slate-100 text-sm font-bold">Custom API Support</span>
+                    <Check className="w-4 h-4 text-green-500 shrink-0 mt-1" />
+                    <span className="text-foreground text-sm font-bold">Custom API Support</span>
                   </li>
                   <li className="flex items-start gap-3">
                     <Check className="w-5 h-5 text-green-500 shrink-0 mt-0.5" />
-                    <span className="text-slate-200 text-sm font-medium">Personalized Podcast Archive</span>
+                    <span className="text-foreground text-sm font-medium">Personalized Podcast Archive</span>
                   </li>
-                  <div className="border-t border-slate-800 my-4" />
-                  <li className="text-xs text-slate-400">Plus all Free plan features</li>
+                  <div className="border-t border-border my-4" />
+                  <li className="text-xs text-muted-foreground">Plus all Free plan features</li>
                 </ul>
               </CardContent>
               <CardFooter className="px-8 pb-8 pt-4 flex-col gap-3">
@@ -208,7 +208,7 @@ export default function PricingPage() {
                   <>
                     <Link href={`/checkout?annual=${isAnnual}`} className="w-full">
                       <Button 
-                        className="w-full bg-white text-black hover:bg-slate-200 h-12 rounded-xl font-bold text-[15px]"
+                        className="w-full bg-primary text-primary-foreground hover:bg-primary/90 h-12 rounded-xl font-bold text-[15px] shadow-md"
                       >
                         Upgrade Now
                       </Button>
@@ -224,7 +224,7 @@ export default function PricingPage() {
                   </>
                 ) : (
                   <Link href="/register" className="w-full">
-                    <Button className="w-full bg-white text-black hover:bg-slate-200 h-12 rounded-xl font-bold text-[15px]">
+                    <Button className="w-full bg-primary text-primary-foreground hover:bg-primary/90 h-12 rounded-xl font-bold text-[15px] shadow-md">
                       Get Premium
                     </Button>
                   </Link>
