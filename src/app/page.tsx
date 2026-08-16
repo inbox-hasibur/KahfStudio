@@ -521,36 +521,23 @@ export default function Home() {
       {/* Sticky Bottom Actions Bar (Synced Bot Icon Logo) */}
       <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 transition-all duration-300">
         <div className="flex items-center gap-1.5 p-1.5 bg-card/90 border border-border/80 backdrop-blur-2xl rounded-full shadow-2xl">
-          {/* 3-Dot Toggle Button (Minimal, High-Aesthetic Pulse) */}
+          {/* Toggle Button (Greenish-White 3D Sphere) */}
           <button
             onClick={() => setIsStickyExpanded((prev) => !prev)}
             className="relative group w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-primary/10 hover:bg-primary/20 text-primary border border-primary/25 hover:border-primary/40 flex items-center justify-center transition-all cursor-pointer shrink-0 shadow-sm"
             title={isStickyExpanded ? "Minimize Menu" : "Expand Menu"}
           >
-            {!isStickyExpanded && (
-              <div className="absolute inset-0 rounded-full bg-primary/20 blur-xs animate-pulse pointer-events-none" />
-            )}
             {isStickyExpanded ? (
               <ChevronLeft className="w-3.5 h-3.5 text-foreground group-hover:text-primary transition-colors" />
             ) : (
-              <div className="flex items-center gap-1 relative z-10">
-                {[0, 1, 2].map((i) => (
-                  <motion.span
-                    key={i}
-                    className="w-1 h-1 rounded-full bg-primary shadow-[0_0_6px_hsl(var(--primary))]"
-                    animate={{
-                      scale: [1, 1.45, 1],
-                      opacity: [0.3, 1, 0.3],
-                    }}
-                    transition={{
-                      duration: 1.2,
-                      repeat: Infinity,
-                      delay: i * 0.2,
-                      ease: "easeInOut",
-                    }}
-                  />
-                ))}
-              </div>
+              <motion.div
+                className="w-4.5 h-4.5 rounded-full relative bg-[radial-gradient(circle_at_35%_35%,#ffffff_0%,#a7f3d0_35%,#10b981_70%,#047857_100%)] shadow-[0_0_12px_rgba(16,185,129,0.7),inset_-2px_-2px_4px_rgba(4,120,87,0.7),inset_2px_2px_4px_rgba(255,255,255,0.95)] overflow-hidden flex items-center justify-center"
+                animate={{ rotate: 360 }}
+                transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+              >
+                {/* 3D Specular Orbit Ring for realistic spinning visual */}
+                <div className="absolute inset-0.5 rounded-full border-2 border-white/80 border-t-emerald-200 border-r-transparent animate-spin" style={{ animationDuration: "1.5s" }} />
+              </motion.div>
             )}
           </button>
 
