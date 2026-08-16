@@ -106,8 +106,6 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(true);
   const [currentDate, setCurrentDate] = useState("");
   const [currentTime, setCurrentTime] = useState<Date | null>(null);
-  const [isStickyExpanded, setIsStickyExpanded] = useState(true);
-  const [lastScrollY, setLastScrollY] = useState(0);
 
   // Country & Region state for location-based news widget
   const [selectedCountry, setSelectedCountry] = useState(COUNTRIES[0]);
@@ -145,34 +143,6 @@ export default function Home() {
       clearInterval(interval);
     };
   }, []);
-
-  // Auto-collapse sticky bar after 3s, expand on scroll up
-  useEffect(() => {
-    let timeout: NodeJS.Timeout;
-
-    const handleScroll = () => {
-      const currentScrollY = window.scrollY;
-      if (currentScrollY < lastScrollY) {
-        setIsStickyExpanded(true);
-      } else if (currentScrollY > lastScrollY && currentScrollY > 100) {
-        setIsStickyExpanded(false);
-      }
-      setLastScrollY(currentScrollY);
-
-      clearTimeout(timeout);
-      timeout = setTimeout(() => {
-        setIsStickyExpanded(false);
-      }, 3000);
-    };
-
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    timeout = setTimeout(() => setIsStickyExpanded(false), 3000);
-
-    return () => {
-      window.removeEventListener("scroll", handleScroll);
-      clearTimeout(timeout);
-    };
-  }, [lastScrollY]);
 
   // Transform news for headlines
   const headlines = news.slice(0, 3).map((item: any) => ({
@@ -535,87 +505,6 @@ export default function Home() {
 
       {/* Floating Audio Player Component */}
       <AudioPlayer newsItems={feedItems} />
-
-      {/* Sticky Bottom Actions Bar (Synced Bot Icon Logo) */}
-      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 transition-all duration-300">
-        <div className="flex items-center gap-1.5 p-1.5 bg-card/95 border border-border backdrop-blur-2xl rounded-full shadow-2xl">
-          {/* 3-Dot Toggle Button */}
-          <button
-            onClick={() => setIsStickyExpanded((prev) => !prev)}
-            className="w-8 h-8 rounded-full bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground flex items-center justify-center transition-all cursor-pointer"
-            title={isStickyExpanded ? "Minimize Menu" : "Expand Menu"}
-          >
-            {isStickyExpanded ? (
-              <ChevronLeft className="w-4 h-4" />
-            ) : (
-              <div className="flex items-center gap-1 px-0.5">
-                <motion.span
-                  className="w-1.5 h-1.5 rounded-full bg-primary"
-                  animate={{ y: [0, -3, 0] }}
-                  transition={{ duration: 0.6, repeat: Infinity, delay: 0 }}
-                />
-                <motion.span
-                  className="w-1.5 h-1.5 rounded-full bg-primary"
-                  animate={{ y: [0, -3, 0] }}
-                  transition={{ duration: 0.6, repeat: Infinity, delay: 0.2 }}
-                />
-                <motion.span
-                  className="w-1.5 h-1.5 rounded-full bg-primary"
-                  animate={{ y: [0, -3, 0] }}
-                  transition={{ duration: 0.6, repeat: Infinity, delay: 0.4 }}
-                />
-              </div>
-            )}
-          </button>
-
-          {/* Expandable Options */}
-          <AnimatePresence>
-            {isStickyExpanded && (
-              <motion.div
-                initial={{ opacity: 0, width: 0 }}
-                animate={{ opacity: 1, width: "auto" }}
-                exit={{ opacity: 0, width: 0 }}
-                className="flex items-center gap-1.5 overflow-hidden"
-              >
-                {/* 1. Listen Daily Podcast / Open Player */}
-                <button
-                  onClick={() => {
-                    const audioPlayerTrigger = document.getElementById("global-audio-trigger");
-                    if (audioPlayerTrigger) audioPlayerTrigger.click();
-                  }}
-                  className="flex items-center gap-2 px-3.5 py-1.5 bg-primary hover:bg-primary/90 text-primary-foreground rounded-full text-xs font-bold transition-all shadow-md shadow-primary/20 whitespace-nowrap cursor-pointer"
-                >
-                  <Headphones className="w-3.5 h-3.5" />
-                  <span>Listen AI Podcast</span>
-                </button>
-
-                {/* 2. Toggle Audio Player View */}
-                <button
-                  onClick={() => {
-                    window.dispatchEvent(new CustomEvent("toggle-audio-player"));
-                  }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground rounded-full text-xs font-semibold transition-all border border-border whitespace-nowrap cursor-pointer"
-                  title="Show / Hide Mini Player"
-                >
-                  <Bot className="w-3.5 h-3.5 text-primary" />
-                  <span className="hidden sm:inline">Player</span>
-                </button>
-
-                {/* 3. Settings Button */}
-                <button
-                  onClick={() => {
-                    window.dispatchEvent(new CustomEvent("open-audio-settings"));
-                  }}
-                  className="w-7 h-7 rounded-full bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground flex items-center justify-center transition-all border border-border cursor-pointer"
-                  title="TTS & Voice Settings"
-                >
-                  <Settings className="w-3.5 h-3.5" />
-                </button>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      </div>
     </motion.main>
   );
 }
