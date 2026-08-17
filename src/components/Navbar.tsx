@@ -420,7 +420,7 @@ const Navbar = () => {
         <AnimatePresence>
           {isMenuOpen && (
             <motion.div 
-              className="md:hidden glass-strong rounded-2xl p-3 md:p-4 flex flex-col gap-1"
+              className="lg:hidden glass-strong rounded-2xl p-3 md:p-4 flex flex-col gap-1"
               initial={{ opacity: 0, y: -10, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -10, scale: 0.95 }}

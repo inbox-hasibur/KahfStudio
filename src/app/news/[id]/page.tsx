@@ -529,7 +529,10 @@ export default function NewsDetailPage() {
       </article>
 
       {/* Sticky Bottom Actions Bar (Synced with Home Design System) */}
-      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 transition-all duration-300">
+      <div 
+        className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 transition-all duration-300"
+        onMouseEnter={() => setIsStickyExpanded(true)}
+      >
         <div className="flex items-center gap-1.5 p-1.5 bg-card/90 border border-border/80 backdrop-blur-2xl rounded-full shadow-2xl">
           {/* Expandable Options */}
           <AnimatePresence>

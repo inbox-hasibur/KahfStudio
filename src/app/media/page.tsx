@@ -166,83 +166,83 @@ const defaultChannels: IPTVChannel[] = [
 const realNewsVideos: NewsVideo[] = [
   {
     id: "v1",
-    title: "স্মার্ট সিটি ও ট্রাফিক ব্যবস্থাপনা: ঢাকার সড়কগুলোতে নতুন এআই প্রযুক্তি",
-    videoId: "R7ujSKpZOK0",
-    thumbnail: "https://images.unsplash.com/photo-1590644365607-1c5a519a7a37?q=80&w=800&auto=format&fit=crop",
+    title: "স্মার্ট সিটি ও প্রযুক্তি রিলেটেড নিউজ ও বিশেষ বিশ্লেষণ",
+    videoId: "pMiGC1dRf3s",
+    thumbnail: "https://img.youtube.com/vi/pMiGC1dRf3s/hqdefault.jpg",
     category: "জাতীয়",
     duration: "০৪:৩০",
-    source: "Somoy TV News",
-    description: "রাজধানীর যানজট নিরসনে এবং নাগরিক জীবনযাত্রার মান উন্নয়নে সরকার 'স্মার্ট সিটি' প্রকল্পের নতুন ধাপ উদ্বোধন করেছে। শহরের প্রধান সড়কগুলোতে স্বয়ংক্রিয় ট্রাফিক সিগন্যাল ও এআই মনিটরিং সিসিটিভি ক্যামেরা বসানো হচ্ছে।"
+    source: "Jamuna TV News",
+    description: "বিশেষ ভিডিও প্রতিবেদন এবং বিস্তারিত বিশ্লেষণমূলক সংবাদ বুলেটিন।"
   },
   {
     id: "v2",
-    title: "ডলারের বাজারে নতুন নীতি: ব্যাংকিং খাতে সেন্ট্রাল ব্যাংকের বিশেষ নজরদারি",
-    videoId: "4Wpv0HhFU1M",
-    thumbnail: "https://images.unsplash.com/photo-1616035252656-78b1ce2f281e?q=80&w=800&auto=format&fit=crop",
+    title: "অর্থনীতি ও ব্যাংক খাতের সর্বশেষ পরিস্থিতি ও বিশেষ আপডেট",
+    videoId: "qB29pIkJMoQ",
+    thumbnail: "https://img.youtube.com/vi/qB29pIkJMoQ/hqdefault.jpg",
     category: "অর্থনীতি",
     duration: "০৫:১৫",
-    source: "Jamuna TV",
-    description: "বৈদেশিক মুদ্রার রিজার্ভ সুরক্ষা ও আমদানি ব্যয় নিয়ন্ত্রণে বাংলাদেশ ব্যাংক নতুন নীতিমালা ঘোষণা করেছে। অর্থপাচার রোধ ও এলসি তদারকিতে বিশেষ টাস্কফোর্স মাঠে নামছে।"
+    source: "Somoy TV",
+    description: "অর্থনৈতিক উন্নয়ন, ব্যাংকিং ব্যবস্থা ও বাজার পরিস্থিতির তাজা খবর।"
   },
   {
     id: "v3",
-    title: "কৃত্রিম বুদ্ধিমত্তা ও এআই বিপ্লব: গ্লোবাল জব মার্কেটে আগামী দিনের পরিবর্তন",
-    videoId: "gCNeDWCI0vo",
-    thumbnail: "https://images.unsplash.com/photo-1588681664899-f142ff2dc9b1?q=80&w=800&auto=format&fit=crop",
+    title: "এআই বিপ্লব ও গ্লোবাল প্রযুক্তি খাতের আন্তর্জাতিক খবর",
+    videoId: "kett6CbFyqE",
+    thumbnail: "https://img.youtube.com/vi/kett6CbFyqE/hqdefault.jpg",
     category: "প্রযুক্তি",
     duration: "০৩:৪৫",
-    source: "DW Bangla",
-    description: "আর্টিফিশিয়াল ইন্টেলিজেন্স বা এআই প্রযুক্তির দ্রুত অগ্রগতিতে বিশ্বজুড়ে নতুন নতুন কর্মসংস্থানের সুযোগ সৃষ্টি হচ্ছে। গ্লোবাল আইটি খাতের পরিবর্তন ও ভবিষ্যৎ প্রস্তুতি নিয়ে বিশেষ প্রতিবেদন।"
+    source: "Channel 24",
+    description: "প্রযুক্তি খাতের নিত্যনতুন আবিষ্কার ও এআই খাতের সার্বিক পরিস্থিতি।"
   },
   {
     id: "v4",
-    title: "জলবায়ু পরিবর্তনের জলন্ত রূপ: হুমকির মুখে সুন্দরবনের বিরল জীববৈচিত্র্য",
-    videoId: "9L9ymmaPIS0",
-    thumbnail: "https://images.unsplash.com/photo-1612459284970-e8f0275cd712?q=80&w=800&auto=format&fit=crop",
-    category: "পরিবেশ",
+    title: "বিশেষ সংবাদ কভারেজ ও দেশীয় শীর্ষ শিরোনাম",
+    videoId: "LlkPYoxF5j0",
+    thumbnail: "https://img.youtube.com/vi/LlkPYoxF5j0/hqdefault.jpg",
+    category: "জাতীয়",
     duration: "০৭:২০",
-    source: "Ekattor TV",
-    description: "নোনা পানির অনুপ্রবেশ ও ঘনঘন সাইক্লোনে সুন্দরবনের রয়েল বেঙ্গল টাইগার ও ম্যানগ্রোভ বনাঞ্চল মারাত্মক পরিবেশগত ঝুঁকিতে পড়েছে। ক্ষতিগ্রস্ত অঞ্চল পুনর্গঠনে জরুরি পরিবেশগত পদক্ষেপের দাবি গবেষকদের।"
+    source: "DBC News",
+    description: "দেশের সার্বিক পরিস্থিতি ও শীর্ষ খবরের বিস্তারিত কভারেজ।"
   },
   {
     id: "v5",
-    title: "বিশ্বকাপের স্কোয়াডে কঠোর প্রস্তুতি: জাতীয় দলের নতুন মাস্টারপ্ল্যান",
-    videoId: "hjQluVY6EzQ",
-    thumbnail: "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=800&auto=format&fit=crop",
-    category: "খেলাধুলা",
+    title: "আন্তর্জাতিক সংবাদ বুলেটিন ও বিশেষ কূটনৈতিক প্রতিবেদন",
+    videoId: "gpIx2Xl2KnE",
+    thumbnail: "https://img.youtube.com/vi/gpIx2Xl2KnE/hqdefault.jpg",
+    category: "আন্তর্জাতিক",
     duration: "০৬:১০",
-    source: "Channel 24",
-    description: "আসন্ন আন্তর্জাতিক টুর্নামেন্টকে সামনে রেখে মিরপুর স্টেডিয়ামে জাতীয় ক্রিকেট দলের নিবিড় প্রশিক্ষণ ক্যাম্প শুরু হয়েছে। হেড কোচের নতুন ট্যাকটিক্স ও পেসারদের বোলিং স্পেল।"
+    source: "Independent TV",
+    description: "বিশ্বরাজনীতি ও ভূ-রাজনৈতিক সংকটের সর্বশেষ তথ্য বিশ্লেষণ।"
   },
   {
     id: "v6",
-    title: "ডেঙ্গু ও মৌসুমি ভাইরাস মোকাবিলায় স্বাস্থ্য অধিদপ্তরের জরুরি দিকনির্দেশনা",
-    videoId: "TeeAPX4pq0k",
-    thumbnail: "https://images.unsplash.com/photo-1584362917165-526a968579e8?q=80&w=800&auto=format&fit=crop",
-    category: "স্বাস্থ্য",
+    title: "খেলাধুলা ও জাতীয় দলের বিশেষ পারফরম্যান্স রিপোর্ট",
+    videoId: "PG2hvRWi12w",
+    thumbnail: "https://img.youtube.com/vi/PG2hvRWi12w/hqdefault.jpg",
+    category: "খেলাধুলা",
     duration: "০৩:৫০",
-    source: "DBC News",
-    description: "বর্ষা মৌসুমে এডিস মশার বংশবৃদ্ধি রোধে প্রতিটি ওয়ার্ডে সিটি কর্পোরেশনের চিরুনি অভিযান। ডেঙ্গুর প্রাথমিক লক্ষণ দেখা দিলে দ্রুত প্লাটিলেট পরীক্ষা ও ফ্লুইড গ্রহণের পরমর্শ ডাক্তারদের।"
+    source: "Ekattor TV",
+    description: "ক্রিকেট ও খেলাধুলার অঙ্গনের শীর্ষ খবরের হাইলাইটস।"
   },
   {
     id: "v7",
-    title: "আন্তর্জাতিক ভূ-রাজনীতি: মধ্যপ্রাচ্য ও বিশ্বশান্তির নতুন কূটনৈতিক সমীকরণ",
-    videoId: "gzX8jUxxflA",
-    thumbnail: "https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?q=80&w=800&auto=format&fit=crop",
-    category: "আন্তর্জাতিক",
+    title: "স্বাস্থ্য ও পরিবেশ বিষয়ক বিশেষ অনুসন্ধানী রিপোর্ট",
+    videoId: "vPunUbzbhag",
+    thumbnail: "https://img.youtube.com/vi/vPunUbzbhag/hqdefault.jpg",
+    category: "স্বাস্থ্য",
     duration: "০৪:২৫",
-    source: "Independent TV",
-    description: "জ্বালানি সংকট নিরসন এবং গ্লোবাল ট্রেড রুট সচল রাখতে আন্তর্জাতিক বিশ্বনেতাদের দ্বিপাক্ষিক বৈঠক অনুষ্ঠিত হয়েছে। আঞ্চলিক স্থিতিশীলতা রক্ষা ও ভূ-রাজনৈতিক বিশ্লেষণ।"
+    source: "RTV News",
+    description: "জনস্বাস্থ্য ও নাগরিক সচেতনতা বিষয়ক বিশেষ কভারেজ।"
   },
   {
     id: "v8",
-    title: "সৌরশক্তি ও গ্রিন এনার্জি বিপ্লব: ক্লিন পাওয়ার উৎপাদনে বাংলাদেশের অগ্রগতি",
-    videoId: "LuKwFajn37U",
-    thumbnail: "https://images.unsplash.com/photo-1509391365360-2e959784a276?q=80&w=800&auto=format&fit=crop",
+    title: "গ্রিন এনার্জি ও বৈজ্ঞানিক অগ্রগতির তাজা খবর",
+    videoId: "yXCMU72z0Ms",
+    thumbnail: "https://img.youtube.com/vi/yXCMU72z0Ms/hqdefault.jpg",
     category: "বিজ্ঞান",
     duration: "০৫:০৫",
-    source: "BBC Bangla",
-    description: "জীবাশ্ম জ্বালানি নির্ভরতা হ্রাস ও সাশ্রয়ী সোলার পাওয়ার প্ল্যান্ট নির্মাণে নতুন মাইলফলক। জাতীয় গ্রিডে গ্রিন এনার্জি যুক্ত করার বিশাল উদ্যোগ নিয়ে বিশেষ অডিও-ভিডিও কভারেজ।"
+    source: "Banglavision",
+    description: "সৌরশক্তি, পরিবেশ রক্ষা ও বিজ্ঞান খাতের সাফল্য কভারেজ।"
   }
 ];
 
