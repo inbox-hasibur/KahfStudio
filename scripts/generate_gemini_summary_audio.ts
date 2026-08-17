@@ -1,8 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import * as dotenv from 'dotenv';
 import { resolve } from 'path';
-import { v2 as cloudinary } from 'cloudinary';
-import streamifier from 'streamifier';
+import { generateSeamlessGeminiAudio, uploadAudioToCloudinary } from '../src/lib/audio/gemini-tts';
 
 dotenv.config({ path: resolve(process.cwd(), '.env.local') });
 
@@ -13,36 +12,7 @@ const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
 
-cloudinary.config({
-  cloud_name: 'dkgnktjhg',
-  api_key: '534878118884476',
-  api_secret: '-IuC5PkNr32JU4_Um1k5RRJpV9g',
-});
-
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
-function pcmToWav(pcmBuffer: Buffer, sampleRate = 24000, numChannels = 1, bitsPerSample = 16): Buffer {
-  const byteRate = (sampleRate * numChannels * bitsPerSample) / 8;
-  const blockAlign = (numChannels * bitsPerSample) / 8;
-  const dataSize = pcmBuffer.length;
-  const header = Buffer.alloc(44);
-
-  header.write('RIFF', 0);
-  header.writeUInt32LE(36 + dataSize, 4);
-  header.write('WAVE', 8);
-  header.write('fmt ', 12);
-  header.writeUInt32LE(16, 16);
-  header.writeUInt16LE(1, 20);
-  header.writeUInt16LE(numChannels, 22);
-  header.writeUInt32LE(sampleRate, 24);
-  header.writeUInt32LE(byteRate, 28);
-  header.writeUInt16LE(blockAlign, 32);
-  header.writeUInt16LE(bitsPerSample, 34);
-  header.write('data', 36);
-  header.writeUInt32LE(dataSize, 40);
-
-  return Buffer.concat([header, pcmBuffer]);
-}
 
 async function translateToEnglish(text: string): Promise<string> {
   if (!text || text.trim() === '') return '';
@@ -61,90 +31,9 @@ async function translateToEnglish(text: string): Promise<string> {
   }
 }
 
-async function generateGeminiAudioWithFallback(
-  text: string,
-  lang: 'bn' | 'en',
-  keys: string[]
-): Promise<Buffer> {
-  const models = [
-    'gemini-3.1-flash-tts-preview',
-    'gemini-2.5-flash-preview-tts',
-    'gemini-2.5-flash-native-audio-latest',
-  ];
-
-  let lastError: any = null;
-
-  for (const model of models) {
-    for (let k = 0; k < keys.length; k++) {
-      const apiKey = keys[k];
-      try {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-        const payload = {
-          contents: [{ parts: [{ text }] }],
-          generationConfig: {
-            responseModalities: ['AUDIO'],
-            speechConfig: {
-              voiceConfig: {
-                prebuiltVoiceConfig: {
-                  voiceName: lang === 'bn' ? 'Puck' : 'Aoede',
-                },
-              },
-            },
-          },
-        };
-
-        const res = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-
-        const json = await res.json();
-        if (res.ok) {
-          const candidate = json.candidates?.[0];
-          const part = candidate?.content?.parts?.[0];
-          if (part?.inlineData?.data) {
-            const rawPcm = Buffer.from(part.inlineData.data, 'base64');
-            return pcmToWav(rawPcm, 24000, 1, 16);
-          }
-        } else {
-          lastError = new Error(`Model ${model} Key #${k} Error: ${json?.error?.message || JSON.stringify(json)}`);
-          if (json?.error?.code === 503) {
-            await sleep(300);
-            continue;
-          }
-        }
-      } catch (err) {
-        lastError = err;
-      }
-    }
-  }
-
-  throw lastError || new Error('All models and keys failed');
-}
-
-async function uploadToCloudinary(buffer: Buffer, publicId: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const uploadStream = cloudinary.uploader.upload_stream(
-      {
-        resource_type: 'video',
-        folder: 'news_audios',
-        public_id: publicId,
-        overwrite: true,
-      },
-      (error, result) => {
-        if (error) reject(error);
-        else if (result) resolve(result.secure_url);
-        else reject(new Error('Upload failed'));
-      }
-    );
-    streamifier.createReadStream(buffer).pipe(uploadStream);
-  });
-}
-
 async function runGeminiAudioBatch() {
   console.log('=====================================================');
-  console.log('KahfNews - Gemini 3.1 Flash TTS Audio Summary Generator');
+  console.log('KahfNews - Gemini 3.1 Flash Seamless TTS Audio Summary Generator');
   console.log('=====================================================');
 
   const { data: settingsData } = await supabaseAdmin
@@ -183,23 +72,22 @@ async function runGeminiAudioBatch() {
     const cleanSummary = (article.ai_summary || article.headline)
       .replace(/[*_#`[\]()]/g, ' ')
       .replace(/\s+/g, ' ')
-      .trim()
-      .slice(0, 260); // Snappy concise radio news summary
+      .trim();
 
     console.log(`\n[${idx + 1}/${articles.length}] "${article.headline.slice(0, 40)}..."`);
 
     try {
-      // 1. Synthesize Bangla Summary with Gemini 3.1 Flash
+      // 1. Synthesize Bangla Summary with Gemini 3.1 Flash (No length limit, safe 15s chunking)
       console.log('  -> Generating Gemini 3.1 Flash Bangla Audio...');
-      const bnWav = await generateGeminiAudioWithFallback(cleanSummary, 'bn', keys);
-      const bnUrl = await uploadToCloudinary(bnWav, `${article.id}_gemini_bn_summary`);
+      const bnWav = await generateSeamlessGeminiAudio(cleanSummary, 'bn', keys);
+      const bnUrl = await uploadAudioToCloudinary(bnWav, `${article.id}_gemini_bn_summary`);
       console.log(`     ✓ BN Audio Cloudinary: ${bnUrl}`);
 
       // 2. Synthesize English Summary with Gemini 3.1 Flash
       console.log('  -> Translating & Generating Gemini 3.1 Flash English Audio...');
       const enSummary = await translateToEnglish(cleanSummary);
-      const enWav = await generateGeminiAudioWithFallback(enSummary, 'en', keys);
-      const enUrl = await uploadToCloudinary(enWav, `${article.id}_gemini_en_summary`);
+      const enWav = await generateSeamlessGeminiAudio(enSummary, 'en', keys);
+      const enUrl = await uploadAudioToCloudinary(enWav, `${article.id}_gemini_en_summary`);
       console.log(`     ✓ EN Audio Cloudinary: ${enUrl}`);
 
       // 3. Update Supabase

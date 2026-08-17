@@ -47,3 +47,39 @@ If you are analyzing the codebase or porting features, here are the recent struc
 - **RLS Bypass API:** Solved the issue where Supabase Row Level Security (RLS) blocked the browser from fetching settings. The frontend now fetches `scraping_sources` and `system_settings` securely via backend API routes (`/api/sources` and `/api/settings`) using the `SUPABASE_SERVICE_ROLE_KEY`.
 - **Gemini Model Update:** The deprecated `gemini-1.5-flash` model has been completely replaced across the codebase (including `process-article.ts`, `trigger-rss`, `weather`, and `ai.ts`) with the latest alias: **`gemini-flash-latest`**.
 - **RSS Feed Reliability:** Replaced broken or inaccessible default RSS feeds (Jugantor, Jamuna TV) with highly reliable feeds (**BBC Bangla** and **VOA Bangla**) in the database schema and default seeding scripts.
+
+---
+
+## Step 4: Major AI & Audio Pipeline Upgrade — *August 17, 2026 (11:00 PM BST)*
+
+### 1. Single-Prompt Unified Gemini News Engine & AI Importance Scoring
+- **Unified Processing:** Streamlined article ingestion in [`src/lib/inngest/functions/process-article.ts`](file:///c:/Users/Home/Documents/GitHub/KahfStudio/src/lib/inngest/functions/process-article.ts) into a **single Gemini 2.5 Flash prompt**. In one API call, it produces:
+  - `clean_content`: Ad-free, clean Markdown article body.
+  - `ai_summary`: Engaging Bengali summary with key bullet points.
+  - `importance_score`: An AI importance rating from 1 to 100 to prioritize high-impact breaking news and filter out low-value clutter.
+  - `country` & `category`: Automatically detected country and category tags.
+
+### 2. Gemini 3.1 Flash Unlimited-Duration Audio TTS Engine
+- **Module:** Built [`src/lib/audio/gemini-tts.ts`](file:///c:/Users/Home/Documents/GitHub/KahfStudio/src/lib/audio/gemini-tts.ts) providing:
+  - **Sentence Chunking:** Splits long texts into ~15-second safe speech chunks (~25 to 35 words).
+  - **PCM Buffer Stitching:** Requests 24kHz 16-bit Mono PCM audio per chunk via `gemini-3.1-flash-tts-preview` (Voice: `Puck` for BN, `Aoede` for EN) and concatenates them back-to-back (`Buffer.concat(pcmBuffers)`).
+  - **Seamless Cloudinary Upload:** Wraps combined PCM audio into a standard WAV header and streams directly to Cloudinary.
+- **Batch Generator:** Refactored [`scripts/generate_gemini_summary_audio.ts`](file:///c:/Users/Home/Documents/GitHub/KahfStudio/scripts/generate_gemini_summary_audio.ts) to generate seamless, full-length audio for all news articles without duration cuts.
+
+### 3. Weather, Umbrella Advice & Daily AI Podcast Generator
+- **Live Weather & Umbrella Logic:** Updated [`src/app/api/weather/route.ts`](file:///c:/Users/Home/Documents/GitHub/KahfStudio/src/app/api/weather/route.ts) with real-time OpenWeather condition analysis to generate dynamic umbrella tips (detects rain, drizzle, thunderstorms, and extreme heat).
+- **Daily Podcast Pipeline:** Created [`src/app/api/podcast/generate/route.ts`](file:///c:/Users/Home/Documents/GitHub/KahfStudio/src/app/api/podcast/generate/route.ts) that compiles:
+  - Greetings & Date
+  - Weather & Umbrella Recommendation
+  - Real-time Traffic Updates (via Gemini Grounding)
+  - Top 5 Important Daily News Summaries
+  - Generates a unified audio podcast track and saves records to `podcast_archives`.
+
+### 4. Multi-Tier Smart News Ranking & Country-Wise Filtering
+- **Smart Sorting:** Upgraded [`src/app/api/news/route.ts`](file:///c:/Users/Home/Documents/GitHub/KahfStudio/src/app/api/news/route.ts) to support `sort=smart` (Freshness/Date on top + Importance Score + User Interest Boost) and country filtering (`country=BD`, `US`, `GLOBAL`).
+- **Country-Wise Sources:** Updated [`src/app/api/sources/route.ts`](file:///c:/Users/Home/Documents/GitHub/KahfStudio/src/app/api/sources/route.ts) with multi-country defaults and filtering.
+- **Progressive UI Hydration:** Upgraded [`src/hooks/useNews.ts`](file:///c:/Users/Home/Documents/GitHub/KahfStudio/src/hooks/useNews.ts) and [`src/app/page.tsx`](file:///c:/Users/Home/Documents/GitHub/KahfStudio/src/app/page.tsx) to dynamically synchronize news and weather when switching country and category filters.
+
+### 5. Database Schema & Migration
+- Updated [`database.md`](file:///c:/Users/Home/Documents/GitHub/KahfStudio/database.md) and created [`supabase_migration.sql`](file:///c:/Users/Home/Documents/GitHub/KahfStudio/supabase_migration.sql) for `importance_score` and `country` columns.
+

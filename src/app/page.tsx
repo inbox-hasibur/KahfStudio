@@ -116,8 +116,14 @@ export default function Home() {
   const [selectedRegion, setSelectedRegion] = useState(COUNTRIES[0].regions[0]);
   const [isLocationDropdownOpen, setIsLocationDropdownOpen] = useState(false);
 
-  const { news, loading: newsLoading } = useNews();
-  const { weather } = useWeather();
+  const { news, loading: newsLoading } = useNews({
+    country: selectedCountry.code,
+    sort: 'smart',
+  });
+  const { weather } = useWeather(
+    selectedRegion.split(' ')[0],
+    selectedCountry.code
+  );
   const { data: sessionData } = useSession();
 
   const isPremium =

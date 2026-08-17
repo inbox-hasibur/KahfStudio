@@ -54,6 +54,7 @@ export const scrapeRssFeeds = inngest.createFunction(
                   sourceId: source.id,
                   sourceName: source.name,
                   category: source.category,
+                  country: source.country || "BD",
                 });
               }
             }

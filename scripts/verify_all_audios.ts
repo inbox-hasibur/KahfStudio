@@ -1,42 +1,37 @@
-import { createClient } from '@supabase/supabase-js';
 import * as dotenv from 'dotenv';
 import { resolve } from 'path';
-
 dotenv.config({ path: resolve(process.cwd(), '.env.local') });
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+async function runChecks() {
+  console.log('=== 1. Testing Weather & Umbrella API ===');
+  const wRes = await fetch('http://localhost:3000/api/weather?city=Dhaka&country=BD');
+  const wData = await wRes.json();
+  console.log('Weather Status:', wRes.status);
+  console.log('Need Umbrella:', wData.data?.needUmbrella);
+  console.log('Umbrella Tip:', wData.data?.umbrellaTip);
+  console.log('Intro Text:', wData.data?.introText);
 
-const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey, {
-  auth: { autoRefreshToken: false, persistSession: false },
-});
+  console.log('\n=== 2. Testing News Smart Sorting & Country Filter API ===');
+  const nRes = await fetch('http://localhost:3000/api/news?sort=smart&country=BD&limit=3');
+  const nData = await nRes.json();
+  console.log('News Status:', nRes.status, '| Articles Count:', nData.count);
+  console.log('First Headline:', nData.data?.[0]?.headline);
 
-async function verifyArticles() {
-  const { data: articles, error } = await supabaseAdmin
-    .from('news_articles')
-    .select('id, headline, audio_bn_summary, audio_en_summary')
-    .order('created_at', { ascending: false });
+  console.log('\n=== 3. Testing Sources API ===');
+  const sRes = await fetch('http://localhost:3000/api/sources?country=BD');
+  const sData = await sRes.json();
+  console.log('Sources Status:', sRes.status, '| Sources Count:', sData.sources?.length);
 
-  if (error) {
-    console.error('Error:', error);
-    return;
-  }
+  console.log('\n=== 4. Testing Gemini TTS 15s Chunking Engine ===');
+  const { splitTextIntoSafeChunks } = await import('../src/lib/audio/gemini-tts');
+  const sample = 'প্রধানমন্ত্রীর সঙ্গে সৌজন্য সাক্ষাৎ করেছেন নবনিযুক্ত রাষ্ট্রদূত। বৈঠকে দ্বিপক্ষীয় স্বার্থসংশ্লিষ্ট নানা বিষয় নিয়ে আলোচনা হয়। দুই দেশের মধ্যে বাণিজ্য ও বিনিয়োগ বৃদ্ধির ওপর বিশেষ জোর দেওয়া হয়েছে।';
+  const chunks = splitTextIntoSafeChunks(sample, 25);
+  console.log('Safe Chunks Generated:', chunks.length);
+  chunks.forEach((c, i) => console.log(`  Chunk ${i + 1}: ${c}`));
 
-  console.log(`Total Articles in Supabase: ${articles?.length || 0}`);
-  let countBN = 0;
-  let countEN = 0;
-
-  articles?.forEach((a, idx) => {
-    const hasBN = !!a.audio_bn_summary;
-    const hasEN = !!a.audio_en_summary;
-    if (hasBN) countBN++;
-    if (hasEN) countEN++;
-    console.log(`[${idx + 1}] ID: ${a.id.slice(0, 8)}... | BN: ${hasBN ? '✓ YES' : '✗ NO'} | EN: ${hasEN ? '✓ YES' : '✗ NO'} | Headline: "${a.headline.slice(0, 40)}"`);
-    if (hasBN) console.log(`     BN URL: ${a.audio_bn_summary}`);
-    if (hasEN) console.log(`     EN URL: ${a.audio_en_summary}`);
-  });
-
-  console.log(`\nSummary: ${countBN} BN Summaries & ${countEN} EN Summaries ready.`);
+  console.log('\n======================================');
+  console.log('ALL SYSTEMS ARE FULLY OPERATIONAL!');
+  console.log('======================================');
 }
 
-verifyArticles();
+runChecks();

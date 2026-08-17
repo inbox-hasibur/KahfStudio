@@ -3,124 +3,154 @@ import { inngest } from "../client";
 import { createBackgroundClient } from "@/utils/supabase/background";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import axios from "axios";
+import { generateSeamlessGeminiAudio, uploadAudioToCloudinary } from "@/lib/audio/gemini-tts";
 
 export const processArticle = inngest.createFunction(
   { id: "process-article", event: "app/process-article" },
   async ({ event, step }) => {
-    const { url, title, sourceId, sourceName, category } = event.data;
+    const { url, title, sourceId, sourceName, category, country = "BD" } = event.data;
     const supabase = createBackgroundClient();
 
-    // 1. Layer 2: Deep Extraction via Jina AI
-    const markdown = await step.run("extract-markdown", async () => {
+    // 1. Extract raw web content
+    const rawMarkdown = await step.run("extract-markdown", async () => {
       try {
-        const response = await axios.get(`https://r.jina.ai/${url}`);
+        const response = await axios.get(`https://r.jina.ai/${url}`, { timeout: 15000 });
         return response.data;
       } catch (error) {
-        throw new Error(`Failed to extract markdown from ${url}`);
+        console.warn(`Jina AI extraction failed for ${url}, falling back to title.`);
+        return `Title: ${title}\nSource: ${sourceName}\nURL: ${url}`;
       }
     });
 
-    if (!markdown) {
-      return { status: "failed", reason: "No markdown extracted" };
-    }
-
-    // 2. Fetch System Prompts from DB
-    const { evaluatorPrompt, synthesizerPrompt, autoApprove, globalKeys } = await step.run("fetch-prompts", async () => {
+    // 2. Fetch Global Settings & API keys
+    const { globalKeys, autoApprove } = await step.run("fetch-settings", async () => {
       const { data } = await supabase
         .from("system_settings")
         .select("setting_key, setting_value");
-      
-      let ePrompt = "Respond exactly with 'YES' if the article contains a valid news story, otherwise 'NO'. Do not include any other text.";
-      let sPrompt = "খবরটির একটি চমৎকার, আকর্ষণীয় এবং তথ্যবহুল সারসংক্ষেপ লিখুন বাংলায় (১-২ প্যারাগ্রাফের মধ্যে)। শিরোনাম এবং মূল বিষয়টি সুন্দরভাবে ফুটিয়ে তুলুন।";
-      let autoApp = true; // By default auto-approve is on
+
+      let autoApp = true;
       let keys: string[] = [];
-      
+
       if (data) {
-        const eSetting = data.find(s => s.setting_key === "evaluator_prompt");
-        const sSetting = data.find(s => s.setting_key === "synthesizer_prompt");
-        const autoSetting = data.find(s => s.setting_key === "auto_approve_news");
-        const keysSetting = data.find(s => s.setting_key === "global_gemini_api_keys");
-        
-        if (eSetting) ePrompt = eSetting.setting_value;
-        if (sSetting) sPrompt = sSetting.setting_value;
+        const autoSetting = data.find((s) => s.setting_key === "auto_approve_news");
+        const keysSetting = data.find((s) => s.setting_key === "global_gemini_api_keys");
         if (autoSetting) autoApp = autoSetting.setting_value === "true";
         if (keysSetting) {
-          try { keys = JSON.parse(keysSetting.setting_value); } catch(e) {}
+          try { keys = JSON.parse(keysSetting.setting_value); } catch (e) {}
         }
       }
-      return { evaluatorPrompt: ePrompt, synthesizerPrompt: sPrompt, autoApprove: autoApp, globalKeys: keys };
+      return { globalKeys: keys, autoApprove: autoApp };
     });
 
-    // 3. Layer 2.5: AI Evaluator
-    const isGood = await step.run("evaluate-article", async () => {
-      const keys = (globalKeys && globalKeys.length > 0) ? globalKeys : [process.env.GEMINI_API_KEY!];
-      let lastError = null;
+    const activeKeys = (globalKeys && globalKeys.length > 0) ? globalKeys : [process.env.GEMINI_API_KEY!];
 
-      for (const apiKey of keys) {
+    // 3. Single Unified Gemini Processing: Clean + Summary + Importance Score
+    const aiResult = await step.run("ai-unified-processing", async () => {
+      const prompt = `You are a chief news editor and journalist for a premium multimedia news platform.
+Analyze the following article and return a strictly valid JSON object with no markdown fences around JSON (or with standard json codeblocks).
+
+Input Title: ${title}
+Source: ${sourceName}
+Country: ${country}
+Category Hint: ${category || "General"}
+Article Content:
+${rawMarkdown.slice(0, 15000)}
+
+Your response MUST follow this exact JSON schema:
+{
+  "importance_score": <Integer from 1 to 100 representing how critical/breaking/important this news is for a general audience. 85-100: Major national/global breaking news; 65-84: High interest; 45-64: Regular news; 1-44: Minor/Niche>,
+  "clean_headline": "<Clean, engaging Bengali headline>",
+  "clean_content": "<Ad-free, cleaned, beautifully formatted full article body in Bengali markdown>",
+  "ai_summary": "<An engaging, professional, 1-2 paragraph Bengali summary with 2-3 key takeaway bullet points at the end>",
+  "detected_category": "<One of: Politics, Economy, Technology, Sports, Entertainment, World, Bangladesh, Lifestyle, General>",
+  "detected_country": "${country}"
+}`;
+
+      let lastError = null;
+      for (const apiKey of activeKeys) {
         try {
           const genAI = new GoogleGenerativeAI(apiKey);
-          const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-          const prompt = `${evaluatorPrompt}\n\nArticle Markdown:\n${markdown}`;
-          
+          const model = genAI.getGenerativeModel({
+            model: "gemini-2.5-flash",
+            generationConfig: { responseMimeType: "application/json" },
+          });
+
           const result = await model.generateContent(prompt);
-          const responseText = result.response.text().trim().toUpperCase();
-          return responseText.includes("YES");
-        } catch (error: any) {
-          lastError = error;
-          console.warn("Gemini Evaluator API Error with a key:", error.message);
-          // If it's a rate limit (429) or other error, continue to the next key
-          continue; 
-        }
-      }
-      throw new Error(`AI Evaluator failed with all available API keys. Last error: ${lastError?.message}`);
-    });
-
-    if (!isGood) {
-      return { status: "dropped", reason: "AI Evaluator rejected the article." };
-    }
-
-    // 4. Layer 3: AI Synthesis
-    const synthesizedContent = await step.run("synthesize-content", async () => {
-      const keys = (globalKeys && globalKeys.length > 0) ? globalKeys : [process.env.GEMINI_API_KEY!];
-      let lastError = null;
-
-      for (const apiKey of keys) {
-        try {
-          const genAI = new GoogleGenerativeAI(apiKey);
-          const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-          const prompt = `${synthesizerPrompt}\n\nTitle: ${title}\nCategory: ${category}\n\nArticle Content:\n${markdown}`;
-          
-          const result = await model.generateContent(prompt);
-          return result.response.text();
-        } catch (error: any) {
-          lastError = error;
-          console.warn("Gemini Synthesizer API Error with a key:", error.message);
+          const text = result.response.text();
+          return JSON.parse(text);
+        } catch (err: any) {
+          lastError = err;
+          console.warn("Gemini Unified Process API error with a key:", err.message);
           continue;
         }
       }
-      throw new Error(`AI Synthesizer failed with all available API keys. Last error: ${lastError?.message}`);
+
+      throw new Error(`Gemini Unified Processing failed with all keys: ${lastError?.message}`);
+    });
+
+    // 4. Generate Pre-rendered Audio TTS (Gemini 3.1 Flash Seamless Audio)
+    const audioUrl = await step.run("generate-summary-audio", async () => {
+      try {
+        const textToSpeak = (aiResult.ai_summary || aiResult.clean_headline)
+          .replace(/[*_#`[\]()]/g, " ")
+          .replace(/\s+/g, " ")
+          .trim();
+
+        const wavBuffer = await generateSeamlessGeminiAudio(textToSpeak, "bn", activeKeys);
+        const publicId = `news_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+        const cUrl = await uploadAudioToCloudinary(wavBuffer, publicId);
+        return cUrl;
+      } catch (err: any) {
+        console.warn("Pre-generated audio generation failed, skipping audio for now:", err.message);
+        return null;
+      }
     });
 
     // 5. Save to Supabase (news_articles)
     await step.run("save-to-db", async () => {
-      const { error } = await supabase
-        .from("news_articles")
-        .insert({
-          headline: title,
-          raw_content: markdown,
-          ai_summary: synthesizedContent,
-          status: autoApprove ? "published" : "draft", // Depends on auto_approve_news setting
-          original_url: url,
-          source: sourceName || url, 
-          category: category || "General",
-          published_at: new Date().toISOString()
-        });
-      
-      if (error) {
-        throw new Error(`Failed to save to DB: ${error.message}`);
+      const insertPayload: any = {
+        headline: aiResult.clean_headline || title,
+        raw_content: aiResult.clean_content || rawMarkdown,
+        ai_summary: aiResult.ai_summary,
+        status: autoApprove ? "published" : "draft",
+        original_url: url,
+        source: sourceName || url,
+        category: aiResult.detected_category || category || "General",
+        published_at: new Date().toISOString(),
+      };
+
+      if (audioUrl) {
+        insertPayload.audio_bn_summary = audioUrl;
+      }
+
+      // Try inserting with importance_score & country
+      try {
+        const { error } = await supabase
+          .from("news_articles")
+          .insert({
+            ...insertPayload,
+            importance_score: aiResult.importance_score || 50,
+            country: aiResult.detected_country || country || "BD",
+          });
+
+        if (error) {
+          // If columns don't exist yet, insert without them
+          console.warn("DB insert with country/importance_score had error, falling back:", error.message);
+          const { error: fallbackError } = await supabase
+            .from("news_articles")
+            .insert(insertPayload);
+          if (fallbackError) throw fallbackError;
+        }
+      } catch (dbErr: any) {
+        throw new Error(`Failed to save article to DB: ${dbErr.message}`);
       }
     });
 
-    return { status: "success", title };
+    return {
+      status: "success",
+      title: aiResult.clean_headline || title,
+      importance_score: aiResult.importance_score,
+      hasAudio: !!audioUrl,
+    };
   }
 );
