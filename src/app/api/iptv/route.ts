@@ -45,16 +45,6 @@ const CHANNELS: ChannelConfig[] = [
     source: "24/7 লাইভ এইচডি"
   },
   {
-    id: "c4",
-    name: "DBC News",
-    category: "২৪ ঘণ্টা",
-    handle: "@DBCNEWSOfficial",
-    defaultVideoId: "TeeAPX4pq0k",
-    color: "bg-indigo-600",
-    text: "text-white",
-    source: "24/7 লাইভ"
-  },
-  {
     id: "c5",
     name: "Ekattor TV",
     category: "জাতীয়",
@@ -152,6 +142,13 @@ async function fetchLiveVideoId(handle: string, defaultId: string): Promise<stri
       next: { revalidate: 180 }
     });
 
+    if (res.url && res.url.includes("watch?v=")) {
+      const urlMatch = res.url.match(/watch\?v=([a-zA-Z0-9_-]{11})/);
+      if (urlMatch && urlMatch[1]) {
+        return urlMatch[1];
+      }
+    }
+
     if (!res.ok) return defaultId;
 
     const html = await res.text();
@@ -185,7 +182,7 @@ export async function GET() {
         name: ch.name,
         category: ch.category,
         videoId: videoId,
-        streamUrl: `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&playsinline=1&rel=0&modestbranding=1&enablejsapi=1`,
+        streamUrl: `https://www.youtube.com/embed/${videoId}?autoplay=1&playsinline=1&rel=0&modestbranding=1&enablejsapi=1`,
         color: ch.color,
         text: ch.text,
         source: ch.source
