@@ -21,6 +21,7 @@ export interface IPTVChannel {
   color: string;
   text: string;
   source: string;
+  isLive?: boolean;
 }
 
 export interface NewsVideo {
@@ -161,6 +162,16 @@ const defaultChannels: IPTVChannel[] = [
     source: "24/7 লাইভ এইচডি"
   },
   { 
+    id: "c4", 
+    name: "News24", 
+    category: "ব্রেকিং নিউজ", 
+    videoId: "oCslIqfoOZw",
+    streamUrl: "https://www.youtube.com/embed/oCslIqfoOZw?autoplay=1&playsinline=1&rel=0&modestbranding=1",
+    color: "bg-red-700", 
+    text: "text-white",
+    source: "24/7 লাইভ"
+  },
+  { 
     id: "c5", 
     name: "Ekattor TV", 
     category: "জাতীয়", 
@@ -184,8 +195,8 @@ const defaultChannels: IPTVChannel[] = [
     id: "c7", 
     name: "RTV News", 
     category: "জাতীয় সংবাদ", 
-    videoId: "DRKFTmYgPPk",
-    streamUrl: "https://www.youtube.com/embed/DRKFTmYgPPk?autoplay=1&playsinline=1&rel=0&modestbranding=1",
+    videoId: "PtztZQi5hCg",
+    streamUrl: "https://www.youtube.com/embed/PtztZQi5hCg?autoplay=1&playsinline=1&rel=0&modestbranding=1",
     color: "bg-red-600", 
     text: "text-white",
     source: "24/7 লাইভ"
@@ -204,8 +215,8 @@ const defaultChannels: IPTVChannel[] = [
     id: "c9", 
     name: "Desh TV", 
     category: "খবর ও রাজনীতি", 
-    videoId: "8cSFh_-AUxA",
-    streamUrl: "https://www.youtube.com/embed/8cSFh_-AUxA?autoplay=1&playsinline=1&rel=0&modestbranding=1",
+    videoId: "1pZ7EGS2bXQ",
+    streamUrl: "https://www.youtube.com/embed/1pZ7EGS2bXQ?autoplay=1&playsinline=1&rel=0&modestbranding=1",
     color: "bg-teal-700", 
     text: "text-white",
     source: "24/7 লাইভ"
@@ -627,8 +638,10 @@ export default function MediaPage() {
                     {channel.name}
                   </span>
                   <span className="flex items-center gap-1 text-[7px] sm:text-[8px] font-semibold text-muted-foreground mt-0.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse shrink-0" />
-                    <span className="uppercase tracking-wide font-mono text-red-500">Live</span>
+                    <span className={`w-1.5 h-1.5 rounded-full ${channel.isLive !== false ? 'bg-red-500 animate-pulse' : 'bg-emerald-500'} shrink-0`} />
+                    <span className={`uppercase tracking-wide font-mono ${channel.isLive !== false ? 'text-red-500 font-bold' : 'text-emerald-500 font-bold'}`}>
+                      {channel.isLive !== false ? 'Live' : 'Latest'}
+                    </span>
                   </span>
                 </div>
               </div>
