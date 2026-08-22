@@ -1,54 +1,28 @@
-# KahfStudio Implementation Backlog
+# Product Backlog - KahfStudio
 
-This backlog outlines the step-by-step modular implementation plan to migrate features from the `Prototype_khobor-ai` folder to the main `src` directory of the `KahfStudio` project.
+## Phase 1: Completed Features & Core Modules
+- [x] Next.js 15 App Router + TypeScript + Tailwind CSS setup.
+- [x] Supabase PostgreSQL database architecture & migration from legacy MongoDB.
+- [x] Admin Bento UI Dashboard (`/admin`) with real-time dynamic stats.
+- [x] Scraping Control UI (`/admin/scraping`) with Auto-Approve, RSS Manager, and Direct URL Ingestion.
+- [x] Server-side RLS Bypass API endpoints for background scraping crons (`/api/sources`, `/api/settings`).
+- [x] Unified Gemini 2.5 Flash News Engine (Single-prompt summary, importance rating 1-100, clean markdown, tags).
+- [x] Gemini 3.1 Flash Unlimited TTS Engine (Sentence chunking -> 24kHz PCM buffer concatenation -> Cloudinary WAV upload).
+- [x] Live OpenWeather Integration & Dynamic Umbrella Advisory (`/api/weather`).
+- [x] Daily AI Podcast Generator (`/api/podcast/generate`) compiling weather, traffic, and top 5 daily news.
+- [x] Smart News Feed Ranking (`sort=smart`) & Multi-country filtering (`BD`, `US`, `GLOBAL`).
+- [x] Kahf Media IPTV Player with live streaming (`.m3u8`) & responsive modal view.
 
-> **Note**: The `AudioPlayer` and `VideoPlayer` components are explicitly excluded from this migration and backlog.
+---
 
-## Module 1: Core Layout, Theming & Authentication
-**Goal**: Establish the fundamental application structure, UI theming, navigation, and user identity.
-- **Dependencies & Setup**: Configure Tailwind CSS, shadcn/ui components (if used), `next-themes` for dark/light mode, and Supabase SSR (`@supabase/ssr`, `@supabase/supabase-js`).
-- **Components**: 
-  - `theme-provider.tsx` (Dark/Light mode support)
-  - `Navbar.tsx` (Main navigation header)
-- **Pages / Routes**:
-  - `app/login/page.tsx`
-  - `app/register/page.tsx`
-  - `app/profile/page.tsx` (User profile and settings)
-  - `app/admin/page.tsx` (Basic 1-page admin profile)
-- **Library & Utils**:
-  - `lib/auth-client.ts`
-  - `lib/supabase` setup
-  - Core UI utilities (`lib/utils.ts`)
+## Phase 2: Immediate Priorities (News Engine Refinement & Optimization)
+- [ ] **Title-Only Pre-Filtering Engine:** Fetch RSS feeds -> Extract titles -> Send batch title list to Gemini for quick evaluation -> Select only high-importance titles before full body scraping.
+- [ ] **Scraping Pipeline Optimization:** Prevent duplicate article reprocessing and optimize Inngest background cron execution interval.
+- [ ] **Personalized Interest Feed:** Enhanced recommendation algorithm based on user profile interest tags.
 
-## Module 2: News Feed & Core Content
-**Goal**: Bring in the main content presentation, including live feeds, headline sliders, and breaking news tickers.
-- **Components**:
-  - `MainFeed.tsx`
-  - `NewsCard.tsx`
-  - `HeadlineSlider.tsx`
-  - `HeadlineCard.tsx`
-  - `BreakingNewsTicker.tsx`
-  - `LiveFeedSidebar.tsx`
-- **Pages / Routes**:
-  - `app/page.tsx` (Integrating MainFeed, sliders, sidebar)
-  - `app/news/page.tsx`
-  - `app/alerts/page.tsx`
-  - `app/archive/page.tsx`
-- **Library & Actions**:
-  - `actions/newsActions.ts`
-  - `lib/scraper.ts` 
-  - `lib/ai.ts` 
+---
 
-## Module 3: Admin Panel & Secondary Features
-**Goal**: Add management features, secondary pages, and finalize the application scope.
-- **Components**: 
-  - Admin specific components or layouts.
-- **Pages / Routes**:
-  - `app/admin/layout.tsx` & `app/admin/page.tsx`
-  - `app/media/page.tsx`
-  - `app/models/page.tsx`
-  - `app/pricing/page.tsx`
-  - `app/privacy/page.tsx`
-- **Library**:
-  - `lib/personalize.ts` 
-  - Remaining utility scripts (`musicRemover.ts`, etc., excluding audio/video players).
+## Phase 3: Future Roadmap
+- [ ] Crowdsourced traffic alert submission module.
+- [ ] Push notifications & daily morning audio alarm.
+- [ ] Offline audio caching & mobile PWA capabilities.

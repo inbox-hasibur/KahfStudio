@@ -1,63 +1,39 @@
-PROJECT: KHOBOR AI (খবর এআই)
-Status: Initialization Phase
-Tech Stack: Next.js 15, TypeScript, MongoDB, Gemini 1.5 Flash, Edge-TTS, Puppeteer.
+# Software Requirements Specification (SRS) - KahfStudio (Khobor AI & Media)
 
-____________________________________________________________________________________________________
-1. SOFTWARE REQUIREMENTS SPECIFICATION (SRS)
+## 1. Executive Summary & Product Scope
+KahfStudio is an audio-first, AI-driven news aggregator and media streaming application. It automates web news ingestion, AI summarization, importance evaluation, unlimited duration Text-to-Speech (TTS) audio generation, live weather/umbrella tips, AI daily podcast creation, and IPTV media streaming.
 
-1.1 Core Concept
-A hyper-local, audio-first news aggregator for Bangladesh. It automates the lifecycle of news: Scraping -> AI Filtering & Summarizing -> Audio Conversion -> Playlist Generation.
-Key Value: Prioritizes utility (traffic, strikes, holidays) over general noise to help users navigate their day.
+---
 
-1.2 Data Sources (The Input)
-Tier 1: Trusted Scrapers (Direct Extraction)
-Targets: Jamuna TV (Primary), BDNews24, Bangladesh Pratidin, Jugantor, Kaler Kantho, Ittefaq, Samakal.
-Excluded: Prothom Alo, The Daily Star (Biased/Blocked).
-Tier 2: Discovery Engine (The "Whole Internet")
-Tools: Google Search API (Serper) + Gemini Grounding.
-Triggers: "Dhaka traffic update", "Road block Bangladesh", "Govt holiday notice", "Viral news BD today".
+## 2. Core Functional Requirements
 
-1.3 AI Logic (The Editor - Gemini 1.5 Flash)
-Summarization: Convert long articles into conversational Bangla scripts (max 60-90 words per item).
-Classification & TTL (Time-To-Live):
-Type: EPHEMERAL (Traffic, Weather, Protests) -> TTL: 4 Hours -> Priority: HIGH (Plays first).
-Type: DAILY (Politics, Sports, Economy) -> TTL: 24 Hours -> Priority: MEDIUM.
-Type: PERMANENT (Govt Policy, History, Major Events) -> TTL: Indefinite -> Saved to Long-Term Archive.
+### 2.1 Data Ingestion & Source Management
+- **Multi-Source Scraping:** Automatically fetch latest articles from active RSS feeds stored in `scraping_sources` (e.g. BBC Bangla, VOA Bangla).
+- **Direct URL Manual Ingestion:** Allow admins to manually input single article URLs via `/admin/scraping` to trigger instant AI processing.
+- **RLS Bypass API:** Secure server-side routes (`/api/sources`, `/api/settings`) using `SUPABASE_SERVICE_ROLE_KEY` to ensure unhindered background scraping.
 
-1.4 Audio Engine (The Studio)
-Engine: Microsoft Edge TTS (Free, Natural Bangla Voices).
-Output: Separate .mp3 files for each news item (allows "Skip" functionality).
-Playlist Logic: [Greeting + Date] -> [Urgent Alerts] -> [Headlines] -> [Detailed Stories].
+### 2.2 AI News Processing & Scoring
+- **Single-Prompt Processing:** Utilize Gemini 2.5 Flash (`gemini-flash-latest`) to produce:
+  - Clean Markdown content (ad-free).
+  - Concise Bengali audio summary (~60-90 words).
+  - AI Importance Score (1-100).
+  - Automatic Country Code (`BD`, `US`, `GLOBAL`) & Category tags.
 
-1.5 Frontend UI (Next.js 15)
-Mode A (Player): Minimalist UI, large controls, autoplay (Best for walking).
-Mode B (Reader): Newspaper style feed, separated by "Live/Urgent" and "Daily Digest".
-Mode C (Archive): Searchable history of permanent news.
+### 2.3 Audio TTS Engine & Hosting
+- **Gemini 3.1 Flash Audio Engine:** Process full news text and summaries into 24kHz 16-bit PCM mono audio buffers, concatenated seamlessly and uploaded as standard WAV files to Cloudinary.
+- **Audio Controls:** Support play, pause, seek, speed control, and continuous playlist autoplay on the frontend.
 
+### 2.4 Weather, Umbrella & AI Podcast Generator
+- **Live Weather Advisory:** Query OpenWeather API to derive ambient conditions and generate context-aware umbrella tips (Rain, Drizzle, Thunderstorm, Extreme Heat).
+- **Daily Podcast Pipeline:** Compile greeting, date, weather advisory, real-time traffic updates, and top 5 important daily news items into a unified podcast track stored in `podcast_archives`.
 
-____________________________________________________________________________________________________
-2. PRODUCT BACKLOG (Master To-Do List)
+### 2.5 Kahf Media & IPTV Streaming
+- **IPTV Player:** Provide interactive playback of live IPTV channels via HLS (`.m3u8`) streaming with hover animations and responsive modal windows.
+- **Halal Mode (Music Remover):** Offer background music removal for curated VOD clips using FastAPI & MDX-Net ONNX models.
 
-Phase 1: Backend Core & Data Ingestion
-Initialize Next.js 15 Project with TypeScript & Tailwind.
-Setup MongoDB (Mongoose) Connection.
-Design NewsItem Database Schema (fields: title, summary, audioUrl, priority, ttl, source).
-Build Scraper Service (Tier 1: Jamuna/BDNews24) using Cheerio.
-Build Discovery Service (Tier 2: Google Search API) for utility news.
+---
 
-Phase 2: The Brain (AI Integration)
-Integrate Gemini 1.5 Flash API.
-Create Prompt Templates for Summarization (Bangla).
-Implement Logic for "Priority Assignment" and "TTL Calculation".
-Create Cron Job/Scheduler (runs every hour).
-
-Phase 3: The Voice (Audio Engine)
-Integrate edge-tts (Python script or Node wrapper).
-Build pipeline: Text -> Audio File -> Upload to Cloud (R2/S3) or Local Public folder.
-Attach Audio URL to DB records.
-
-Phase 4: Frontend & Player Experience
-Design "Feed Layout" (Shadcn UI).
-Build Audio Player Component (Autoplay, Skip, Speed Control).
-Implement "Urgent Ticker" for high-priority news.
-Responsive Testing (Mobile View Optimization).
+## 3. Non-Functional Requirements
+- **Performance:** Dynamic Feed API response time < 500ms; Audio generation streaming throughput < 5s per news article.
+- **Security:** Strict authorization on `/admin` routes, secure handling of Gemini API keys in `system_settings`, service role key isolation on server endpoints.
+- **Scalability:** Modular architecture built on Supabase PostgreSQL and Serverless API endpoints on Next.js 15.
