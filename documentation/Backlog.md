@@ -16,7 +16,7 @@
 ---
 
 ## Phase 2: Immediate Priorities (News Engine Refinement & Optimization)
-- [ ] **Title-Only Pre-Filtering Engine:** Fetch RSS feeds -> Extract titles -> Send batch title list to Gemini for quick evaluation -> Select only high-importance titles before full body scraping.
+- [x] **Title-Only Pre-Filtering Engine:** Fetch RSS feeds -> Extract titles -> Send batch title list to Gemini for quick evaluation -> Select only high-importance titles before full body scraping.
 - [ ] **Scraping Pipeline Optimization:** Prevent duplicate article reprocessing and optimize Inngest background cron execution interval.
 - [ ] **Personalized Interest Feed:** Enhanced recommendation algorithm based on user profile interest tags.
 

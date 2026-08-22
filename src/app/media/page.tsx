@@ -108,6 +108,18 @@ const ChannelLogo = ({ channelId, name }: { channelId: string; name: string }) =
           <span>sky</span>
         </div>
       );
+    case "c13": // DBC News
+      return (
+        <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-purple-600 to-indigo-800 flex items-center justify-center text-white font-black text-[8px] tracking-tight shrink-0 shadow-sm border border-purple-400/30">
+          <span>DBC</span>
+        </div>
+      );
+    case "c14": // Channel i
+      return (
+        <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-emerald-600 to-teal-800 flex items-center justify-center text-red-400 font-black text-[10px] shrink-0 shadow-sm border border-emerald-400/30">
+          <span>i</span>
+        </div>
+      );
     default:
       return (
         <div className="w-6 h-6 rounded-lg bg-primary/20 text-primary flex items-center justify-center font-bold text-[10px] shrink-0">
@@ -558,13 +570,13 @@ export default function MediaPage() {
         </div>
       </section>
 
-      {/* 5. "লাইভ টিভি চ্যানেল (IPTV)" (With Left/Right Scroll Arrows) */}
+      {/* 5. "লাইভ টিভি চ্যানেল" (With Left/Right Scroll Arrows) */}
       <section className="space-y-1.5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5">
             <Tv className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-red-500" />
             <h2 className="text-xs sm:text-sm md:text-base font-serif font-bold text-foreground tracking-tight">
-              লাইভ টিভি চ্যানেল (IPTV)
+              লাইভ টিভি চ্যানেল
             </h2>
           </div>
           

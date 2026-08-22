@@ -45,6 +45,16 @@ const CHANNELS: ChannelConfig[] = [
     source: "24/7 লাইভ এইচডি"
   },
   {
+    id: "c4",
+    name: "News24",
+    category: "ব্রেকিং নিউজ",
+    handle: "@NEWS24BD",
+    defaultVideoId: "x_fL0yF1o68",
+    color: "bg-red-700",
+    text: "text-white",
+    source: "24/7 লাইভ"
+  },
+  {
     id: "c5",
     name: "Ekattor TV",
     category: "জাতীয়",
@@ -88,9 +98,29 @@ const CHANNELS: ChannelConfig[] = [
     id: "c9",
     name: "Desh TV",
     category: "খবর ও রাজনীতি",
-    handle: "@DeshTVNews",
+    handle: "@DeshTVOfficial",
     defaultVideoId: "8cSFh_-AUxA",
     color: "bg-teal-700",
+    text: "text-white",
+    source: "24/7 লাইভ"
+  },
+  {
+    id: "c13",
+    name: "DBC News",
+    category: "জাতীয় সংবাদ",
+    handle: "@dbcnewsbd",
+    defaultVideoId: "e2eA-y4d22w",
+    color: "bg-purple-700",
+    text: "text-white",
+    source: "24/7 লাইভ"
+  },
+  {
+    id: "c14",
+    name: "Channel i",
+    category: "সংবাদ ও ফিচার",
+    handle: "@ChanneliNews",
+    defaultVideoId: "q8_1x51HjG8",
+    color: "bg-emerald-700",
     text: "text-white",
     source: "24/7 লাইভ"
   },
@@ -152,16 +182,20 @@ async function fetchLiveVideoId(handle: string, defaultId: string): Promise<stri
     if (!res.ok) return defaultId;
 
     const html = await res.text();
+    
+    // 1. Check canonical URL first (most accurate YouTube live redirect)
     const canonicalMatch = html.match(/<link rel="canonical" href="https:\/\/www\.youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})">/);
     if (canonicalMatch && canonicalMatch[1]) {
       return canonicalMatch[1];
     }
 
-    const watchMatch = html.match(/"videoId":"([a-zA-Z0-9_-]{11})"/);
-    if (watchMatch && watchMatch[1]) {
-      return watchMatch[1];
+    // 2. Check explicitly for videoId paired with isLive / isLiveContent
+    const liveMatch = html.match(/"videoId":"([a-zA-Z0-9_-]{11})"(?:[^{}]*?)"isLive":(?:true|1)/);
+    if (liveMatch && liveMatch[1]) {
+      return liveMatch[1];
     }
 
+    // 3. Fallback to default verified live ID if live detection is ambiguous
     return defaultId;
   } catch {
     return defaultId;

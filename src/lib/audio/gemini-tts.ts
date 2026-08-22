@@ -95,9 +95,9 @@ async function generateChunkPcm(
   apiKeys: string[]
 ): Promise<Buffer> {
   const models = [
+    'gemini-2.5-flash',
     'gemini-3.1-flash-tts-preview',
     'gemini-2.5-flash-preview-tts',
-    'gemini-2.5-flash-native-audio-latest',
   ];
 
   let lastError: any = null;
@@ -108,7 +108,7 @@ async function generateChunkPcm(
       try {
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
         const payload = {
-          contents: [{ parts: [{ text }] }],
+          contents: [{ parts: [{ text: `Say the following ${lang === 'bn' ? 'Bengali' : 'English'} text clearly in speech: ${text}` }] }],
           generationConfig: {
             responseModalities: ['AUDIO'],
             speechConfig: {
@@ -135,6 +135,7 @@ async function generateChunkPcm(
             return Buffer.from(part.inlineData.data, 'base64');
           }
         } else {
+          console.warn(`[TTS] Model ${model} Key #${k} HTTP ${res.status}: ${json?.error?.message}`);
           lastError = new Error(
             `Model ${model} Key #${k} Error: ${json?.error?.message || JSON.stringify(json)}`
           );
@@ -143,7 +144,8 @@ async function generateChunkPcm(
             continue;
           }
         }
-      } catch (err) {
+      } catch (err: any) {
+        console.warn(`[TTS] Fetch exception for ${model}: ${err.message}`);
         lastError = err;
       }
     }

@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { inngest } from "../client";
 import { createBackgroundClient } from "@/utils/supabase/background";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import Parser from "rss-parser";
 
 const parser = new Parser();
@@ -27,20 +28,17 @@ export const scrapeRssFeeds = inngest.createFunction(
       return { message: "No active sources found." };
     }
 
-    // 2. Parse feeds and find new URLs
-    const newArticles = await step.run("parse-feeds", async () => {
-      const articlesToProcess = [];
+    // 2. Fetch all raw candidate items across active sources (up to 15 items per feed)
+    const rawCandidates = await step.run("parse-feeds", async () => {
+      const candidates = [];
 
       for (const source of sources) {
         try {
           const feed = await parser.parseURL(source.url);
-          
-          // Only take top 5 to avoid overwhelming the system
-          const topItems = feed.items.slice(0, 5);
+          const topItems = feed.items.slice(0, 15);
           
           for (const item of topItems) {
-            if (item.link) {
-              // Optionally: Check if the link already exists in news_articles to avoid duplicates
+            if (item.link && item.title) {
               const { data: existing } = await supabase
                 .from("news_articles")
                 .select("id")
@@ -48,7 +46,7 @@ export const scrapeRssFeeds = inngest.createFunction(
                 .single();
 
               if (!existing) {
-                articlesToProcess.push({
+                candidates.push({
                   url: item.link,
                   title: item.title,
                   sourceId: source.id,
@@ -64,12 +62,85 @@ export const scrapeRssFeeds = inngest.createFunction(
         }
       }
 
-      return articlesToProcess;
+      return candidates;
     });
 
-    // 3. Trigger processing for each new article
-    if (newArticles.length > 0) {
-      const events = newArticles.map(article => ({
+    if (rawCandidates.length === 0) {
+      return { message: "No new articles found across feeds." };
+    }
+
+    // 3. AI Title Batch Pre-Filtering: Send ALL titles to Gemini in 1 prompt & pick top 5-8
+    const selectedArticles = await step.run("ai-title-prefiltering", async () => {
+      // If candidates are 5 or fewer, process all of them directly
+      if (rawCandidates.length <= 5) {
+        return rawCandidates;
+      }
+
+      // Fetch global Gemini API keys from system_settings
+      const { data: settingsData } = await supabase
+        .from("system_settings")
+        .select("setting_key, setting_value");
+
+      let apiKeys: string[] = [];
+      if (settingsData) {
+        const keysSetting = settingsData.find((s) => s.setting_key === "global_gemini_api_keys");
+        if (keysSetting) {
+          try { apiKeys = JSON.parse(keysSetting.setting_value); } catch (e) {}
+        }
+      }
+      const activeKeys = (apiKeys && apiKeys.length > 0) ? apiKeys : [process.env.GEMINI_API_KEY!];
+
+      // Prepare title list for Gemini batch evaluation
+      const titleListString = rawCandidates
+        .map((c, i) => `[Index ${i}] Title: "${c.title}" | Source: ${c.sourceName} | Category: ${c.category || "General"}`)
+        .join("\n");
+
+      const prompt = `You are an expert news editor for a high-priority breaking news platform.
+Analyze the following list of ${rawCandidates.length} candidate news titles.
+Identify and select the TOP 5 to TOP 8 most important, breaking, high-utility, or national/global significance news titles for a general audience.
+
+Candidate Titles:
+${titleListString}
+
+Respond with a strictly valid JSON object following this exact schema:
+{
+  "selected_indices": [<array of integer indices selected, e.g. 0, 3, 7, 12>]
+}`;
+
+      for (const apiKey of activeKeys) {
+        if (!apiKey) continue;
+        try {
+          const genAI = new GoogleGenerativeAI(apiKey);
+          const model = genAI.getGenerativeModel({
+            model: "gemini-2.5-flash",
+            generationConfig: { responseMimeType: "application/json" },
+          });
+
+          const result = await model.generateContent(prompt);
+          const parsed = JSON.parse(result.response.text());
+
+          if (parsed && Array.isArray(parsed.selected_indices) && parsed.selected_indices.length > 0) {
+            const filtered = parsed.selected_indices
+              .map((idx: number) => rawCandidates[idx])
+              .filter(Boolean);
+            if (filtered.length > 0) {
+              return filtered;
+            }
+          }
+        } catch (err: any) {
+          console.warn("AI title batch evaluation key error:", err.message);
+          continue;
+        }
+      }
+
+      // Fallback: If AI pre-filtering fails or has no key, take top 5
+      console.warn("Falling back to top 5 candidates without AI pre-filtering.");
+      return rawCandidates.slice(0, 5);
+    });
+
+    // 4. Trigger deep processing & audio generation ONLY for selected articles
+    if (selectedArticles.length > 0) {
+      const events = selectedArticles.map(article => ({
         name: "app/process-article",
         data: article
       }));
@@ -77,6 +148,9 @@ export const scrapeRssFeeds = inngest.createFunction(
       await step.sendEvent("trigger-processing", events);
     }
 
-    return { processed: newArticles.length };
+    return { 
+      totalCandidatesFound: rawCandidates.length,
+      topArticlesSelected: selectedArticles.length 
+    };
   }
 );
