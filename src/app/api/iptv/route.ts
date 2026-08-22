@@ -17,14 +17,14 @@ interface ChannelConfig {
 
 const CHANNELS: ChannelConfig[] = [
   { id: "c1", name: "Jamuna TV", category: "জাতীয় সংবাদ", channelId: "UCN6sm8iHiPd0cnoUardDAnw", defaultVideoId: "4Wpv0HhFU1M", color: "bg-blue-600", text: "text-white", is247Live: true },
-  { id: "c2", name: "Somoy TV", category: "ব্রেকিং নিউজ", channelId: "UCxHoBXkY88Tb8z1Ssj6CWsQ", defaultVideoId: "R7ujSKpZOK0", color: "bg-orange-600", text: "text-white", is247Live: true },
-  { id: "c3", name: "Channel 24", category: "সংবাদ ২৪", channelId: "UCHLqIOMPk20w-6cFgkA90jw", defaultVideoId: "hjQluVY6EzQ", color: "bg-emerald-600", text: "text-white", is247Live: true },
+  { id: "c2", name: "Somoy TV", category: "ব্রেকিং নিউজ", channelId: "UCxHoBXkY88Tb8z1Ssj6CWsQ", defaultVideoId: "i8VSQO6TlFc", color: "bg-orange-600", text: "text-white", is247Live: true },
+  { id: "c3", name: "Channel 24", category: "সংবাদ ২৪", channelId: "UCHLqIOMPk20w-6cFgkA90jw", defaultVideoId: "LVPgC7LQOw0", color: "bg-emerald-600", text: "text-white", is247Live: true },
   { id: "c4", name: "News24", category: "ব্রেকিং নিউজ", channelId: "UCb2O5Uo4a26CdTE7_2QA-jA", defaultVideoId: "oCslIqfoOZw", color: "bg-red-700", text: "text-white", is247Live: true },
   { id: "c5", name: "Ekattor TV", category: "জাতীয়", channelId: "UCtqvtAVmad5zywaziN6CbfA", defaultVideoId: "9L9ymmaPIS0", color: "bg-green-700", text: "text-white", is247Live: true },
-  { id: "c6", name: "Independent TV", category: "বাংলাদেশ", channelId: "UCATUkaOHwO9EP_W87zCiPbA", defaultVideoId: "gzX8jUxxflA", color: "bg-slate-800", text: "text-white", is247Live: true },
+  { id: "c6", name: "Independent TV", category: "বাংলাদেশ", channelId: "UCATUkaOHwO9EP_W87zCiPbA", defaultVideoId: "qREvoxxG6Nc", color: "bg-slate-800", text: "text-white", is247Live: true },
   { id: "c7", name: "RTV News", category: "জাতীয় সংবাদ", channelId: "UCR0hSGudjeZfnGL3uodU9Sw", defaultVideoId: "PtztZQi5hCg", color: "bg-red-600", text: "text-white", is247Live: true },
   { id: "c8", name: "Banglavision", category: "সংবাদ ও খবর", channelId: "UCA4y9g_GRdNrZLH_u5LLSdw", defaultVideoId: "95oEnwrvJRs", color: "bg-sky-600", text: "text-white", is247Live: true },
-  { id: "c9", name: "Desh TV", category: "খবর ও রাজনীতি", channelId: "UCmCCTsDl-eCKw91shC7ZmMw", defaultVideoId: "1pZ7EGS2bXQ", color: "bg-teal-700", text: "text-white", is247Live: true },
+  { id: "c9", name: "Desh TV", category: "খবর ও রাজনীতি", channelId: "UCmCCTsDl-eCKw91shC7ZmMw", defaultVideoId: "me25ctmn8H8", color: "bg-teal-700", text: "text-white", is247Live: true },
   { id: "c13", name: "DBC News", category: "জাতীয় সংবাদ", channelId: "UCUvXoiDEKI8VZJrr58g4VAw", defaultVideoId: "8Sf9HnkLFsY", color: "bg-purple-700", text: "text-white", is247Live: true },
   { id: "c14", name: "Channel i", category: "সংবাদ ও ফিচার", channelId: "UCsvBbEFpCTH23C4n_I2lx0A", defaultVideoId: "q8_1x51HjG8", color: "bg-emerald-700", text: "text-white", is247Live: false },
   { id: "c10", name: "Al Jazeera English", category: "আন্তর্জাতিক", channelId: "UCfiwzLy-8yKzIbsmZTzxDgw", defaultVideoId: "gCNeDWCI0vo", color: "bg-amber-600", text: "text-white", is247Live: true },

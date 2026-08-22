@@ -145,8 +145,8 @@ const defaultChannels: IPTVChannel[] = [
     id: "c2", 
     name: "Somoy TV", 
     category: "ব্রেকিং নিউজ", 
-    videoId: "R7ujSKpZOK0",
-    streamUrl: "https://www.youtube.com/embed/R7ujSKpZOK0?autoplay=1&playsinline=1&rel=0&modestbranding=1",
+    videoId: "i8VSQO6TlFc",
+    streamUrl: "https://www.youtube.com/embed/i8VSQO6TlFc?autoplay=1&playsinline=1&rel=0&modestbranding=1",
     color: "bg-orange-600", 
     text: "text-white",
     source: "24/7 লাইভ এইচডি"
@@ -155,8 +155,8 @@ const defaultChannels: IPTVChannel[] = [
     id: "c3", 
     name: "Channel 24", 
     category: "সংবাদ ২৪", 
-    videoId: "hjQluVY6EzQ",
-    streamUrl: "https://www.youtube.com/embed/hjQluVY6EzQ?autoplay=1&playsinline=1&rel=0&modestbranding=1",
+    videoId: "LVPgC7LQOw0",
+    streamUrl: "https://www.youtube.com/embed/LVPgC7LQOw0?autoplay=1&playsinline=1&rel=0&modestbranding=1",
     color: "bg-emerald-600", 
     text: "text-white",
     source: "24/7 লাইভ এইচডি"
@@ -185,8 +185,8 @@ const defaultChannels: IPTVChannel[] = [
     id: "c6", 
     name: "Independent TV", 
     category: "বাংলাদেশ", 
-    videoId: "gzX8jUxxflA",
-    streamUrl: "https://www.youtube.com/embed/gzX8jUxxflA?autoplay=1&playsinline=1&rel=0&modestbranding=1",
+    videoId: "qREvoxxG6Nc",
+    streamUrl: "https://www.youtube.com/embed/qREvoxxG6Nc?autoplay=1&playsinline=1&rel=0&modestbranding=1",
     color: "bg-slate-800", 
     text: "text-white",
     source: "24/7 লাইভ"
@@ -215,8 +215,8 @@ const defaultChannels: IPTVChannel[] = [
     id: "c9", 
     name: "Desh TV", 
     category: "খবর ও রাজনীতি", 
-    videoId: "1pZ7EGS2bXQ",
-    streamUrl: "https://www.youtube.com/embed/1pZ7EGS2bXQ?autoplay=1&playsinline=1&rel=0&modestbranding=1",
+    videoId: "me25ctmn8H8",
+    streamUrl: "https://www.youtube.com/embed/me25ctmn8H8?autoplay=1&playsinline=1&rel=0&modestbranding=1",
     color: "bg-teal-700", 
     text: "text-white",
     source: "24/7 লাইভ"
