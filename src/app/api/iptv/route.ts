@@ -55,20 +55,12 @@ async function resolveChannelMedia(channelId: string, defaultId: string): Promis
     }
   } catch (e) {}
 
-  // 2. Fallback to 100% Real-time Latest News Video via YouTube RSS Feed
+  // 2. Fallback to 100% Real-time Latest Video via YouTube RSS Feed
   try {
     const feed = await parser.parseURL(`https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`);
-    if (feed && feed.items && feed.items.length > 0) {
-      // Find first item that is NOT drama/natok
-      const newsItem = feed.items.find(item => {
-        const t = (item.title || "").toLowerCase();
-        return !t.includes("drama") && !t.includes("natok") && !t.includes("telefilm") && !t.includes("full drama");
-      });
-
-      if (newsItem?.id) {
-        const latestId = newsItem.id.replace("yt:video:", "");
-        if (latestId) return { videoId: latestId, isLive: false };
-      }
+    if (feed?.items?.[0]?.id) {
+      const latestId = feed.items[0].id.replace("yt:video:", "");
+      if (latestId) return { videoId: latestId, isLive: false };
     }
   } catch (e) {}
 
