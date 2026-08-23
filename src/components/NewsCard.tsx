@@ -56,6 +56,7 @@ const NewsCard = ({ news, isSaved = false, onToggleSave }: NewsCardProps) => {
         id: news.id,
         title: cleanMarkdown(news.title),
         summary: cleanMarkdown(news.summary),
+        raw_content: (news as any).raw_content || (news as any).content || "",
         imageUrl: news.imageUrl,
         source: news.source,
         preferredLang,

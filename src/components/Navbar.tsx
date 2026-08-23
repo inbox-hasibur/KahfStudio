@@ -293,16 +293,6 @@ const Navbar = () => {
                                   News Approval
                                 </div>
                               </Link>
-                              <Link href="/profile/byok" onClick={() => setIsProfileDropdownOpen(false)}>
-                                <div className="px-3 py-2 text-[13px] font-medium hover:bg-muted rounded-xl cursor-pointer transition-colors text-muted-foreground hover:text-foreground">
-                                  BYOK & API Management
-                                </div>
-                              </Link>
-                              <Link href="/profile/preferences" onClick={() => setIsProfileDropdownOpen(false)}>
-                                <div className="px-3 py-2 text-[13px] font-medium hover:bg-muted rounded-xl cursor-pointer transition-colors text-muted-foreground hover:text-foreground">
-                                  Preferences
-                                </div>
-                              </Link>
                             </>
                           ) : (
                             <>
@@ -321,18 +311,6 @@ const Navbar = () => {
                               <Link href="/profile/library" onClick={() => setIsProfileDropdownOpen(false)}>
                                 <div className="px-3 py-2 text-[13px] font-medium hover:bg-muted rounded-xl cursor-pointer transition-colors text-muted-foreground hover:text-foreground">
                                   News Approval
-                                </div>
-                              </Link>
-                              
-                              <Link href="/profile/byok" onClick={() => setIsProfileDropdownOpen(false)}>
-                                <div className="px-3 py-2 text-[13px] font-medium hover:bg-muted rounded-xl cursor-pointer transition-colors text-muted-foreground hover:text-foreground">
-                                  BYOK & API Management
-                                </div>
-                              </Link>
-
-                              <Link href="/profile/preferences" onClick={() => setIsProfileDropdownOpen(false)}>
-                                <div className="px-3 py-2 text-[13px] font-medium hover:bg-muted rounded-xl cursor-pointer transition-colors text-muted-foreground hover:text-foreground">
-                                  Preferences
                                 </div>
                               </Link>
                             </>

@@ -121,14 +121,18 @@ export default function NewsDetailPage() {
           const item = data.data;
           setNewsItem({
             id: item.id,
-            title: item.headline,
-            summary: item.ai_summary || item.raw_content,
+            title: item.headline || item.title,
+            summary: item.ai_summary || item.summary || item.raw_content,
             raw_content: item.raw_content || item.content,
             category: item.category || "General",
             source: item.source || "Unknown",
             publishedAt: item.published_at || item.created_at,
-            imageUrl: item.image_url || getPlaceholderImage(item.category),
+            imageUrl: item.image_url || item.imageUrl || getPlaceholderImage(item.category),
             originalUrl: item.original_url,
+            audio_bn_summary: item.audio_bn_summary || item.audioUrls?.bn_summary,
+            audio_bn_full: item.audio_bn_full || item.audioUrls?.bn_full,
+            audio_en_summary: item.audio_en_summary || item.audioUrls?.en_summary,
+            audio_en_full: item.audio_en_full || item.audioUrls?.en_full,
             author: "KahfNews AI",
             readTime: "3 min read",
             tags: [item.category || "News"],
@@ -219,7 +223,8 @@ export default function NewsDetailPage() {
       detail: {
         id: newsItem.id,
         title: newsItem.title,
-        summary: type === "full" ? newsItem.raw_content : newsItem.summary,
+        summary: type === "full" ? (newsItem.raw_content || newsItem.summary) : newsItem.summary,
+        raw_content: newsItem.raw_content,
         imageUrl: newsItem.imageUrl,
         source: newsItem.source,
         preferredLang,
@@ -636,7 +641,7 @@ export default function NewsDetailPage() {
         </div>
       </div>
       
-      <AudioPlayer />
+      <AudioPlayer newsItems={newsItem ? [newsItem] : []} />
     </motion.main>
   );
 }

@@ -35,6 +35,7 @@ const HeadlineCard = ({ news, index = 0 }: HeadlineCardProps) => {
         id: news.id,
         title: news.title,
         summary: news.summary || "No summary available.",
+        raw_content: (news as any).raw_content || (news as any).content || "",
         imageUrl: news.imageUrl,
         source: news.source,
         preferredLang,

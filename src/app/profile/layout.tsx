@@ -31,8 +31,6 @@ export default function ProfileLayout({
     { name: "Dashboard", href: isAdmin ? "/admin" : "/profile", icon: LayoutDashboard },
     { name: "Scraping Control", href: "/profile/scraping", icon: Database, isPremiumFeature: true },
     { name: "News Approval", href: "/profile/library", icon: Library, isPremiumFeature: true },
-    { name: "BYOK & API Management", href: "/profile/byok", icon: Key, isPremiumFeature: true },
-    { name: "Preferences", href: "/profile/preferences", icon: Settings, isPremiumFeature: false },
   ];
 
   return (

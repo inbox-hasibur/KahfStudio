@@ -33,22 +33,35 @@
 
 :root {
   /* Light Mode - Kahf Browser Eye-Pleasant Warm Silk Palette */
-  --background: 38 24% 94%;           /* #f5f2eb warm silk parchment background */
-  --foreground: 24 8% 22%;            /* #36322e soft warm graphite grey - zero eye strain! */
-  --card: 38 25% 97.5%;               /* #faf8f4 clean cream white card surface */
-  --card-foreground: 24 8% 22%;       /* #36322e soft graphite text */
-  --popover: 38 25% 97.5%;            /* #faf8f4 popover background */
-  --popover-foreground: 24 8% 22%;    /* #36322e soft graphite text */
-  --primary: 152 76% 32%;             /* #0c9d64 Kahf Emerald Green */
-  --primary-foreground: 0 0% 100%;    /* #ffffff white text on primary */
-  --secondary: 38 18% 89%;            /* #ebe6dc soft warm grey */
-  --secondary-foreground: 24 8% 22%;  /* #36322e */
-  --muted: 38 18% 89%;                /* #ebe6dc */
-  --muted-foreground: 30 5% 42%;      /* #6e6862 eye-friendly warm taupe grey */
+  --background: 38 24% 94%;
+  /* #f5f2eb warm silk parchment background */
+  --foreground: 24 8% 22%;
+  /* #36322e soft warm graphite grey - zero eye strain! */
+  --card: 38 25% 97.5%;
+  /* #faf8f4 clean cream white card surface */
+  --card-foreground: 24 8% 22%;
+  /* #36322e soft graphite text */
+  --popover: 38 25% 97.5%;
+  /* #faf8f4 popover background */
+  --popover-foreground: 24 8% 22%;
+  /* #36322e soft graphite text */
+  --primary: 152 76% 32%;
+  /* #0c9d64 Kahf Emerald Green */
+  --primary-foreground: 0 0% 100%;
+  /* #ffffff white text on primary */
+  --secondary: 38 18% 89%;
+  /* #ebe6dc soft warm grey */
+  --secondary-foreground: 24 8% 22%;
+  /* #36322e */
+  --muted: 38 18% 89%;
+  /* #ebe6dc */
+  --muted-foreground: 30 5% 42%;
+  /* #6e6862 eye-friendly warm taupe grey */
   --accent: 152 76% 32%;
   --accent-foreground: 0 0% 100%;
   --destructive: 0 72% 51%;
-  --border: 38 16% 86%;               /* #e5dfd4 subtle warm border */
+  --border: 38 16% 86%;
+  /* #e5dfd4 subtle warm border */
   --input: 38 16% 86%;
   --ring: 152 76% 32%;
   --radius: 0.75rem;
@@ -67,13 +80,18 @@
 
 .dark {
   /* Dark Mode - Deep Forest Charcoal (#0f1311), reduced eye strain, premium Kahf theme */
-  --background: 150 12% 6.7%;         /* #0f1311 Forest Charcoal background */
-  --foreground: 150 15% 96%;          /* #f0f5f2 soft off-white text */
-  --card: 150 13% 9.2%;               /* #141c18 Forest Charcoal card */
-  --card-foreground: 150 15% 96%;     /* #f0f5f2 */
+  --background: 150 12% 6.7%;
+  /* #0f1311 Forest Charcoal background */
+  --foreground: 150 15% 96%;
+  /* #f0f5f2 soft off-white text */
+  --card: 150 13% 9.2%;
+  /* #141c18 Forest Charcoal card */
+  --card-foreground: 150 15% 96%;
+  /* #f0f5f2 */
   --popover: 150 13% 9.2%;
   --popover-foreground: 150 15% 96%;
-  --primary: 142 71% 45%;             /* #10b981 Kahf Emerald Green */
+  --primary: 142 71% 45%;
+  /* #10b981 Kahf Emerald Green */
   --primary-foreground: 150 20% 8%;
   --secondary: 150 14% 13%;
   --secondary-foreground: 150 15% 96%;
@@ -82,7 +100,8 @@
   --accent: 142 71% 45%;
   --accent-foreground: 150 20% 8%;
   --destructive: 0 63% 31%;
-  --border: 150 12% 16%;              /* #1c2621 Forest Charcoal border */
+  --border: 150 12% 16%;
+  /* #1c2621 Forest Charcoal border */
   --input: 150 12% 16%;
   --ring: 142 71% 45%;
 
@@ -110,7 +129,8 @@ html {
   scroll-behavior: smooth;
 }
 
-html, body {
+html,
+body {
   min-height: 100vh;
   top: 0 !important;
 }
@@ -137,45 +157,103 @@ body {
    ============================================ */
 
 @keyframes mesh {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  25% { transform: translate(5%, -5%) scale(1.05); }
-  50% { transform: translate(-3%, 3%) scale(0.98); }
-  75% { transform: translate(2%, -2%) scale(1.02); }
+
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+
+  25% {
+    transform: translate(5%, -5%) scale(1.05);
+  }
+
+  50% {
+    transform: translate(-3%, 3%) scale(0.98);
+  }
+
+  75% {
+    transform: translate(2%, -2%) scale(1.02);
+  }
 }
 
 @keyframes float {
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-10px); }
+
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+
+  50% {
+    transform: translateY(-10px);
+  }
 }
 
 @keyframes pulse-glow {
-  0%, 100% { opacity: 0.4; transform: scale(1); }
-  50% { opacity: 0.8; transform: scale(1.1); }
+
+  0%,
+  100% {
+    opacity: 0.4;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.8;
+    transform: scale(1.1);
+  }
 }
 
 @keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
+  0% {
+    background-position: -200% 0;
+  }
+
+  100% {
+    background-position: 200% 0;
+  }
 }
 
 @keyframes slide-up {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes scale-in {
-  from { opacity: 0; transform: scale(0.95); }
-  to { opacity: 1; transform: scale(1); }
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 @keyframes marquee {
-  0% { transform: translateX(0%); }
-  100% { transform: translateX(-100%); }
+  0% {
+    transform: translateX(0%);
+  }
+
+  100% {
+    transform: translateX(-100%);
+  }
 }
 
 
@@ -237,11 +315,11 @@ body {
   background: linear-gradient(135deg, hsl(var(--primary)), hsl(280 70% 60%), hsl(var(--primary)));
   background-size: 200% 200%;
   animation: shimmer 3s ease infinite;
-  -webkit-mask: 
-    linear-gradient(#fff 0 0) content-box, 
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
     linear-gradient(#fff 0 0);
-  mask: 
-    linear-gradient(#fff 0 0) content-box, 
+  mask:
+    linear-gradient(#fff 0 0) content-box,
     linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
@@ -297,7 +375,7 @@ body {
 }
 
 .animate-marquee {
-  animation: marquee 21s linear infinite;
+  animation: marquee 30s linear infinite;
 }
 
 .animate-marquee:hover {
@@ -305,17 +383,34 @@ body {
 }
 
 /* Stagger children animations */
-.stagger-children > * {
+.stagger-children>* {
   opacity: 0;
   animation: slide-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-.stagger-children > *:nth-child(1) { animation-delay: 0.05s; }
-.stagger-children > *:nth-child(2) { animation-delay: 0.1s; }
-.stagger-children > *:nth-child(3) { animation-delay: 0.15s; }
-.stagger-children > *:nth-child(4) { animation-delay: 0.2s; }
-.stagger-children > *:nth-child(5) { animation-delay: 0.25s; }
-.stagger-children > *:nth-child(6) { animation-delay: 0.3s; }
+.stagger-children>*:nth-child(1) {
+  animation-delay: 0.05s;
+}
+
+.stagger-children>*:nth-child(2) {
+  animation-delay: 0.1s;
+}
+
+.stagger-children>*:nth-child(3) {
+  animation-delay: 0.15s;
+}
+
+.stagger-children>*:nth-child(4) {
+  animation-delay: 0.2s;
+}
+
+.stagger-children>*:nth-child(5) {
+  animation-delay: 0.25s;
+}
+
+.stagger-children>*:nth-child(6) {
+  animation-delay: 0.3s;
+}
 
 /* Interactive States - Micro-interactions */
 .interactive {
@@ -337,13 +432,13 @@ body {
 
 .card-hover:hover {
   transform: translateY(-4px);
-  box-shadow: 
+  box-shadow:
     0 20px 40px -15px rgba(0, 0, 0, 0.15),
     0 0 0 1px hsl(var(--border));
 }
 
 .dark .card-hover:hover {
-  box-shadow: 
+  box-shadow:
     0 20px 40px -15px rgba(0, 0, 0, 0.5),
     0 0 0 1px hsl(var(--border));
 }
@@ -392,6 +487,7 @@ body {
 
 /* Reduced Motion */
 @media (prefers-reduced-motion: reduce) {
+
   *,
   *::before,
   *::after {
@@ -399,7 +495,7 @@ body {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
-  
+
   body::before {
     animation: none;
   }
@@ -410,8 +506,9 @@ body {
   body::before {
     display: none;
   }
-  
-  .glass, .glass-strong {
+
+  .glass,
+  .glass-strong {
     background: white;
     backdrop-filter: none;
   }

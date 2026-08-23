@@ -213,26 +213,56 @@ export default function Home() {
 
   const totalStories = news.length;
 
+  const [podcastAudioUrl, setPodcastAudioUrl] = useState<string | null>(null);
+  const [podcastDuration, setPodcastDuration] = useState<number | null>(null);
+
+  useEffect(() => {
+    async function loadExistingPodcast() {
+      try {
+        const res = await fetch('/api/podcast/generate');
+        const json = await res.json();
+        if (json.success && json.podcast) {
+          if (json.podcast.audio_url) setPodcastAudioUrl(json.podcast.audio_url);
+          if (json.podcast.duration) setPodcastDuration(json.podcast.duration);
+        }
+      } catch (e) {}
+    }
+    loadExistingPodcast();
+  }, []);
+
+  const temp = weather?.temp || 29;
+  const desc = weather?.description || "পরিষ্কার আকাশ";
+  const umbrellaAdvice = (desc.includes("rain") || desc.includes("cloud") || desc.includes("বৃষ্টি"))
+    ? "আজ বাইরে বের হওয়ার আগে ছাতা সঙ্গে রাখা জরুরি, বৃষ্টির সম্ভাবনা রয়েছে।"
+    : "আজ আকাশ পরিষ্কার থাকবে, তবে তীব্র রোদ এড়াতে প্রয়োজনে ছাতা ব্যবহার করতে পারেন।";
+
+  const newsSummaryList = headlines
+    .slice(0, 5)
+    .map((h: any, i: number) => `খবর ${i + 1}: ${h.title}. ${h.summary || ""}`)
+    .filter(Boolean)
+    .join(". ");
+
+  const dailyPodcastScript = `শুভ সকাল! আজ ${currentDate || "আজকের দিন"}। কহাফ নিউজের স্পেশাল এআই পডকাস্টে আপনাকে স্বাগতম। আজকের আবহাওয়া: তাপমাত্রা প্রায় ${temp} ডিগ্রি সেলসিয়াস, আবহাওয়া ${desc}। ${umbrellaAdvice} রাস্তাঘাটের যানজট পরিস্থিতি: প্রধান সড়ক ও মোড়গুলোতে সকালের দিকে কিছুটা স্বাভাবিক চাপ থাকতে পারে, সময় হাতে নিয়ে বের হোন। এবার দেখে নেওয়া যাক আজকের প্রধান খবরগুলো: ${newsSummaryList}। কহাফ নিউজের সাথে থাকার জন্য ধন্যবাদ। দিনটি আপনার শুভ হোক!`;
+
+  // Calculate dynamic duration in seconds (13 chars/sec for Bangla TTS narration)
+  const calculatedDurationSec = Math.max(30, Math.round(dailyPodcastScript.replace(/[*_#`[\]()]/g, "").trim().length / 13));
+  const dynamicDurationSec = podcastDuration || calculatedDurationSec;
+
+  const formatDurationString = (totalSecs: number) => {
+    const mins = Math.floor(totalSecs / 60);
+    const secs = totalSecs % 60;
+    if (mins === 0) return `${secs} sec`;
+    return `${mins}:${secs < 10 ? "0" : ""}${secs} min`;
+  };
+
+  const podcastDurationStr = formatDurationString(dynamicDurationSec);
+
   const handlePlayFullAudio = (e?: React.MouseEvent) => {
     if (e) {
       e.preventDefault();
       e.stopPropagation();
     }
     
-    const temp = weather?.temp || 29;
-    const desc = weather?.description || "পরিষ্কার আকাশ";
-    const umbrellaAdvice = (desc.includes("rain") || desc.includes("cloud") || desc.includes("বৃষ্টি"))
-      ? "আজ বাইরে বের হওয়ার আগে ছাতা সঙ্গে রাখা জরুরি, বৃষ্টির সম্ভাবনা রয়েছে।"
-      : "আজ আকাশ পরিষ্কার থাকবে, তবে তীব্র রোদ এড়াতে প্রয়োজনে ছাতা ব্যবহার করতে পারেন।";
-
-    const newsSummaryList = headlines
-      .slice(0, 5)
-      .map((h: any, i: number) => `খবর ${i + 1}: ${h.title}. ${h.summary || ""}`)
-      .filter(Boolean)
-      .join(". ");
-
-    const dailyPodcastScript = `শুভ সকাল! আজ ${currentDate || "আজকের দিন"}। কহাফ নিউজের স্পেশাল এআই পডকাস্টে আপনাকে স্বাগতম। আজকের আবহাওয়া: তাপমাত্রা প্রায় ${temp} ডিগ্রি সেলসিয়াস, আবহাওয়া ${desc}। ${umbrellaAdvice} রাস্তাঘাটের যানজট পরিস্থিতি: প্রধান সড়ক ও মোড়গুলোতে সকালের দিকে কিছুটা স্বাভাবিক চাপ থাকতে পারে, সময় হাতে নিয়ে বের হোন। এবার দেখে নেওয়া যাক আজকের প্রধান খবরগুলো: ${newsSummaryList}। কহাফ নিউজের সাথে থাকার জন্য ধন্যবাদ। দিনটি আপনার শুভ হোক!`;
-
     const firstHeadline = headlines[0];
 
     const event = new CustomEvent('play-audio', {
@@ -244,12 +274,14 @@ export default function Home() {
         source: "KahfNews AI Podcast",
         preferredLang: "BN",
         preferredType: "summary",
-        audioUrls: {
-          bn_full: firstHeadline?.audio_bn_full,
-          bn_summary: firstHeadline?.audio_bn_summary,
-          en_full: firstHeadline?.audio_en_full,
-          en_summary: firstHeadline?.audio_en_summary,
-        }
+        audioUrls: podcastAudioUrl
+          ? { bn_summary: podcastAudioUrl }
+          : {
+              bn_full: firstHeadline?.audio_bn_full,
+              bn_summary: firstHeadline?.audio_bn_summary,
+              en_full: firstHeadline?.audio_en_full,
+              en_summary: firstHeadline?.audio_en_summary,
+            }
       }
     });
     window.dispatchEvent(event);
@@ -448,7 +480,7 @@ export default function Home() {
 
                 <span className="inline-flex items-center gap-1 px-2.5 py-0.5 sm:px-3 sm:py-1 bg-muted/90 text-foreground border border-border text-[10px] sm:text-[11px] font-mono font-bold rounded-full shadow-sm whitespace-nowrap shrink-0">
                   <Clock className="w-3 h-3 text-primary shrink-0" />
-                  <span>8 min</span>
+                  <span>{podcastDurationStr}</span>
                 </span>
               </div>
 
@@ -487,7 +519,7 @@ export default function Home() {
               <button
                 onClick={handlePlayFullAudio}
                 className="relative group/play flex items-center justify-center w-11 h-11 sm:w-14 sm:h-14 md:w-18 md:h-18 lg:w-22 lg:h-22 bg-primary text-primary-foreground rounded-full shadow-2xl shadow-primary/30 hover:scale-105 active:scale-95 transition-all duration-300 cursor-pointer"
-                title="Play Full AI Daily Audio Briefing (8 Mins)"
+                title={`Play Full AI Daily Audio Briefing (${podcastDurationStr})`}
               >
                 <div className="absolute inset-0 rounded-full bg-primary animate-ping opacity-20" />
                 <Play className="w-4 h-4 sm:w-6 sm:h-6 md:w-8 md:h-8 lg:w-9 lg:h-9 fill-current ml-0.5 sm:ml-1 transition-transform group-hover/play:scale-110" />
