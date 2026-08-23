@@ -15,15 +15,20 @@ function CheckoutContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   
-  const [isAnnual, setIsAnnual] = useState(searchParams?.get("annual") === "true");
+  const cycleParam = searchParams?.get("cycle") || (searchParams?.get("annual") === "true" ? "yearly" : "monthly");
+  const [cycle, setCycle] = useState<"weekly" | "monthly" | "yearly">(
+    cycleParam === "weekly" ? "weekly" : cycleParam === "yearly" ? "yearly" : "monthly"
+  );
   const [activeTab, setActiveTab] = useState<"local" | "global">("global");
   const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
   const [paddle, setPaddle] = useState<Paddle>();
   const [selectedMethod, setSelectedMethod] = useState<string | null>("stripe");
 
-  const localAmount = isAnnual ? 1000 : 100;
-  const globalAmount = isAnnual ? 10 : 1;
-  const planName = isAnnual ? "Premium Plan (Yearly)" : "Premium Plan (Monthly)";
+  const isAnnual = cycle === "yearly";
+
+  const localAmount = cycle === "weekly" ? 30 : cycle === "yearly" ? 1000 : 100;
+  const globalAmount = cycle === "weekly" ? 0.5 : cycle === "yearly" ? 10 : 1;
+  const planName = cycle === "weekly" ? "Premium Weekly (Recurring)" : cycle === "yearly" ? "Premium Yearly (Recurring)" : "Premium Monthly (Recurring)";
 
   const displayCurrency = activeTab === "local" ? "৳" : "$";
   const displayAmount = activeTab === "local" ? localAmount : globalAmount;
@@ -43,16 +48,12 @@ function CheckoutContent() {
     );
   }, []);
 
-  // Sync URL when toggling
+  // Sync URL when toggling cycle
   useEffect(() => {
     const newUrl = new URL(window.location.href);
-    if (isAnnual) {
-      newUrl.searchParams.set("annual", "true");
-    } else {
-      newUrl.searchParams.delete("annual");
-    }
+    newUrl.searchParams.set("cycle", cycle);
     window.history.replaceState({}, "", newUrl);
-  }, [isAnnual]);
+  }, [cycle]);
 
   useEffect(() => {
     if (!status && !sessionData?.user) {
@@ -99,7 +100,7 @@ function CheckoutContent() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ userId: sessionData.user.id, isAnnual }),
+        body: JSON.stringify({ userId: sessionData.user.id, isAnnual: cycle === "yearly", cycle }),
       });
       const data = await response.json();
 
@@ -161,23 +162,25 @@ function CheckoutContent() {
 
             <div className="bg-card/90 backdrop-blur-md rounded-3xl p-6 border border-border mb-6 shadow-xl transition-colors">
               
-              {/* Monthly/Yearly Toggle Slider in Summary */}
-              <div className="flex bg-muted/80 p-1 rounded-xl mb-6 shadow-inner relative">
-                <div 
-                  className="absolute inset-y-1 left-1 w-[calc(50%-0.25rem)] bg-card rounded-lg shadow-sm border border-border/40 transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
-                  style={{ transform: isAnnual ? 'translateX(100%)' : 'translateX(0)' }}
-                />
+              {/* Weekly / Monthly / Yearly Cycle Switcher */}
+              <div className="flex bg-muted/80 p-1 rounded-xl mb-6 shadow-inner gap-1">
                 <button
-                  onClick={() => setIsAnnual(false)}
-                  className={`relative z-10 flex-1 py-2 text-xs font-bold rounded-lg transition-colors ${!isAnnual ? "text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                  onClick={() => setCycle("weekly")}
+                  className={`flex-1 py-2 text-xs font-bold rounded-lg transition-colors ${cycle === "weekly" ? "bg-card text-foreground shadow-sm border border-border/40" : "text-muted-foreground hover:text-foreground"}`}
+                >
+                  Weekly
+                </button>
+                <button
+                  onClick={() => setCycle("monthly")}
+                  className={`flex-1 py-2 text-xs font-bold rounded-lg transition-colors ${cycle === "monthly" ? "bg-card text-foreground shadow-sm border border-border/40" : "text-muted-foreground hover:text-foreground"}`}
                 >
                   Monthly
                 </button>
                 <button
-                  onClick={() => setIsAnnual(true)}
-                  className={`relative z-10 flex-1 py-2 text-xs font-bold rounded-lg transition-colors ${isAnnual ? "text-primary font-extrabold" : "text-muted-foreground hover:text-foreground"}`}
+                  onClick={() => setCycle("yearly")}
+                  className={`flex-1 py-2 text-xs font-bold rounded-lg transition-colors ${cycle === "yearly" ? "bg-card text-primary font-extrabold shadow-sm border border-border/40" : "text-muted-foreground hover:text-foreground"}`}
                 >
-                  Yearly <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded ml-1">-20%</span>
+                  Yearly <span className="text-[9px] bg-primary/10 text-primary px-1 py-0.5 rounded ml-0.5">-16%</span>
                 </button>
               </div>
 

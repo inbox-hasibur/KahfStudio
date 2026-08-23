@@ -33,16 +33,18 @@ export async function POST(req: Request) {
           user_metadata: { tier: 'premium' }
         });
         
-        // Insert subscription record
-        const plan_type = value_b === 'yearly' ? 'premium_yearly' : 'premium_monthly';
+        // Insert subscription record with recurring auto_renew status
+        const plan_type = value_b === 'yearly' ? 'premium_yearly' : value_b === 'weekly' ? 'premium_weekly' : 'premium_monthly';
         const valid_until = new Date();
-        valid_until.setFullYear(valid_until.getFullYear() + (value_b === 'yearly' ? 1 : 0));
-        if (value_b !== 'yearly') valid_until.setMonth(valid_until.getMonth() + 1);
+        if (value_b === 'yearly') valid_until.setFullYear(valid_until.getFullYear() + 1);
+        else if (value_b === 'weekly') valid_until.setDate(valid_until.getDate() + 7);
+        else valid_until.setMonth(valid_until.getMonth() + 1);
 
         await supabase.from('subscriptions').insert({
           user_id: value_a,
           plan_type: plan_type,
           status: 'active',
+          auto_renew: true,
           valid_until: valid_until.toISOString()
         });
       }

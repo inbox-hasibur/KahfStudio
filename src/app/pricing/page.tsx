@@ -12,10 +12,10 @@ import Navbar from "@/components/Navbar";
 
 export default function PricingPage() {
   const { data: sessionData, status } = useSession();
-  const [isAnnual, setIsAnnual] = useState(false);
+  const [cycle, setCycle] = useState<"weekly" | "monthly" | "yearly">("monthly");
+  const isAnnual = cycle === "yearly";
   const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
   const [isTrialLoading, setIsTrialLoading] = useState(false);
-  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
 
   const handleClaimTrial = async () => {
     if (!sessionData?.user?.id) return;
@@ -28,7 +28,6 @@ export default function PricingPage() {
       });
       const data = await response.json();
       if (data.success) {
-        // Redirect to success page mimicking local gateways to trigger session refresh
         window.location.href = '/pricing/success?gateway=sslcommerz';
       } else {
         alert(data.error || 'Failed to claim trial');
@@ -40,35 +39,19 @@ export default function PricingPage() {
     }
   };
 
-  const handleCheckout = async (gateway: 'lemonsqueezy' | 'aamarpay') => {
-    if (!sessionData?.user?.id) return;
-    setIsCheckoutLoading(true);
-    try {
-      const response = await fetch(`/api/checkout/${gateway}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ userId: sessionData.user.id, isAnnual }),
-      });
-      const data = await response.json();
-      if (data.url) {
-        window.location.href = data.url;
-      } else {
-        console.error("Checkout error:", data.error);
-        setIsCheckoutLoading(false);
-      }
-    } catch (err) {
-      console.error("Checkout request failed:", err);
-      setIsCheckoutLoading(false);
-    }
-  };
-
   const fadeIn = {
     initial: { opacity: 0, y: 20 },
     animate: { opacity: 1, y: 0 },
     transition: { duration: 0.5 }
   };
+
+  const getPriceDisplay = () => {
+    if (cycle === "weekly") return { amount: "30", suffix: "/wk" };
+    if (cycle === "yearly") return { amount: "1,000", suffix: "/yr" };
+    return { amount: "100", suffix: "/mo" };
+  };
+
+  const priceInfo = getPriceDisplay();
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col font-sans selection:bg-primary/30">
@@ -77,24 +60,31 @@ export default function PricingPage() {
       <main className="flex-1 flex flex-col items-center justify-center pt-20 sm:pt-28 md:pt-32 pb-20 px-3 sm:px-6 relative overflow-hidden">
         <motion.div className="text-center max-w-3xl mx-auto mb-6 sm:mb-10 z-10" {...fadeIn}>
           <h1 className="text-2xl sm:text-4xl md:text-5xl font-bold tracking-tight mb-3 sm:mb-6 text-foreground">
-            Choose Your Plan
+            Choose Your Subscription Plan
           </h1>
           <p className="text-xs sm:text-base md:text-lg text-muted-foreground font-medium mb-5 sm:mb-8 max-w-2xl mx-auto leading-relaxed">
-            Join the personalized news ecosystem. Automate your daily briefings and enjoy an ad-free, halal audio experience.
+            Recurring auto-renew plans tailored for you. Enjoy personalized AI briefings, halal audio filtering, and 1-click cancellation anytime.
           </p>
 
-          <div className="flex items-center justify-center gap-2 sm:gap-3 bg-muted/80 p-1 sm:p-1.5 rounded-full border border-border w-fit mx-auto">
+          {/* Weekly / Monthly / Yearly Cycle Switcher */}
+          <div className="flex items-center justify-center gap-1.5 sm:gap-2 bg-muted/80 p-1.5 rounded-full border border-border w-fit mx-auto shadow-sm">
             <button
-              onClick={() => setIsAnnual(false)}
-              className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-bold transition-all ${!isAnnual ? 'bg-primary text-primary-foreground shadow-md' : 'text-muted-foreground hover:text-foreground'}`}
+              onClick={() => setCycle("weekly")}
+              className={`px-3 sm:px-4 py-1.5 rounded-full text-xs sm:text-sm font-bold transition-all ${cycle === "weekly" ? 'bg-primary text-primary-foreground shadow-md' : 'text-muted-foreground hover:text-foreground'}`}
             >
-              Monthly
+              Weekly (৳30)
             </button>
             <button
-              onClick={() => setIsAnnual(true)}
-              className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5 ${isAnnual ? 'bg-primary text-primary-foreground shadow-md' : 'text-muted-foreground hover:text-foreground'}`}
+              onClick={() => setCycle("monthly")}
+              className={`px-3 sm:px-4 py-1.5 rounded-full text-xs sm:text-sm font-bold transition-all ${cycle === "monthly" ? 'bg-primary text-primary-foreground shadow-md' : 'text-muted-foreground hover:text-foreground'}`}
             >
-              Yearly
+              Monthly (৳100)
+            </button>
+            <button
+              onClick={() => setCycle("yearly")}
+              className={`px-3 sm:px-4 py-1.5 rounded-full text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5 ${cycle === "yearly" ? 'bg-primary text-primary-foreground shadow-md' : 'text-muted-foreground hover:text-foreground'}`}
+            >
+              Yearly (৳1,000)
               <span className="bg-green-500/20 text-green-500 text-[9px] sm:text-[10px] px-1.5 sm:px-2 py-0.5 rounded-full font-bold">Save 16%</span>
             </button>
           </div>
@@ -158,13 +148,13 @@ export default function PricingPage() {
           >
             <Card className="bg-card border border-primary/50 shadow-[0_0_30px_-10px_rgba(16,185,129,0.3)] h-full flex flex-col rounded-[24px] overflow-hidden relative p-2">
               <div className="absolute top-4 right-4 bg-primary text-primary-foreground text-[10px] font-bold px-3 py-1.5 rounded-full uppercase tracking-wider">
-                Most Popular
+                Recurring Plan
               </div>
               
               <CardHeader className="pb-6 pt-6 px-8 relative overflow-hidden">
                 <CardTitle className="text-2xl font-bold flex items-center gap-2 text-foreground">
                   <Star className="w-5 h-5 text-amber-500 fill-amber-500" />
-                  Premium
+                  Premium {cycle === "weekly" ? "(Weekly)" : cycle === "yearly" ? "(Yearly)" : "(Monthly)"}
                 </CardTitle>
                 <CardDescription className="text-muted-foreground text-sm mt-2 font-medium max-w-[85%] relative z-10 leading-relaxed">
                   Everything you need. Full power of AI for your personalized news ecosystem.
@@ -172,9 +162,12 @@ export default function PricingPage() {
 
                 <div className="mt-4 flex items-baseline text-4xl font-bold relative z-10 text-foreground">
                   <span className="text-3xl mr-1 font-bold text-foreground">৳</span>
-                  {isAnnual ? "1,000" : "100"}
-                  <span className="text-base text-muted-foreground font-medium ml-2">/{isAnnual ? 'yr' : 'mo'}</span>
+                  {priceInfo.amount}
+                  <span className="text-base text-muted-foreground font-medium ml-2">{priceInfo.suffix}</span>
                 </div>
+                <p className="text-[11px] text-emerald-500 font-semibold mt-1">
+                  ✓ Recurring auto-renew • Cancel anytime from Dashboard
+                </p>
               </CardHeader>
               
               <CardContent className="px-8 flex-1">
@@ -206,11 +199,11 @@ export default function PricingPage() {
               <CardFooter className="px-8 pb-8 pt-4 flex-col gap-3">
                 {status === "authenticated" ? (
                   <>
-                    <Link href={`/checkout?annual=${isAnnual}`} className="w-full">
+                    <Link href={`/checkout?cycle=${cycle}`} className="w-full">
                       <Button 
                         className="w-full bg-primary text-primary-foreground hover:bg-primary/90 h-12 rounded-xl font-bold text-[15px] shadow-md"
                       >
-                        Upgrade Now
+                        Subscribe ({cycle === 'weekly' ? '৳30/wk' : cycle === 'yearly' ? '৳1,000/yr' : '৳100/mo'})
                       </Button>
                     </Link>
                     <Button 
