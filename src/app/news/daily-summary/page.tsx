@@ -25,11 +25,29 @@ const cleanMarkdown = (text: string) => {
 export default function DailySummaryPage() {
   const { news, loading } = useNews();
   const [currentDate, setCurrentDate] = useState("");
+  const [podcastAudioUrl, setPodcastAudioUrl] = useState<string | null>(null);
+  const [isGeneratingPodcast, setIsGeneratingPodcast] = useState(false);
 
   useEffect(() => {
-    setCurrentDate(new Date().toLocaleDateString('bn-BD', {
-      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
-    }));
+    setCurrentDate(
+      new Date().toLocaleDateString('bn-BD', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      })
+    );
+
+    async function loadExistingPodcast() {
+      try {
+        const res = await fetch('/api/podcast/generate');
+        const json = await res.json();
+        if (json.success && json.podcast?.audio_url) {
+          setPodcastAudioUrl(json.podcast.audio_url);
+        }
+      } catch (e) {}
+    }
+    loadExistingPodcast();
   }, []);
 
   if (loading) {
@@ -43,25 +61,46 @@ export default function DailySummaryPage() {
   // Extract unique sources and topics from today's news
   const sources = Array.from(new Set(news.map((n: any) => n.source).filter(Boolean)));
   const topics = Array.from(new Set(news.map((n: any) => n.category).filter(Boolean)));
-  
+
   // Aggregate summary points
   const keyPoints = news.slice(0, 5).map((n: any) => ({
     id: n.id || n._id,
     title: n.headline || n.title,
     summary: cleanMarkdown(n.ai_summary || n.summary || ""),
-    category: n.category
+    category: n.category,
   }));
 
-  const handlePlayAudio = () => {
-    const newsSummaryList = keyPoints.map((p, i) => `খবর ${i + 1}: ${p.title}. ${p.summary}`).join(". ");
+  const handlePlayAudio = async () => {
+    let audioUrl = podcastAudioUrl;
+
+    if (!audioUrl) {
+      setIsGeneratingPodcast(true);
+      try {
+        const res = await fetch('/api/podcast/generate', { method: 'POST' });
+        const json = await res.json();
+        if (json.success && json.data?.audio_url) {
+          audioUrl = json.data.audio_url;
+          setPodcastAudioUrl(audioUrl);
+        }
+      } catch (e) {
+        console.warn('Generating on-the-fly podcast failed:', e);
+      } finally {
+        setIsGeneratingPodcast(false);
+      }
+    }
+
+    const newsSummaryList = keyPoints.map((p, i) => `খবর ${i + 1}: ${p.title}. ${p.summary}`).join('. ');
     const podcastScript = `শুভ সকাল! আজ ${currentDate}। কহাফ নিউজের স্পেশাল এআই পডকাস্টে আপনাকে স্বাগতম। আজকের আবহাওয়া: তাপমাত্রা প্রায় ২৯ ডিগ্রি সেলসিয়াস, আবহাওয়া পরিষ্কার। আজ বাইরে বের হওয়ার আগে তীব্র রোদ এড়াতে প্রয়োজনে ছাতা বা সানগ্লাস সঙ্গে রাখতে পারেন। রাস্তাঘাটের যানজট পরিস্থিতি: প্রধান প্রধান সড়ক ও মোড়গুলোতে সকালের দিকে কিছুটা স্বাভাবিক চাপ থাকতে পারে, সময় হাতে নিয়ে বের হোন। এবার দেখে নেওয়া যাক আজকের প্রধান খবরগুলো: ${newsSummaryList}। কহাফ নিউজের সাথে থাকার জন্য ধন্যবাদ। দিনটি আপনার শুভ হোক!`;
 
     const event = new CustomEvent('play-audio', {
       detail: {
-        id: "daily-podcast",
+        id: 'daily-podcast',
         title: `আজকের এআই পডকাস্ট - ${currentDate}`,
-        summary: podcastScript
-      }
+        summary: podcastScript,
+        preferredType: 'summary',
+        preferredLang: 'BN',
+        audioUrls: audioUrl ? { bn_summary: audioUrl } : undefined,
+      },
     });
     window.dispatchEvent(event);
   };
@@ -105,9 +144,22 @@ export default function DailySummaryPage() {
           </p>
 
           <div className="grid grid-cols-2 gap-3 w-full">
-            <Button onClick={handlePlayAudio} className="w-full bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl font-bold py-2.5 text-xs sm:text-sm gap-2 shadow-sm transition-all cursor-pointer">
-              <Volume2 className="w-4 h-4 shrink-0" />
-              <span>শুনুন (Listen)</span>
+            <Button
+              onClick={handlePlayAudio}
+              disabled={isGeneratingPodcast}
+              className="w-full bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl font-bold py-2.5 text-xs sm:text-sm gap-2 shadow-sm transition-all cursor-pointer"
+            >
+              {isGeneratingPodcast ? (
+                <>
+                  <div className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                  <span>জেনারেট হচ্ছে...</span>
+                </>
+              ) : (
+                <>
+                  <Volume2 className="w-4 h-4 shrink-0" />
+                  <span>শুনুন (Listen)</span>
+                </>
+              )}
             </Button>
             <Button variant="outline" className="w-full rounded-xl font-bold py-2.5 text-xs sm:text-sm gap-2 border-border hover:bg-muted text-foreground cursor-pointer">
               <FileText className="w-4 h-4 shrink-0" />

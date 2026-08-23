@@ -238,63 +238,96 @@ export default function NewsDetailPage() {
   const renderCleanedNewsContent = (content: string) => {
     if (!content) return <p className="text-muted-foreground italic">Full news content is not available.</p>;
 
-    const lines = content.split('\n').filter(line => line.trim() !== '');
-    const paragraphs: string[] = [];
-    const images: string[] = [];
-    const metadata: string[] = [];
+    const lines = content.split('\n').filter((line) => line.trim() !== '');
+    const elements: React.ReactNode[] = [];
 
-    lines.forEach(line => {
+    lines.forEach((line, idx) => {
+      const trimmed = line.trim();
+
       // Check for markdown image: ![alt](url)
-      const mdImageMatch = line.match(/!\[.*?\]\((.*?)\)/);
+      const mdImageMatch = trimmed.match(/!\[.*?\]\((.*?)\)/);
       if (mdImageMatch) {
-        images.push(mdImageMatch[1]);
+        elements.push(
+          <img
+            key={`img-${idx}`}
+            src={mdImageMatch[1]}
+            alt=""
+            className="w-full max-h-[280px] sm:max-h-[340px] rounded-xl object-cover border border-border shadow-sm my-3 mx-auto"
+          />
+        );
         return;
       }
-      
+
       // Check for raw image URL
-      if (line.match(/^https?:\/\/.*\.(jpeg|jpg|gif|png|webp)(\?.*)?$/i)) {
-        images.push(line.trim());
+      if (trimmed.match(/^https?:\/\/.*\.(jpeg|jpg|gif|png|webp)(\?.*)?$/i)) {
+        elements.push(
+          <img
+            key={`rawimg-${idx}`}
+            src={trimmed}
+            alt=""
+            className="w-full max-h-[280px] sm:max-h-[340px] rounded-xl object-cover border border-border shadow-sm my-3 mx-auto"
+          />
+        );
         return;
       }
 
-      // Check for common metadata-like lines
-      if (line.toLowerCase().startsWith('author:') || 
-          line.toLowerCase().startsWith('source:') || 
-          line.toLowerCase().startsWith('published:') ||
-          line.toLowerCase().startsWith('date:')) {
-        metadata.push(line);
+      // Check for Markdown Headings: #, ##, ###, ####
+      const headingMatch = trimmed.match(/^(#{1,4})\s+(.+)$/);
+      if (headingMatch) {
+        const headingText = headingMatch[2].replace(/[*_#]/g, '').trim();
+        elements.push(
+          <h3
+            key={`h-${idx}`}
+            className="text-sm sm:text-base md:text-lg font-bold text-foreground mt-5 mb-1.5 tracking-tight border-l-2 border-primary pl-2.5"
+          >
+            {headingText}
+          </h3>
+        );
         return;
       }
 
-      paragraphs.push(line);
+      // Check for bullet list: * item or - item or • item
+      if (trimmed.startsWith('* ') || trimmed.startsWith('- ') || trimmed.startsWith('• ')) {
+        const itemText = trimmed.replace(/^[\*\-\•]\s+/, '').replace(/\*\*(.*?)\*\*/g, '$1');
+        elements.push(
+          <li
+            key={`li-${idx}`}
+            className="text-xs sm:text-sm md:text-[15px] leading-relaxed text-foreground/90 ml-4 list-disc mb-1"
+          >
+            {itemText}
+          </li>
+        );
+        return;
+      }
+
+      // Metadata / Source lines
+      if (
+        trimmed.toLowerCase().startsWith('author:') ||
+        trimmed.toLowerCase().startsWith('source:') ||
+        trimmed.toLowerCase().startsWith('published:') ||
+        trimmed.toLowerCase().startsWith('date:')
+      ) {
+        elements.push(
+          <div
+            key={`meta-${idx}`}
+            className="text-[11px] font-mono text-muted-foreground bg-muted/30 px-3 py-1.5 rounded-lg border border-border inline-block my-1"
+          >
+            {trimmed}
+          </div>
+        );
+        return;
+      }
+
+      // Normal paragraph
+      const cleanPara = trimmed.replace(/\*\*(.*?)\*\*/g, '$1').replace(/\*(.*?)\*/g, '$1');
+      elements.push(
+        <p key={`p-${idx}`} className="text-xs sm:text-sm md:text-[15px] leading-relaxed text-foreground/90 font-normal">
+          {cleanPara}
+        </p>
+      );
     });
 
-    return (
-      <div className="space-y-3.5">
-        {paragraphs.map((p, i) => (
-          <p key={i} className="text-xs sm:text-sm md:text-[15px] leading-relaxed text-foreground/90 font-normal">
-            {p.replace(/\*\*(.*?)\*\*/g, '$1').replace(/\*(.*?)\*/g, '$1')}
-          </p>
-        ))}
-        
-        {images.length > 0 && (
-          <div className="flex flex-col gap-3 my-4">
-            {images.map((img, i) => (
-              <img key={i} src={img} alt="" className="w-full max-h-[260px] sm:max-h-[300px] rounded-xl object-cover border border-border shadow-sm mx-auto" />
-            ))}
-          </div>
-        )}
-
-        {metadata.length > 0 && (
-          <div className="mt-8 p-4 bg-muted/30 rounded-xl border border-border text-xs text-muted-foreground">
-            <h4 className="font-bold mb-2 text-foreground text-xs">Metadata / Credits</h4>
-            {metadata.map((meta, i) => (
-              <div key={i} className="mb-0.5 last:mb-0">{meta}</div>
-            ))}
-          </div>
-        )}
-      </div>
-    );
+    return <div className="space-y-3.5">{elements}</div>;
   };
 
   return (
@@ -374,10 +407,10 @@ export default function NewsDetailPage() {
           <div className="flex items-center gap-2 w-full sm:w-auto">
             <Button 
               className="flex-1 sm:flex-none h-8 text-xs rounded-lg gap-1.5 font-bold bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm"
-              onClick={() => handlePlayAudio("summary")}
+              onClick={() => handlePlayAudio(activeView)}
             >
               <Play className="w-3 h-3 fill-current" />
-              Listen Summary
+              {activeView === "full" ? "Listen Full News" : "Listen Summary"}
             </Button>
           </div>
         </motion.div>

@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>/ — graphify tree viewer</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f9f9f9;
+      color: #333;
+    }
+    h1 {
+      margin: 20px 0 0 24px;
+      font-size: 2.2rem;
+      font-weight: bold;
+      color: #1e3a56;
+    }
+    .controls {
+      margin: 20px 0 15px 24px;
+    }
+    button {
+      margin-right: 10px;
+      padding: 8px 18px;
+      background: #007bff;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: background 0.2s ease-in-out;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    button:hover {
+      background: #0056b3;
+    }
+    button:active {
+      background: #004085;
+    }
+    #tree-container {
+      width: calc(100vw - 48px); /* Adjust for body margin/padding */
+      height: 85vh;
+      overflow: auto;
+      border-radius: 8px;
+      background: #fff;
+      margin-left: 24px;
+      margin-right: 24px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+      border: 1px solid #ddd;
+    }
+    svg {
+      background: #fff;
+      border-radius: 8px;
+      display: block; /* Important for D3 */
+    }
+    .node circle {
+      stroke-width: 2.5px;
+    }
+    .node text { /* Base style for the <text> container */
+      font: 13px 'Segoe UI', sans-serif;
+      paint-order: stroke fill; /* Ensures text is readable over lines */
+      stroke: #fff; /* White halo */
+      stroke-width: 3px; /* Halo thickness */
+      stroke-linejoin: round;
+      stroke-opacity: 0.85; /* Halo opacity */
+    }
+    .link {
+      fill: none;
+      stroke-opacity: 0.7;
+      stroke-width: 2px;
+    }
+  </style>
+</head>
+<body>
+  <h1>/ — Knowledge Graph</h1>
+  <div class="controls">
+    <button onclick="expandAll()">Expand All</button>
+    <button onclick="collapseAll()">Collapse All</button>
+    <button onclick="resetView()">Reset View</button>
+  </div>
+  <div id="tree-container">
+    <svg id="tree-svg" width="6000" height="8000"></svg>
+  </div>
+
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script>
+    const initialJsonData = {"name":"/","total_count":437,"children":[{"name":"components.json","total_count":19,"children":[{"name":"$schema","total_count":1,"children":[]},{"name":"aliases","total_count":1,"children":[]},{"name":"baseColor","total_count":1,"children":[]},{"name":"components","total_count":1,"children":[]},{"name":"config","total_count":1,"children":[]},{"name":"css","total_count":1,"children":[]},{"name":"cssVariables","total_count":1,"children":[]},{"name":"hooks","total_count":1,"children":[]},{"name":"iconLibrary","total_count":1,"children":[]},{"name":"lib","total_count":1,"children":[]},{"name":"prefix","total_count":1,"children":[]},{"name":"registries","total_count":1,"children":[]},{"name":"rsc","total_count":1,"children":[]},{"name":"rtl","total_count":1,"children":[]},{"name":"style","total_count":1,"children":[]},{"name":"tailwind","total_count":1,"children":[]},{"name":"tsx","total_count":1,"children":[]},{"name":"ui","total_count":1,"children":[]},{"name":"utils","total_count":1,"children":[]}]},{"name":"eslint.config.mjs","total_count":1,"children":[{"name":"eslintConfig","total_count":1,"children":[]}]},{"name":"kahf-tts","total_count":4,"children":[{"name":"main.py","total_count":4,"children":[{"name":"generate_tts()","total_count":1,"children":[]},{"name":"get_voices()","total_count":1,"children":[]},{"name":"health()","total_count":1,"children":[]},{"name":"TTSRequest","total_count":1,"children":[]}]}]},{"name":"next.config.ts","total_count":1,"children":[{"name":"nextConfig","total_count":1,"children":[]}]},{"name":"package.json","total_count":110,"children":[{"name":"@google/generative-ai","total_count":1,"children":[]},{"name":"@google/generative-ai","total_count":1,"children":[]},{"name":"@hookform/resolvers","total_count":1,"children":[]},{"name":"@hookform/resolvers","total_count":1,"children":[]},{"name":"@paddle/paddle-js","total_count":1,"children":[]},{"name":"@paddle/paddle-js","total_count":1,"children":[]},{"name":"@paddle/paddle-node-sdk","total_count":1,"children":[]},{"name":"@paddle/paddle-node-sdk","total_count":1,"children":[]},{"name":"@stripe/stripe-js","total_count":1,"children":[]},{"name":"@stripe/stripe-js","total_count":1,"children":[]},{"name":"@supabase/ssr","total_count":1,"children":[]},{"name":"@supabase/ssr","total_count":1,"children":[]},{"name":"@supabase/supabase-js","total_count":1,"children":[]},{"name":"@supabase/supabase-js","total_count":1,"children":[]},{"name":"@tailwindcss/postcss","total_count":1,"children":[]},{"name":"@tailwindcss/postcss","total_count":1,"children":[]},{"name":"@types/bcryptjs","total_count":1,"children":[]},{"name":"@types/bcryptjs","total_count":1,"children":[]},{"name":"@types/dotenv","total_count":1,"children":[]},{"name":"@types/dotenv","total_count":1,"children":[]},{"name":"@types/howler","total_count":1,"children":[]},{"name":"@types/howler","total_count":1,"children":[]},{"name":"@types/node","total_count":1,"children":[]},{"name":"@types/node","total_count":1,"children":[]},{"name":"@types/react","total_count":1,"children":[]},{"name":"@types/react","total_count":1,"children":[]},{"name":"@types/react-dom","total_count":1,"children":[]},{"name":"@types/react-dom","total_count":1,"children":[]},{"name":"@types/streamifier","total_count":1,"children":[]},{"name":"@types/streamifier","total_count":1,"children":[]},{"name":"axios","total_count":1,"children":[]},{"name":"axios","total_count":1,"children":[]},{"name":"bcryptjs","total_count":1,"children":[]},{"name":"bcryptjs","total_count":1,"children":[]},{"name":"build","total_count":1,"children":[]},{"name":"cheerio","total_count":1,"children":[]},{"name":"cheerio","total_count":1,"children":[]},{"name":"class-variance-authority","total_count":1,"children":[]},{"name":"class-variance-authority","total_count":1,"children":[]},{"name":"cloudinary","total_count":1,"children":[]},{"name":"cloudinary","total_count":1,"children":[]},{"name":"clsx","total_count":1,"children":[]},{"name":"clsx","total_count":1,"children":[]},{"name":"dependencies","total_count":1,"children":[]},{"name":"dev","total_count":1,"children":[]},{"name":"devDependencies","total_count":1,"children":[]},{"name":"dotenv","total_count":1,"children":[]},{"name":"dotenv","total_count":1,"children":[]},{"name":"duck-duck-scrape","total_count":1,"children":[]},{"name":"duck-duck-scrape","total_count":1,"children":[]},{"name":"embla-carousel-react","total_count":1,"children":[]},{"name":"embla-carousel-react","total_count":1,"children":[]},{"name":"eslint","total_count":1,"children":[]},{"name":"eslint","total_count":1,"children":[]},{"name":"eslint-config-next","total_count":1,"children":[]},{"name":"eslint-config-next","total_count":1,"children":[]},{"name":"framer-motion","total_count":1,"children":[]},{"name":"framer-motion","total_count":1,"children":[]},{"name":"google-tts-api","total_count":1,"children":[]},{"name":"google-tts-api","total_count":1,"children":[]},{"name":"hls.js","total_count":1,"children":[]},{"name":"hls.js","total_count":1,"children":[]},{"name":"howler","total_count":1,"children":[]},{"name":"howler","total_count":1,"children":[]},{"name":"inngest","total_count":1,"children":[]},{"name":"inngest","total_count":1,"children":[]},{"name":"lint","total_count":1,"children":[]},{"name":"lucide-react","total_count":1,"children":[]},{"name":"lucide-react","total_count":1,"children":[]},{"name":"name","total_count":1,"children":[]},{"name":"next","total_count":1,"children":[]},{"name":"next","total_count":1,"children":[]},{"name":"next-themes","total_count":1,"children":[]},{"name":"next-themes","total_count":1,"children":[]},{"name":"node-cron","total_count":1,"children":[]},{"name":"node-cron","total_count":1,"children":[]},{"name":"private","total_count":1,"children":[]},{"name":"puppeteer","total_count":1,"children":[]},{"name":"puppeteer","total_count":1,"children":[]},{"name":"radix-ui","total_count":1,"children":[]},{"name":"radix-ui","total_count":1,"children":[]},{"name":"react","total_count":1,"children":[]},{"name":"react","total_count":1,"children":[]},{"name":"react-dom","total_count":1,"children":[]},{"name":"react-dom","total_count":1,"children":[]},{"name":"react-hook-form","total_count":1,"children":[]},{"name":"react-hook-form","total_count":1,"children":[]},{"name":"react-markdown","total_count":1,"children":[]},{"name":"react-markdown","total_count":1,"children":[]},{"name":"rss-parser","total_count":1,"children":[]},{"name":"rss-parser","total_count":1,"children":[]},{"name":"scripts","total_count":1,"children":[]},{"name":"start","total_count":1,"children":[]},{"name":"streamifier","total_count":1,"children":[]},{"name":"streamifier","total_count":1,"children":[]},{"name":"stripe","total_count":1,"children":[]},{"name":"stripe","total_count":1,"children":[]},{"name":"tailwind-merge","total_count":1,"children":[]},{"name":"tailwind-merge","total_count":1,"children":[]},{"name":"tailwindcss","total_count":1,"children":[]},{"name":"tailwindcss","total_count":1,"children":[]},{"name":"tailwindcss-animate","total_count":1,"children":[]},{"name":"tailwindcss-animate","total_count":1,"children":[]},{"name":"tw-animate-css","total_count":1,"children":[]},{"name":"tw-animate-css","total_count":1,"children":[]},{"name":"typescript","total_count":1,"children":[]},{"name":"typescript","total_count":1,"children":[]},{"name":"version","total_count":1,"children":[]},{"name":"zod","total_count":1,"children":[]},{"name":"zod","total_count":1,"children":[]}]},{"name":"postcss.config.mjs","total_count":1,"children":[{"name":"config","total_count":1,"children":[]}]},{"name":"scripts","total_count":24,"children":[{"name":"check_status.ts","total_count":2,"children":[{"name":"checkArticleStatus()","total_count":1,"children":[]},{"name":"supabaseAdmin","total_count":1,"children":[]}]},{"name":"generate_existing_audio.ts","total_count":6,"children":[{"name":"generateAudioBuffer()","total_count":1,"children":[]},{"name":"processAllNewsAudios()","total_count":1,"children":[]},{"name":"sleep()","total_count":1,"children":[]},{"name":"supabaseAdmin","total_count":1,"children":[]},{"name":"translateToEnglish()","total_count":1,"children":[]},{"name":"uploadAudioToCloudinary()","total_count":1,"children":[]}]},{"name":"generate_gemini_summary_audio.ts","total_count":4,"children":[{"name":"runGeminiAudioBatch()","total_count":1,"children":[]},{"name":"sleep()","total_count":1,"children":[]},{"name":"supabaseAdmin","total_count":1,"children":[]},{"name":"translateToEnglish()","total_count":1,"children":[]}]},{"name":"migrate_db.ts","total_count":5,"children":[{"name":"destDb","total_count":1,"children":[]},{"name":"migrateTable()","total_count":1,"children":[]},{"name":"runMigration()","total_count":1,"children":[]},{"name":"sourceDb","total_count":1,"children":[]},{"name":"tablesToMigrate","total_count":1,"children":[]}]},{"name":"seed.ts","total_count":2,"children":[{"name":"main()","total_count":1,"children":[]},{"name":"supabase","total_count":1,"children":[]}]},{"name":"seed_users.ts","total_count":3,"children":[{"name":"seedUsers()","total_count":1,"children":[]},{"name":"supabaseAdmin","total_count":1,"children":[]},{"name":"usersToCreate","total_count":1,"children":[]}]},{"name":"test_gemini_tts.ts","total_count":1,"children":[{"name":"testTts()","total_count":1,"children":[]}]},{"name":"verify_all_audios.ts","total_count":1,"children":[{"name":"runChecks()","total_count":1,"children":[]}]}]},{"name":"src","total_count":247,"children":[{"name":"actions","total_count":5,"children":[{"name":"newsActions.ts","total_count":5,"children":[{"name":"fetchLatestNews()","total_count":1,"children":[]},{"name":"getMockNews()","total_count":1,"children":[]},{"name":"getNewsById()","total_count":1,"children":[]},{"name":"getNewsFromDB()","total_count":1,"children":[]},{"name":"searchNews()","total_count":1,"children":[]}]}]},{"name":"app","total_count":139,"children":[{"name":"admin","total_count":9,"children":[{"name":"layout.tsx","total_count":1,"children":[{"name":"AdminLayout()","total_count":1,"children":[]}]},{"name":"library","total_count":1,"children":[{"name":"page.tsx","total_count":1,"children":[{"name":"AdminLibraryPage()","total_count":1,"children":[]}]}]},{"name":"page.tsx","total_count":2,"children":[{"name":"AdminDashboard()","total_count":1,"children":[]},{"name":"loadData()","total_count":1,"children":[]}]},{"name":"scraping","total_count":1,"children":[{"name":"page.tsx","total_count":1,"children":[{"name":"AdminScrapingPage()","total_count":1,"children":[]}]}]},{"name":"users","total_count":4,"children":[{"name":"[id]","total_count":2,"children":[{"name":"page.tsx","total_count":2,"children":[{"name":"fetchUserData()","total_count":1,"children":[]},{"name":"UserPaymentHistoryPage()","total_count":1,"children":[]}]}]},{"name":"page.tsx","total_count":2,"children":[{"name":"AdminUsersPage()","total_count":1,"children":[]},{"name":"fetchUsers()","total_count":1,"children":[]}]}]}]},{"name":"api","total_count":63,"children":[{"name":"admin","total_count":13,"children":[{"name":"articles","total_count":3,"children":[{"name":"route.ts","total_count":3,"children":[{"name":"DELETE()","total_count":1,"children":[]},{"name":"GET()","total_count":1,"children":[]},{"name":"PATCH()","total_count":1,"children":[]}]}]},{"name":"export-csv","total_count":2,"children":[{"name":"route.ts","total_count":2,"children":[{"name":"dynamic","total_count":1,"children":[]},{"name":"GET()","total_count":1,"children":[]}]}]},{"name":"reports","total_count":2,"children":[{"name":"route.ts","total_count":2,"children":[{"name":"dynamic","total_count":1,"children":[]},{"name":"GET()","total_count":1,"children":[]}]}]},{"name":"setup-admin","total_count":3,"children":[{"name":"route.ts","total_count":3,"children":[{"name":"dynamic","total_count":1,"children":[]},{"name":"GET()","total_count":1,"children":[]},{"name":"POST()","total_count":1,"children":[]}]}]},{"name":"stats","total_count":1,"children":[{"name":"route.ts","total_count":1,"children":[{"name":"GET()","total_count":1,"children":[]}]}]},{"name":"users","total_count":2,"children":[{"name":"[id]","total_count":1,"children":[{"name":"route.ts","total_count":1,"children":[{"name":"GET()","total_count":1,"children":[]}]}]},{"name":"route.ts","total_count":1,"children":[{"name":"GET()","total_count":1,"children":[]}]}]}]},{"name":"audio","total_count":2,"children":[{"name":"generate","total_count":1,"children":[{"name":"route.ts","total_count":1,"children":[{"name":"POST()","total_count":1,"children":[]}]}]},{"name":"tts","total_count":1,"children":[{"name":"route.ts","total_count":1,"children":[{"name":"GET()","total_count":1,"children":[]}]}]}]},{"name":"bookmarks","total_count":4,"children":[{"name":"route.ts","total_count":4,"children":[{"name":"DELETE()","total_count":1,"children":[]},{"name":"GET()","total_count":1,"children":[]},{"name":"getSupabaseClient()","total_count":1,"children":[]},{"name":"POST()","total_count":1,"children":[]}]}]},{"name":"checkout","total_count":11,"children":[{"name":"aamarpay","total_count":2,"children":[{"name":"callback","total_count":1,"children":[{"name":"route.ts","total_count":1,"children":[{"name":"POST()","total_count":1,"children":[]}]}]},{"name":"route.ts","total_count":1,"children":[{"name":"POST()","total_count":1,"children":[]}]}]},{"name":"paddle","total_count":1,"children":[{"name":"route.ts","total_count":1,"children":[{"name":"POST()","total_count":1,"children":[]}]}]},{"name":"route.ts","total_count":2,"children":[{"name":"POST()","total_count":1,"children":[]},{"name":"stripe","total_count":1,"children":[]}]},{"name":"sslcommerz","total_count":2,"children":[{"name":"callback","total_count":1,"children":[{"name":"route.ts","total_count":1,"children":[{"name":"POST()","total_count":1,"children":[]}]}]},{"name":"route.ts","total_count":1,"children":[{"name":"POST()","total_count":1,"children":[]}]}]},{"name":"trial","total_count":2,"children":[{"name":"expire","total_count":1,"children":[{"name":"route.ts","total_count":1,"children":[{"name":"POST()","total_count":1,"children":[]}]}]},{"name":"route.ts","total_count":1,"children":[{"name":"POST()","total_count":1,"children":[]}]}]},{"name":"verify","total_count":2,"children":[{"name":"route.ts","total_count":2,"children":[{"name":"POST()","total_count":1,"children":[]},{"name":"stripe","total_count":1,"children":[]}]}]}]},{"name":"cron","total_count":1,"children":[{"name":"pipeline","total_count":1,"children":[{"name":"route.ts","total_count":1,"children":[{"name":"GET()","total_count":1,"children":[]}]}]}]},{"name":"ingest","total_count":4,"children":[{"name":"direct","total_count":1,"children":[{"name":"route.ts","total_count":1,"children":[{"name":"POST()","total_count":1,"children":[]}]}]},{"name":"trigger-rss","total_count":3,"children":[{"name":"route.ts","total_count":3,"children":[{"name":"dynamic","total_count":1,"children":[]},{"name":"GET()","total_count":1,"children":[]},{"name":"maxDuration","total_count":1,"children":[]}]}]}]},{"name":"inngest","total_count":2,"children":[{"name":"route.ts","total_count":2,"children":[{"name":"maxDuration","total_count":1,"children":[]},{"name":"{ GET, POST, PUT }","total_count":1,"children":[]}]}]},{"name":"iptv","total_count":6,"children":[{"name":"route.ts","total_count":6,"children":[{"name":"ChannelConfig","total_count":1,"children":[]},{"name":"CHANNELS","total_count":1,"children":[]},{"name":"dynamic","total_count":1,"children":[]},{"name":"GET()","total_count":1,"children":[]},{"name":"parser","total_count":1,"children":[]},{"name":"resolveChannelMedia()","total_count":1,"children":[]}]}]},{"name":"news","total_count":4,"children":[{"name":"[id]","total_count":1,"children":[{"name":"route.ts","total_count":1,"children":[{"name":"GET()","total_count":1,"children":[]}]}]},{"name":"route.ts","total_count":3,"children":[{"name":"dynamic","total_count":1,"children":[]},{"name":"GET()","total_count":1,"children":[]},{"name":"POST()","total_count":1,"children":[]}]}]},{"name":"podcast","total_count":3,"children":[{"name":"generate","total_count":3,"children":[{"name":"route.ts","total_count":3,"children":[{"name":"dynamic","total_count":1,"children":[]},{"name":"GET()","total_count":1,"children":[]},{"name":"POST()","total_count":1,"children":[]}]}]}]},{"name":"settings","total_count":2,"children":[{"name":"route.ts","total_count":2,"children":[{"name":"GET()","total_count":1,"children":[]},{"name":"POST()","total_count":1,"children":[]}]}]},{"name":"setup-admin","total_count":1,"children":[{"name":"route.ts","total_count":1,"children":[{"name":"GET()","total_count":1,"children":[]}]}]},{"name":"sources","total_count":2,"children":[{"name":"route.ts","total_count":2,"children":[{"name":"GET()","total_count":1,"children":[]},{"name":"POST()","total_count":1,"children":[]}]}]},{"name":"weather","total_count":8,"children":[{"name":"route.ts","total_count":4,"children":[{"name":"BANGLA_DAYS","total_count":1,"children":[]},{"name":"BANGLA_MONTHS","total_count":1,"children":[]},{"name":"GET()","total_count":1,"children":[]},{"name":"getTrafficInfo()","total_count":1,"children":[]}]},{"name":"weather","total_count":4,"children":[{"name":"route.ts","total_count":4,"children":[{"name":"BANGLA_DAYS","total_count":1,"children":[]},{"name":"BANGLA_MONTHS","total_count":1,"children":[]},{"name":"GET()","total_count":1,"children":[]},{"name":"getTrafficInfo()","total_count":1,"children":[]}]}]}]}]},{"name":"archive","total_count":6,"children":[{"name":"page.tsx","total_count":6,"children":[{"name":"ArchivePage()","total_count":1,"children":[]},{"name":"containerVariants","total_count":1,"children":[]},{"name":"fetchArchive()","total_count":1,"children":[]},{"name":"fetchSavedBookmarks()","total_count":1,"children":[]},{"name":"getPlaceholderImage()","total_count":1,"children":[]},{"name":"itemVariants","total_count":1,"children":[]}]}]},{"name":"categories","total_count":4,"children":[{"name":"page.tsx","total_count":4,"children":[{"name":"CATEGORIES","total_count":1,"children":[]},{"name":"CategoriesPage()","total_count":1,"children":[]},{"name":"containerVariants","total_count":1,"children":[]},{"name":"itemVariants","total_count":1,"children":[]}]}]},{"name":"checkout","total_count":2,"children":[{"name":"page.tsx","total_count":2,"children":[{"name":"CheckoutContent()","total_count":1,"children":[]},{"name":"CheckoutPage()","total_count":1,"children":[]}]}]},{"name":"discover","total_count":6,"children":[{"name":"page.tsx","total_count":6,"children":[{"name":"CATEGORIES","total_count":1,"children":[]},{"name":"containerVariants","total_count":1,"children":[]},{"name":"DiscoverPage()","total_count":1,"children":[]},{"name":"FEATURED_STORIES","total_count":1,"children":[]},{"name":"itemVariants","total_count":1,"children":[]},{"name":"TRENDING_TOPICS","total_count":1,"children":[]}]}]},{"name":"layout.tsx","total_count":4,"children":[{"name":"hindSiliguri","total_count":1,"children":[]},{"name":"metadata","total_count":1,"children":[]},{"name":"notoSerif","total_count":1,"children":[]},{"name":"RootLayout()","total_count":1,"children":[]}]},{"name":"login","total_count":3,"children":[{"name":"page.tsx","total_count":3,"children":[{"name":"LoginFormValues","total_count":1,"children":[]},{"name":"LoginPage()","total_count":1,"children":[]},{"name":"loginSchema","total_count":1,"children":[]}]}]},{"name":"media","total_count":7,"children":[{"name":"page.tsx","total_count":7,"children":[{"name":"ChannelLogo()","total_count":1,"children":[]},{"name":"defaultChannels","total_count":1,"children":[]},{"name":"IPTVChannel","total_count":1,"children":[]},{"name":"MediaPage()","total_count":1,"children":[]},{"name":"NewsVideo","total_count":1,"children":[]},{"name":"realNewsVideos","total_count":1,"children":[]},{"name":"toBengaliDigits()","total_count":1,"children":[]}]}]},{"name":"models","total_count":5,"children":[{"name":"page.tsx","total_count":5,"children":[{"name":"AIModelsPage()","total_count":1,"children":[]},{"name":"LinuxIcon()","total_count":1,"children":[]},{"name":"MacIcon()","total_count":1,"children":[]},{"name":"SparklesIcon()","total_count":1,"children":[]},{"name":"WindowsIcon()","total_count":1,"children":[]}]}]},{"name":"news","total_count":9,"children":[{"name":"[id]","total_count":7,"children":[{"name":"page.tsx","total_count":7,"children":[{"name":"checkSavedStatus()","total_count":1,"children":[]},{"name":"containerVariants","total_count":1,"children":[]},{"name":"fetchArticle()","total_count":1,"children":[]},{"name":"fetchRelated()","total_count":1,"children":[]},{"name":"getPlaceholderImage()","total_count":1,"children":[]},{"name":"itemVariants","total_count":1,"children":[]},{"name":"NewsDetailPage()","total_count":1,"children":[]}]}]},{"name":"daily-summary","total_count":2,"children":[{"name":"page.tsx","total_count":2,"children":[{"name":"cleanMarkdown()","total_count":1,"children":[]},{"name":"DailySummaryPage()","total_count":1,"children":[]}]}]}]},{"name":"page.tsx","total_count":4,"children":[{"name":"containerVariants","total_count":1,"children":[]},{"name":"COUNTRIES","total_count":1,"children":[]},{"name":"Home()","total_count":1,"children":[]},{"name":"itemVariants","total_count":1,"children":[]}]},{"name":"pricing","total_count":5,"children":[{"name":"cancel","total_count":1,"children":[{"name":"page.tsx","total_count":1,"children":[{"name":"CheckoutCancelPage()","total_count":1,"children":[]}]}]},{"name":"invoice","total_count":1,"children":[{"name":"page.tsx","total_count":1,"children":[{"name":"LocalInvoicePage()","total_count":1,"children":[]}]}]},{"name":"page.tsx","total_count":1,"children":[{"name":"PricingPage()","total_count":1,"children":[]}]},{"name":"success","total_count":2,"children":[{"name":"page.tsx","total_count":2,"children":[{"name":"CheckoutSuccessContent()","total_count":1,"children":[]},{"name":"CheckoutSuccessPage()","total_count":1,"children":[]}]}]}]},{"name":"privacy","total_count":2,"children":[{"name":"page.tsx","total_count":2,"children":[{"name":"metadata","total_count":1,"children":[]},{"name":"PrivacyPage()","total_count":1,"children":[]}]}]},{"name":"profile","total_count":7,"children":[{"name":"byok","total_count":1,"children":[{"name":"page.tsx","total_count":1,"children":[{"name":"BYOKPage()","total_count":1,"children":[]}]}]},{"name":"layout.tsx","total_count":1,"children":[{"name":"ProfileLayout()","total_count":1,"children":[]}]},{"name":"library","total_count":1,"children":[{"name":"page.tsx","total_count":1,"children":[{"name":"AdminLibraryPage()","total_count":1,"children":[]}]}]},{"name":"page.tsx","total_count":2,"children":[{"name":"fetchUserData()","total_count":1,"children":[]},{"name":"ProfileDashboard()","total_count":1,"children":[]}]},{"name":"preferences","total_count":1,"children":[{"name":"page.tsx","total_count":1,"children":[{"name":"PreferencesPage()","total_count":1,"children":[]}]}]},{"name":"scraping","total_count":1,"children":[{"name":"page.tsx","total_count":1,"children":[{"name":"AdminScrapingPage()","total_count":1,"children":[]}]}]}]},{"name":"register","total_count":3,"children":[{"name":"page.tsx","total_count":3,"children":[{"name":"RegisterFormValues","total_count":1,"children":[]},{"name":"RegisterPage()","total_count":1,"children":[]},{"name":"registerSchema","total_count":1,"children":[]}]}]}]},{"name":"components","total_count":58,"children":[{"name":"AudioPlayer.tsx","total_count":4,"children":[{"name":"AudioPlayer()","total_count":1,"children":[]},{"name":"AudioPlayerProps","total_count":1,"children":[]},{"name":"AudioTrack","total_count":1,"children":[]},{"name":"AudioUrls","total_count":1,"children":[]}]},{"name":"AudioSettingsModal.tsx","total_count":4,"children":[{"name":"AudioSettingsModal()","total_count":1,"children":[]},{"name":"AudioSettingsModalProps","total_count":1,"children":[]},{"name":"DEFAULT_SETTINGS","total_count":1,"children":[]},{"name":"TTSSettings","total_count":1,"children":[]}]},{"name":"BreakingNewsTicker.tsx","total_count":2,"children":[{"name":"BreakingNewsTicker()","total_count":1,"children":[]},{"name":"BreakingNewsTickerProps","total_count":1,"children":[]}]},{"name":"Footer.tsx","total_count":1,"children":[{"name":"Footer()","total_count":1,"children":[]}]},{"name":"GoogleTranslateLoader.tsx","total_count":1,"children":[{"name":"GoogleTranslateLoader()","total_count":1,"children":[]}]},{"name":"HeadlineCard.tsx","total_count":2,"children":[{"name":"HeadlineCard()","total_count":1,"children":[]},{"name":"HeadlineCardProps","total_count":1,"children":[]}]},{"name":"HeadlineSlider.tsx","total_count":3,"children":[{"name":"containerVariants","total_count":1,"children":[]},{"name":"HeadlineSlider()","total_count":1,"children":[]},{"name":"HeadlineSliderProps","total_count":1,"children":[]}]},{"name":"LiveFeedSidebar.tsx","total_count":5,"children":[{"name":"containerVariants","total_count":1,"children":[]},{"name":"itemVariants","total_count":1,"children":[]},{"name":"LiveFeedSidebar()","total_count":1,"children":[]},{"name":"LiveFeedSidebarProps","total_count":1,"children":[]},{"name":"LiveUpdate","total_count":1,"children":[]}]},{"name":"MainFeed.tsx","total_count":5,"children":[{"name":"CATEGORIES","total_count":1,"children":[]},{"name":"containerVariants","total_count":1,"children":[]},{"name":"itemVariants","total_count":1,"children":[]},{"name":"MainFeed()","total_count":1,"children":[]},{"name":"MainFeedProps","total_count":1,"children":[]}]},{"name":"Navbar.tsx","total_count":2,"children":[{"name":"Navbar()","total_count":1,"children":[]},{"name":"NavLink()","total_count":1,"children":[]}]},{"name":"NewsCard.tsx","total_count":3,"children":[{"name":"cleanMarkdown()","total_count":1,"children":[]},{"name":"NewsCard()","total_count":1,"children":[]},{"name":"NewsCardProps","total_count":1,"children":[]}]},{"name":"theme-provider.tsx","total_count":1,"children":[{"name":"ThemeProvider()","total_count":1,"children":[]}]},{"name":"ui","total_count":25,"children":[{"name":"badge.tsx","total_count":2,"children":[{"name":"Badge()","total_count":1,"children":[]},{"name":"badgeVariants","total_count":1,"children":[]}]},{"name":"button.tsx","total_count":2,"children":[{"name":"Button()","total_count":1,"children":[]},{"name":"buttonVariants","total_count":1,"children":[]}]},{"name":"card.tsx","total_count":7,"children":[{"name":"Card()","total_count":1,"children":[]},{"name":"CardAction()","total_count":1,"children":[]},{"name":"CardContent()","total_count":1,"children":[]},{"name":"CardDescription()","total_count":1,"children":[]},{"name":"CardFooter()","total_count":1,"children":[]},{"name":"CardHeader()","total_count":1,"children":[]},{"name":"CardTitle()","total_count":1,"children":[]}]},{"name":"dialog.tsx","total_count":10,"children":[{"name":"Dialog()","total_count":1,"children":[]},{"name":"DialogClose()","total_count":1,"children":[]},{"name":"DialogContent()","total_count":1,"children":[]},{"name":"DialogDescription()","total_count":1,"children":[]},{"name":"DialogFooter()","total_count":1,"children":[]},{"name":"DialogHeader()","total_count":1,"children":[]},{"name":"DialogOverlay()","total_count":1,"children":[]},{"name":"DialogPortal()","total_count":1,"children":[]},{"name":"DialogTitle()","total_count":1,"children":[]},{"name":"DialogTrigger()","total_count":1,"children":[]}]},{"name":"input.tsx","total_count":2,"children":[{"name":"Input","total_count":1,"children":[]},{"name":"InputProps","total_count":1,"children":[]}]},{"name":"label.tsx","total_count":1,"children":[{"name":"Label()","total_count":1,"children":[]}]},{"name":"switch.tsx","total_count":1,"children":[{"name":"Switch()","total_count":1,"children":[]}]}]}]},{"name":"hooks","total_count":3,"children":[{"name":"useNews.ts","total_count":3,"children":[{"name":"useNews()","total_count":1,"children":[]},{"name":"UseNewsOptions","total_count":1,"children":[]},{"name":"useWeather()","total_count":1,"children":[]}]}]},{"name":"lib","total_count":36,"children":[{"name":"admin-auth.ts","total_count":2,"children":[{"name":"checkAdminAuth()","total_count":1,"children":[]},{"name":"verifyAdminAuth","total_count":1,"children":[]}]},{"name":"ai.ts","total_count":4,"children":[{"name":"classifyNews()","total_count":1,"children":[]},{"name":"genAI","total_count":1,"children":[]},{"name":"summarizeNews()","total_count":1,"children":[]},{"name":"summarizeWithGemini()","total_count":1,"children":[]}]},{"name":"audio","total_count":6,"children":[{"name":"gemini-tts.ts","total_count":6,"children":[{"name":"generateChunkPcm()","total_count":1,"children":[]},{"name":"generateSeamlessGeminiAudio()","total_count":1,"children":[]},{"name":"pcmToWav()","total_count":1,"children":[]},{"name":"sleep()","total_count":1,"children":[]},{"name":"splitTextIntoSafeChunks()","total_count":1,"children":[]},{"name":"uploadAudioToCloudinary()","total_count":1,"children":[]}]}]},{"name":"auth-client.ts","total_count":3,"children":[{"name":"signIn()","total_count":1,"children":[]},{"name":"signOut()","total_count":1,"children":[]},{"name":"useSession()","total_count":1,"children":[]}]},{"name":"cloudinary.ts","total_count":1,"children":[{"name":"uploadAudioToCloudinary()","total_count":1,"children":[]}]},{"name":"inngest","total_count":5,"children":[{"name":"client.ts","total_count":1,"children":[{"name":"inngest","total_count":1,"children":[]}]},{"name":"functions","total_count":4,"children":[{"name":"process-article.ts","total_count":1,"children":[{"name":"processArticle","total_count":1,"children":[]}]},{"name":"scrape-ddg.ts","total_count":1,"children":[{"name":"scrapeDDG","total_count":1,"children":[]}]},{"name":"scrape-rss.ts","total_count":2,"children":[{"name":"parser","total_count":1,"children":[]},{"name":"scrapeRssFeeds","total_count":1,"children":[]}]}]}]},{"name":"musicRemover.ts","total_count":1,"children":[{"name":"removeMusic()","total_count":1,"children":[]}]},{"name":"personalize.ts","total_count":6,"children":[{"name":"DEFAULT_INTERESTS","total_count":1,"children":[]},{"name":"filterByInterest()","total_count":1,"children":[]},{"name":"loadUserInterests()","total_count":1,"children":[]},{"name":"localSummarize()","total_count":1,"children":[]},{"name":"saveUserInterests()","total_count":1,"children":[]},{"name":"UserInterest","total_count":1,"children":[]}]},{"name":"scraper","total_count":5,"children":[{"name":"cleaner.ts","total_count":5,"children":[{"name":"cleanJinaMarkdown()","total_count":1,"children":[]},{"name":"cleanTextForSpeech()","total_count":1,"children":[]},{"name":"decodeHtmlEntities()","total_count":1,"children":[]},{"name":"NOISE_PATTERNS","total_count":1,"children":[]},{"name":"SECTION_CUTOFF_PATTERNS","total_count":1,"children":[]}]}]},{"name":"scraper.ts","total_count":2,"children":[{"name":"scrapeJamunaTV()","total_count":1,"children":[]},{"name":"scrapeSource()","total_count":1,"children":[]}]},{"name":"utils.ts","total_count":1,"children":[{"name":"cn()","total_count":1,"children":[]}]}]},{"name":"proxy.ts","total_count":2,"children":[{"name":"config","total_count":1,"children":[]},{"name":"proxy()","total_count":1,"children":[]}]},{"name":"utils","total_count":4,"children":[{"name":"supabase","total_count":4,"children":[{"name":"background.ts","total_count":1,"children":[{"name":"createBackgroundClient()","total_count":1,"children":[]}]},{"name":"client.ts","total_count":1,"children":[{"name":"createClient()","total_count":1,"children":[]}]},{"name":"middleware.ts","total_count":1,"children":[{"name":"updateSession()","total_count":1,"children":[]}]},{"name":"server.ts","total_count":1,"children":[{"name":"createClient()","total_count":1,"children":[]}]}]}]}]},{"name":"tsconfig.json","total_count":29,"children":[{"name":"**/*.mts","total_count":1,"children":[]},{"name":"**/*.ts","total_count":1,"children":[]},{"name":"**/*.tsx","total_count":1,"children":[]},{"name":".next/dev/types/**/*.ts","total_count":1,"children":[]},{"name":".next/types/**/*.ts","total_count":1,"children":[]},{"name":"allowJs","total_count":1,"children":[]},{"name":"compilerOptions","total_count":1,"children":[]},{"name":"dom","total_count":1,"children":[]},{"name":"dom.iterable","total_count":1,"children":[]},{"name":"esModuleInterop","total_count":1,"children":[]},{"name":"esnext","total_count":1,"children":[]},{"name":"exclude","total_count":1,"children":[]},{"name":"include","total_count":1,"children":[]},{"name":"incremental","total_count":1,"children":[]},{"name":"isolatedModules","total_count":1,"children":[]},{"name":"jsx","total_count":1,"children":[]},{"name":"lib","total_count":1,"children":[]},{"name":"module","total_count":1,"children":[]},{"name":"moduleResolution","total_count":1,"children":[]},{"name":"next-env.d.ts","total_count":1,"children":[]},{"name":"node_modules","total_count":1,"children":[]},{"name":"noEmit","total_count":1,"children":[]},{"name":"paths","total_count":1,"children":[]},{"name":"plugins","total_count":1,"children":[]},{"name":"prototype_src","total_count":1,"children":[]},{"name":"resolveJsonModule","total_count":1,"children":[]},{"name":"skipLibCheck","total_count":1,"children":[]},{"name":"strict","total_count":1,"children":[]},{"name":"target","total_count":1,"children":[]}]},{"name":"vercel.json","total_count":1,"children":[{"name":"crons","total_count":1,"children":[]}]}]};
+
+    function transformData(jsonData) {
+        // Helper function to recursively build the children structure
+        function processNode(node, parentL1StageName) {
+            let displayName = node.name;
+            // Append total_count if it exists and is not already in the name
+            if (node.total_count !== undefined) {
+                if (!/\(Total Count: \d+\)$/.test(displayName)) {
+                    displayName += ` (Total Count: ${node.total_count})`;
+                }
+            }
+
+            const newNode = { name: displayName };
+
+            if (parentL1StageName === "Root") {
+                 newNode.originalStageName = node.name;
+            } else {
+                newNode.originalStageName = parentL1StageName;
+            }
+
+            if (node.children && node.children.length > 0) {
+                const stageNameToPass = (parentL1StageName === "Root") ? node.name : parentL1StageName;
+                newNode.children = node.children.map(child => processNode(child, stageNameToPass));
+            }
+
+            return newNode;
+        }
+
+        let rootDisplayName = jsonData.name;
+        if (jsonData.total_count !== undefined && !/\(Total Count: \d+\)$/.test(rootDisplayName)) {
+            rootDisplayName += ` (Total Count: ${jsonData.total_count})`;
+        }
+
+        return {
+            name: rootDisplayName,
+            originalStageName: "Root",
+            children: (jsonData.children || []).map(child => processNode(child, "Root"))
+        };
+    }
+
+    const treeData = transformData(initialJsonData);
+
+    // Auto-populated phaseColors: every depth-1 child of the root gets
+    // a stable colour from a bigger palette so all top-level dirs are
+    // distinguishable.
+    const PALETTE = [
+      ["#3498DB","#2980B9","#AED6F1"], ["#2ECC71","#27AE60","#A9DFBF"],
+      ["#E74C3C","#C0392B","#F5B7B1"], ["#9B59B6","#8E44AD","#D7BDE2"],
+      ["#F39C12","#D68910","#FAD7A0"], ["#1ABC9C","#117864","#A2D9CE"],
+      ["#34495E","#1B2631","#ABB2B9"], ["#E67E22","#BA4A00","#F5CBA7"],
+      ["#16A085","#0E6655","#A2D9CE"], ["#D35400","#A04000","#EDBB99"],
+      ["#7F8C8D","#566573","#D5DBDB"], ["#C0392B","#7B241C","#F5B7B1"],
+      ["#2E86C1","#1B4F72","#A9CCE3"], ["#28B463","#196F3D","#A9DFBF"],
+      ["#AF7AC5","#6C3483","#D2B4DE"],
+    ];
+    const phaseColors = { "Root": { fill: "#4A4A4A", stroke: "#333333", collapsedFill: "#6C757D" },
+                          "Default": { fill: "#BDC3C7", stroke: "#95A5A6", collapsedFill: "#ECF0F1" } };
+    (initialJsonData.children || []).forEach((c, i) => {
+      const pal = PALETTE[i % PALETTE.length];
+      phaseColors[c.name] = { fill: pal[0], stroke: pal[1], collapsedFill: pal[2] };
+    });
+
+    const levelSpecificPalettes = {
+      0: { fill: "#4A4A4A", stroke: "#333333", collapsedFill: "#6C757D" },
+      2: { fill: "#6ab04c", stroke: "#508a38", collapsedFill: "#a3d391" },
+      3: { fill: "#f0932b", stroke: "#d0730f", collapsedFill: "#f6c07e" },
+      4: { fill: "#be2edd", stroke: "#a01cb3", collapsedFill: "#e08bf2" },
+      5: { fill: "#00a8ff", stroke: "#007ac1", collapsedFill: "#74d2ff" },
+      6: { fill: "#e55039", stroke: "#c23620", collapsedFill: "#f09a8d" },
+      default: { fill: "#747d8c", stroke: "#57606f", collapsedFill: "#a4b0be" }
+    };
+
+    const svgElement = d3.select("#tree-svg");
+    const initialSvgWidth = +svgElement.attr("width");
+    const initialSvgHeight = +svgElement.attr("height");
+    const margin = { top: 40, right: 120, bottom: 80, left: 450 };
+    let width = initialSvgWidth - margin.left - margin.right;
+    let height = initialSvgHeight - margin.top - margin.bottom;
+    const duration = 500;
+    let nodeCounter = 0;
+    const g = svgElement.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+    const treemap = d3.tree().nodeSize([40, 0]);
+    let rootNode = d3.hierarchy(treeData, d => d.children);
+    rootNode.x0 = 0;
+    rootNode.y0 = 0;
+
+    if (rootNode.children) {
+      rootNode.children.forEach(d_child => {
+        if (d_child.children) { collapseBranch(d_child); }
+      });
+    }
+    updateTree(rootNode);
+
+    function collapseBranch(d) { if (d.children) { d._children = d.children; d._children.forEach(collapseBranch); d.children = null; } }
+    function expandBranch(d) { if (d._children) { d.children = d._children; d._children = null; } if (d.children) { d.children.forEach(expandBranch); } }
+    window.expandAll = () => { expandBranch(rootNode); updateTree(rootNode); };
+    window.collapseAll = () => { if (rootNode.children) { rootNode.children.forEach(collapseBranch); } updateTree(rootNode); };
+    window.resetView = () => { if (rootNode.children) { rootNode.children.forEach(d_child => { if (d_child.children || d_child._children) { collapseBranch(d_child); } }); } if (rootNode._children && !rootNode.children) { rootNode.children = rootNode._children; rootNode._children = null; } updateTree(rootNode); };
+
+    function updateTree(source) {
+      const treeLayoutData = treemap(rootNode);
+      let nodes = treeLayoutData.descendants();
+      let links = treeLayoutData.descendants().slice(1);
+
+      let minX = 0;
+      let maxX = 0;
+      if (nodes.length > 0) {
+        minX = d3.min(nodes, d => d.x);
+        maxX = d3.max(nodes, d => d.x);
+      }
+
+      let neededHeight = Math.max(initialSvgHeight, maxX - minX + margin.top + margin.bottom + 100);
+      svgElement.transition().duration(duration / 2).attr("height", neededHeight);
+      g.transition().duration(duration / 2).attr("transform", `translate(${margin.left},${margin.top - minX + 40})`);
+
+      nodes.forEach(d => { d.y = d.depth * 400; }); // Adjust horizontal separation if needed
+
+      const node = g.selectAll('g.node').data(nodes, d => d.id || (d.id = ++nodeCounter));
+      const nodeEnter = node.enter().append('g')
+        .attr('class', d => "node" + (d.children || d._children ? " node--internal" : " node--leaf") + (d._children ? " _children" : ""))
+        .attr('transform', d => `translate(${source.y0},${source.x0})`)
+        .on('click', (event, d) => { if (d.children) { d._children = d.children; d.children = null; } else if (d._children) { d.children = d._children; d._children = null; } updateTree(d); })
+        .style('cursor', d => (d.children || d._children) ? 'pointer' : 'default');
+
+      nodeEnter.append('circle').attr('r', 1e-6);
+
+      nodeEnter.append('text')
+        .attr('dy', '.35em')
+        .attr('x', d => d.children || d._children ? -14 : 14)
+        .attr('text-anchor', d => d.children || d._children ? 'end' : 'start')
+        .style("fill-opacity", 1e-6)
+        .call(wrapText, 380);
+
+      const nodeUpdate = nodeEnter.merge(node);
+      nodeUpdate.transition().duration(duration)
+        .attr('transform', d => `translate(${d.y},${d.x})`)
+        .attr('class', d => "node" + (d.children ? " node--internal" : " node--leaf") + (d._children ? " node--internal _children" : ""));
+
+      nodeUpdate.select('circle').attr('r', 8.5)
+        .style('fill', d => {
+            let palette;
+            if (d.depth === 0) {
+                palette = levelSpecificPalettes[0];
+            } else if (d.depth === 1) {
+                palette = phaseColors[d.data.originalStageName] || phaseColors.Default;
+            } else {
+                palette = levelSpecificPalettes[d.depth] || levelSpecificPalettes.default;
+            }
+            if (d._children) return palette.collapsedFill;
+            if (d.children) return palette.fill;
+            return "#fff";
+        })
+        .style('stroke', d => {
+            let palette;
+            if (d.depth === 0) {
+                palette = levelSpecificPalettes[0];
+            } else if (d.depth === 1) {
+                palette = phaseColors[d.data.originalStageName] || phaseColors.Default;
+            } else {
+                palette = levelSpecificPalettes[d.depth] || levelSpecificPalettes.default;
+            }
+            return palette.stroke;
+        });
+      nodeUpdate.select('text').style("fill-opacity", 1).call(wrapText, 380);
+
+      const nodeExit = node.exit().transition().duration(duration).attr('transform', d => `translate(${source.y},${source.x})`).remove();
+      nodeExit.select('circle').attr('r', 1e-6);
+      nodeExit.select('text').style('fill-opacity', 1e-6);
+
+      const link = g.selectAll('path.link').data(links, d => d.id);
+      const linkEnter = link.enter().insert('path', "g").attr('class', 'link').attr('d', d => { const o = { x: source.x0, y: source.y0 }; return diagonal(o, o); });
+
+      linkEnter.merge(link).transition().duration(duration).attr('d', d => diagonal(d, d.parent))
+        .style('stroke', d => {
+            const sourceNode = d.parent;
+            if (!sourceNode) return phaseColors.Default.stroke;
+            const l1AncestorName = sourceNode.data.originalStageName;
+            const colorPalette = phaseColors[l1AncestorName] || phaseColors.Default;
+            return colorPalette.stroke;
+        });
+      link.exit().transition().duration(duration).attr('d', d => { const o = { x: source.x, y: source.y }; return diagonal(o, o); }).remove();
+      nodes.forEach(d => { d.x0 = d.x; d.y0 = d.y; });
+    }
+
+    function diagonal(s, d) { return `M ${s.y} ${s.x} C ${(s.y + d.y) / 2} ${s.x}, ${(s.y + d.y) / 2} ${d.x}, ${d.y} ${d.x}`; }
+
+    function wrapText(textElements, maxWidth) {
+        const textPartColors = {
+            name: '#343a40',
+            count: '#0056b3'
+        };
+        const countRegex = /(\s\(Total Count: \d+\))$/;
+
+        textElements.each(function () {
+            const textD3 = d3.select(this);
+            const originalNodeText = textD3.datum().data.name;
+            const x = parseFloat(textD3.attr("x") || 0);
+            const initialDy = textD3.attr("dy");
+            const textAnchor = textD3.attr("text-anchor");
+            const lineHeight = 1.1;
+
+            textD3.text(null);
+
+            let namePart = originalNodeText;
+            let countPartText = "";
+
+            const countMatch = originalNodeText.match(countRegex);
+            if (countMatch && originalNodeText.endsWith(countMatch[0])) {
+                namePart = originalNodeText.substring(0, originalNodeText.length - countMatch[0].length).trim();
+                countPartText = countMatch[0].trim();
+            }
+
+            const tokens = [];
+            namePart.split(/\s+/).filter(Boolean).forEach(word => {
+                tokens.push({ text: word, type: 'name' });
+            });
+            if (countPartText) {
+                tokens.push({ text: countPartText, type: 'count' });
+            }
+
+            if (tokens.length === 0 && originalNodeText) {
+                tokens.push({ text: originalNodeText, type: 'name' });
+            }
+
+            let currentTspan = textD3.append("tspan").attr("x", x).attr("dy", initialDy);
+            if (textAnchor === "end") currentTspan.attr("text-anchor", "end");
+
+            let lineTokens = [];
+
+            for (let i = 0; i < tokens.length; i++) {
+                const tokenObj = tokens[i];
+
+                lineTokens.push(tokenObj);
+                currentTspan.text(lineTokens.map(t => t.text).join(" "));
+
+                if (currentTspan.node().getComputedTextLength() > maxWidth && lineTokens.length > 1) {
+                    lineTokens.pop();
+
+                    currentTspan.text(null);
+                    lineTokens.forEach((prevToken, idx) => {
+                        currentTspan.append("tspan")
+                            .text((idx > 0 ? " " : "") + prevToken.text)
+                            .style("fill", textPartColors[prevToken.type] || textPartColors.name)
+                            .style("font-weight", prevToken.type === 'count' ? "bold" : "normal");
+                    });
+
+                    lineTokens = [tokenObj];
+                    currentTspan = textD3.append("tspan").attr("x", x).attr("dy", lineHeight + "em");
+                    if (textAnchor === "end") currentTspan.attr("text-anchor", "end");
+                }
+            }
+
+            currentTspan.text(null);
+            lineTokens.forEach((token, idx) => {
+                currentTspan.append("tspan")
+                    .text((idx > 0 ? " " : "") + token.text)
+                    .style("fill", textPartColors[token.type] || textPartColors.name)
+                    .style("font-weight", token.type === 'count' ? "bold" : "normal");
+            });
+
+            if (textD3.selectAll("tspan > tspan").empty() && textD3.select("tspan").text().length === 0 && originalNodeText) {
+                let t = textD3.select("tspan");
+                let displayText = originalNodeText;
+                t.text(displayText).style("fill", textPartColors.name);
+                if (t.node() && t.node().getComputedTextLength() > maxWidth && displayText.length > 20) {
+                    let estimatedChars = Math.floor(maxWidth / (t.node().getComputedTextLength()/displayText.length) );
+                    displayText = displayText.substring(0, Math.max(0, estimatedChars - 3)) + "...";
+                    t.text(displayText);
+                }
+            }
+        });
+    }
+  </script>
+</body>
+</html>

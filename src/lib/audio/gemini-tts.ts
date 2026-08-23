@@ -1,5 +1,6 @@
 import { v2 as cloudinary } from 'cloudinary';
 import streamifier from 'streamifier';
+import { cleanTextForSpeech } from '@/lib/scraper/cleaner';
 
 // Configure Cloudinary from env
 cloudinary.config({
@@ -37,18 +38,16 @@ export function pcmToWav(pcmBuffer: Buffer, sampleRate = 24000, numChannels = 1,
 }
 
 /**
- * Splits text into ~15s sentence/phrase chunks (~25 to 35 words each)
+ * Splits text into safe, small sentence/phrase chunks (18-20 words max per chunk, ~8-12 seconds).
+ * This completely avoids the Gemini TTS ~18-20s response limitation and eliminates cutoffs.
  */
-export function splitTextIntoSafeChunks(text: string, maxWordsPerChunk = 30): string[] {
+export function splitTextIntoSafeChunks(text: string, maxWordsPerChunk = 20): string[] {
   if (!text || text.trim() === '') return [];
 
-  // Clean markdown noise & extra spaces
-  const clean = text
-    .replace(/[*_#`[\]()]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
+  // 1. Strip markdown noise and extra punctuation
+  const clean = cleanTextForSpeech(text);
 
-  // Split by Bengali or English sentence terminators: ।, ?, !, ., or \n
+  // 2. Split by sentence terminators: Bengali (।), Question (?), Exclamation (!), Period (.), or Newline (\n)
   const rawSentences = clean.split(/(?<=[।?!.\n])\s+/);
   const chunks: string[] = [];
   let currentChunk = '';
@@ -57,8 +56,8 @@ export function splitTextIntoSafeChunks(text: string, maxWordsPerChunk = 30): st
     const trimmed = sentence.trim();
     if (!trimmed) continue;
 
-    const currentWords = currentChunk ? currentChunk.split(' ').length : 0;
-    const sentenceWords = trimmed.split(' ').length;
+    const currentWords = currentChunk ? currentChunk.split(/\s+/).filter(Boolean).length : 0;
+    const sentenceWords = trimmed.split(/\s+/).filter(Boolean).length;
 
     if (currentWords + sentenceWords <= maxWordsPerChunk) {
       currentChunk = currentChunk ? `${currentChunk} ${trimmed}` : trimmed;
@@ -66,12 +65,32 @@ export function splitTextIntoSafeChunks(text: string, maxWordsPerChunk = 30): st
       if (currentChunk) {
         chunks.push(currentChunk);
       }
-      // If a single sentence is itself longer than maxWordsPerChunk, split by comma or word count
+      // If a single sentence exceeds maxWordsPerChunk, split on commas or sub-clauses
       if (sentenceWords > maxWordsPerChunk) {
-        const words = trimmed.split(' ');
-        for (let i = 0; i < words.length; i += maxWordsPerChunk) {
-          chunks.push(words.slice(i, i + maxWordsPerChunk).join(' '));
+        const clauses = trimmed.split(/(?<=[,;])\s+/);
+        let clauseChunk = '';
+
+        for (const clause of clauses) {
+          const clauseWords = clause.split(/\s+/).filter(Boolean).length;
+          const currentClauseWords = clauseChunk ? clauseChunk.split(/\s+/).filter(Boolean).length : 0;
+
+          if (currentClauseWords + clauseWords <= maxWordsPerChunk) {
+            clauseChunk = clauseChunk ? `${clauseChunk} ${clause}` : clause;
+          } else {
+            if (clauseChunk) chunks.push(clauseChunk);
+            // If even a single clause exceeds maxWordsPerChunk, split by word count
+            if (clauseWords > maxWordsPerChunk) {
+              const words = clause.split(/\s+/).filter(Boolean);
+              for (let i = 0; i < words.length; i += maxWordsPerChunk) {
+                chunks.push(words.slice(i, i + maxWordsPerChunk).join(' '));
+              }
+              clauseChunk = '';
+            } else {
+              clauseChunk = clause;
+            }
+          }
         }
+        if (clauseChunk) chunks.push(clauseChunk);
         currentChunk = '';
       } else {
         currentChunk = trimmed;
@@ -95,9 +114,10 @@ async function generateChunkPcm(
   apiKeys: string[]
 ): Promise<Buffer> {
   const models = [
-    'gemini-2.5-flash',
     'gemini-3.1-flash-tts-preview',
     'gemini-2.5-flash-preview-tts',
+    'gemini-2.5-flash',
+    'gemini-2.5-pro-preview-tts',
   ];
 
   let lastError: any = null;
@@ -105,48 +125,53 @@ async function generateChunkPcm(
   for (const model of models) {
     for (let k = 0; k < apiKeys.length; k++) {
       const apiKey = apiKeys[k];
-      try {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-        const payload = {
-          contents: [{ parts: [{ text: `Say the following ${lang === 'bn' ? 'Bengali' : 'English'} text clearly in speech: ${text}` }] }],
-          generationConfig: {
-            responseModalities: ['AUDIO'],
-            speechConfig: {
-              voiceConfig: {
-                prebuiltVoiceConfig: {
-                  voiceName: lang === 'bn' ? 'Puck' : 'Aoede',
+      if (!apiKey) continue;
+
+      // Retry up to 2 times on rate limit or network glitch
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+          const payload = {
+            contents: [{ parts: [{ text: `Say the following ${lang === 'bn' ? 'Bengali' : 'English'} text clearly in speech: ${text}` }] }],
+            generationConfig: {
+              responseModalities: ['AUDIO'],
+              speechConfig: {
+                voiceConfig: {
+                  prebuiltVoiceConfig: {
+                    voiceName: lang === 'bn' ? 'Puck' : 'Aoede',
+                  },
                 },
               },
             },
-          },
-        };
+          };
 
-        const res = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
+          const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
 
-        const json = await res.json();
-        if (res.ok) {
-          const candidate = json.candidates?.[0];
-          const part = candidate?.content?.parts?.[0];
-          if (part?.inlineData?.data) {
-            return Buffer.from(part.inlineData.data, 'base64');
+          const json = await res.json();
+          if (res.ok) {
+            const candidate = json.candidates?.[0];
+            const part = candidate?.content?.parts?.[0];
+            if (part?.inlineData?.data) {
+              return Buffer.from(part.inlineData.data, 'base64');
+            }
+          } else {
+            console.warn(`[TTS] Model ${model} Key #${k} HTTP ${res.status}: ${json?.error?.message}`);
+            lastError = new Error(`Model ${model} Key #${k} Error: ${json?.error?.message || JSON.stringify(json)}`);
+            if (json?.error?.code === 429 || json?.error?.code === 503) {
+              await sleep(400 * (attempt + 1));
+              continue;
+            }
+            break; // Non-retryable error for this key/model, move to next
           }
-        } else {
-          console.warn(`[TTS] Model ${model} Key #${k} HTTP ${res.status}: ${json?.error?.message}`);
-          lastError = new Error(
-            `Model ${model} Key #${k} Error: ${json?.error?.message || JSON.stringify(json)}`
-          );
-          if (json?.error?.code === 429 || json?.error?.code === 503) {
-            await sleep(300);
-            continue;
-          }
+        } catch (err: any) {
+          console.warn(`[TTS] Fetch exception for ${model}: ${err.message}`);
+          lastError = err;
+          await sleep(200);
         }
-      } catch (err: any) {
-        console.warn(`[TTS] Fetch exception for ${model}: ${err.message}`);
-        lastError = err;
       }
     }
   }
@@ -155,7 +180,8 @@ async function generateChunkPcm(
 }
 
 /**
- * Generates seamless audio for text of any length by chunking and stitching PCM buffers
+ * Generates seamless audio for text of any length by chunking (18-20 words max per chunk)
+ * and stitching PCM buffers together into a single master WAV audio.
  */
 export async function generateSeamlessGeminiAudio(
   fullText: string,
@@ -169,7 +195,8 @@ export async function generateSeamlessGeminiAudio(
     throw new Error('No valid Gemini API key found for TTS generation.');
   }
 
-  const chunks = splitTextIntoSafeChunks(fullText, 30);
+  // Split into safe 18-20 word chunks to guarantee each is < 12 seconds
+  const chunks = splitTextIntoSafeChunks(fullText, 20);
   if (chunks.length === 0) {
     throw new Error('No text to generate audio for.');
   }
@@ -177,11 +204,20 @@ export async function generateSeamlessGeminiAudio(
   const pcmBuffers: Buffer[] = [];
 
   for (let i = 0; i < chunks.length; i++) {
-    const chunkPcm = await generateChunkPcm(chunks[i], lang, validKeys);
-    pcmBuffers.push(chunkPcm);
-    if (i < chunks.length - 1) {
-      await sleep(150); // Safe micro-delay between chunks
+    try {
+      const chunkPcm = await generateChunkPcm(chunks[i], lang, validKeys);
+      pcmBuffers.push(chunkPcm);
+    } catch (err: any) {
+      console.warn(`[TTS] Skipping failed chunk (${i + 1}/${chunks.length}):`, err.message);
     }
+
+    if (i < chunks.length - 1) {
+      await sleep(100); // Micro-delay between requests to avoid burst rate-limits
+    }
+  }
+
+  if (pcmBuffers.length === 0) {
+    throw new Error('All audio chunks failed during TTS generation.');
   }
 
   // Concatenate all PCM buffers back-to-back

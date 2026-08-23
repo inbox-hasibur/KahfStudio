@@ -46,11 +46,27 @@ export default function AdminScrapingPage() {
   const [isTriggeringRss, setIsTriggeringRss] = useState(false);
   const [scrapeLogs, setScrapeLogs] = useState<string[]>([]);
   const [visibleKeys, setVisibleKeys] = useState<Record<number, boolean>>({});
-  const logsEndRef = useRef<HTMLDivElement>(null);
+  const logsContainerRef = useRef<HTMLDivElement>(null);
   const [isTerminalFullscreen, setIsTerminalFullscreen] = useState(false);
 
+  // Load last persisted logs on mount
   useEffect(() => {
-    logsEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    try {
+      const saved = localStorage.getItem("kahf_scrape_logs");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setScrapeLogs(parsed);
+        }
+      }
+    } catch (e) {}
+  }, []);
+
+  // Internal terminal container scroll (never scrolls the whole window)
+  useEffect(() => {
+    if (logsContainerRef.current) {
+      logsContainerRef.current.scrollTop = logsContainerRef.current.scrollHeight;
+    }
   }, [scrapeLogs]);
 
   const toggleKeyVisibility = (index: number) => {
@@ -194,10 +210,12 @@ export default function AdminScrapingPage() {
   const [selectedCategory, setSelectedCategory] = useState("All");
 
   const handleTriggerEmergencyScrape = async () => {
-    // ... logic remains same, but wait, I can't truncate it. The target content must match perfectly.
-    // Let me just replace the return statement below.
     setIsTriggeringRss(true);
-    setScrapeLogs(["Connecting to scraping pipeline..."]);
+    const startLogs = ["Connecting to scraping pipeline..."];
+    setScrapeLogs(startLogs);
+    try {
+      localStorage.setItem("kahf_scrape_logs", JSON.stringify(startLogs));
+    } catch (e) {}
     
     try {
       const response = await fetch(`/api/ingest/trigger-rss?limit=${targetCount}&category=${encodeURIComponent(selectedCategory)}`);
@@ -205,6 +223,7 @@ export default function AdminScrapingPage() {
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
+      let currentLogs = [...startLogs];
       
       while (true) {
         const { value, done } = await reader.read();
@@ -218,7 +237,11 @@ export default function AdminScrapingPage() {
             try {
               const data = JSON.parse(line.slice(6));
               if (data.message) {
-                setScrapeLogs((prev) => [...prev, data.message]);
+                currentLogs = [...currentLogs, data.message];
+                setScrapeLogs([...currentLogs]);
+                try {
+                  localStorage.setItem("kahf_scrape_logs", JSON.stringify(currentLogs));
+                } catch (e) {}
               }
             } catch(e) {}
           }
@@ -226,7 +249,11 @@ export default function AdminScrapingPage() {
       }
     } catch (e: any) {
       console.error(e);
-      setScrapeLogs((prev) => [...prev, `Error: ${e.message}`]);
+      setScrapeLogs((prev) => {
+        const updated = [...prev, `Error: ${e.message}`];
+        try { localStorage.setItem("kahf_scrape_logs", JSON.stringify(updated)); } catch (err) {}
+        return updated;
+      });
     } finally {
       setIsTriggeringRss(false);
     }
@@ -558,7 +585,10 @@ export default function AdminScrapingPage() {
           </div>
         </CardHeader>
         <CardContent className={`p-0 ${isTerminalFullscreen ? "flex-1 overflow-hidden" : ""}`}>
-          <div className={`overflow-y-auto font-mono text-xs text-green-400 space-y-1 p-4 bg-black ${isTerminalFullscreen ? "h-full" : "h-72"}`}>
+          <div 
+            ref={logsContainerRef}
+            className={`overflow-y-auto font-mono text-xs text-green-400 space-y-1 p-4 bg-black ${isTerminalFullscreen ? "h-full" : "h-72"}`}
+          >
             {scrapeLogs.length === 0 && !isTriggeringRss ? (
               <div className="text-slate-500 italic">No logs yet. Click 'Scrap Now' to start...</div>
             ) : (
@@ -572,7 +602,6 @@ export default function AdminScrapingPage() {
                 {isTriggeringRss && <div className="animate-pulse">_</div>}
               </>
             )}
-            <div ref={logsEndRef} />
           </div>
         </CardContent>
       </Card>

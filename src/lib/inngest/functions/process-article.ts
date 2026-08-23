@@ -4,6 +4,7 @@ import { createBackgroundClient } from "@/utils/supabase/background";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import axios from "axios";
 import { generateSeamlessGeminiAudio, uploadAudioToCloudinary } from "@/lib/audio/gemini-tts";
+import { extractArticleContent } from "@/lib/scraper/universal-extractor";
 
 export const processArticle = inngest.createFunction(
   { id: "process-article", event: "app/process-article" },
@@ -11,16 +12,23 @@ export const processArticle = inngest.createFunction(
     const { url, title, sourceId, sourceName, category, country = "BD" } = event.data;
     const supabase = createBackgroundClient();
 
-    // 1. Extract raw web content
-    const rawMarkdown = await step.run("extract-markdown", async () => {
+    // 1. Universal Content Extraction (Mozilla Readability -> JSON-LD -> Jina AI)
+    const extractedArticle = await step.run("extract-markdown", async () => {
       try {
-        const response = await axios.get(`https://r.jina.ai/${url}`, { timeout: 15000 });
-        return response.data;
-      } catch (error) {
-        console.warn(`Jina AI extraction failed for ${url}, falling back to title.`);
-        return `Title: ${title}\nSource: ${sourceName}\nURL: ${url}`;
+        const extracted = await extractArticleContent(url, title);
+        return {
+          title: extracted.title || title,
+          bodyText: extracted.bodyText || title,
+          ogImage: extracted.ogImage || null,
+          method: extracted.extractionMethod,
+        };
+      } catch (error: any) {
+        console.warn(`Universal extraction failed for ${url}, falling back to title:`, error.message);
+        return { title, bodyText: `Title: ${title}\nSource: ${sourceName}\nURL: ${url}`, ogImage: null, method: 'fallback' };
       }
     });
+
+    const cleanedMarkdown = extractedArticle.bodyText;
 
     // 2. Fetch Global Settings & API keys
     const { globalKeys, autoApprove } = await step.run("fetch-settings", async () => {
@@ -53,42 +61,47 @@ Input Title: ${title}
 Source: ${sourceName}
 Country: ${country}
 Category Hint: ${category || "General"}
-Article Content:
-${rawMarkdown.slice(0, 15000)}
+Cleaned Article Body:
+${cleanedMarkdown.slice(0, 15000)}
 
 Your response MUST follow this exact JSON schema:
 {
   "importance_score": <Integer from 1 to 100 representing how critical/breaking/important this news is for a general audience. 85-100: Major national/global breaking news; 65-84: High interest; 45-64: Regular news; 1-44: Minor/Niche>,
   "clean_headline": "<Clean, engaging Bengali headline>",
-  "clean_content": "<Ad-free, cleaned, beautifully formatted full article body in Bengali markdown>",
-  "ai_summary": "<An engaging, professional, 1-2 paragraph Bengali summary with 2-3 key takeaway bullet points at the end>",
+  "clean_content": "<COMPLETE FULL UNABRIDGED BENGALI ARTICLE BODY in clean markdown. DO NOT SHORTEN OR CONDENSE THE STORY; KEEP ALL NARRATIVE PARAGRAPHS>",
+  "ai_summary": "<A SHORT 2-paragraph Bengali summary with 3 key takeaway bullet points at the end>",
   "detected_category": "<One of: Politics, Economy, Technology, Sports, Entertainment, World, Bangladesh, Lifestyle, General>",
   "detected_country": "${country}"
 }`;
 
       let lastError = null;
-      for (const apiKey of activeKeys) {
-        try {
-          const genAI = new GoogleGenerativeAI(apiKey);
-          const model = genAI.getGenerativeModel({
-            model: "gemini-2.5-flash",
-            generationConfig: { responseMimeType: "application/json" },
-          });
+      const modelsToTry = ["gemini-3.6-flash", "gemini-2.5-flash"];
 
-          const result = await model.generateContent(prompt);
-          const text = result.response.text();
-          return JSON.parse(text);
-        } catch (err: any) {
-          lastError = err;
-          console.warn("Gemini Unified Process API error with a key:", err.message);
-          continue;
+      for (const modelName of modelsToTry) {
+        for (const apiKey of activeKeys) {
+          if (!apiKey) continue;
+          try {
+            const genAI = new GoogleGenerativeAI(apiKey);
+            const model = genAI.getGenerativeModel({
+              model: modelName,
+              generationConfig: { responseMimeType: "application/json" },
+            });
+
+            const result = await model.generateContent(prompt);
+            const text = result.response.text();
+            return JSON.parse(text);
+          } catch (err: any) {
+            lastError = err;
+            console.warn(`Gemini Unified Process API error (${modelName}):`, err.message);
+            continue;
+          }
         }
       }
 
       throw new Error(`Gemini Unified Processing failed with all keys: ${lastError?.message}`);
     });
 
-    // 4. Generate Pre-rendered Audio TTS (Gemini 3.1 Flash Seamless Audio)
+    // 4. Generate Pre-rendered Audio TTS (Gemini Seamless Audio)
     const audioUrl = await step.run("generate-summary-audio", async () => {
       try {
         const textToSpeak = (aiResult.ai_summary || aiResult.clean_headline)
@@ -110,7 +123,7 @@ Your response MUST follow this exact JSON schema:
     await step.run("save-to-db", async () => {
       const insertPayload: any = {
         headline: aiResult.clean_headline || title,
-        raw_content: aiResult.clean_content || rawMarkdown,
+        raw_content: aiResult.clean_content || cleanedMarkdown,
         ai_summary: aiResult.ai_summary,
         status: autoApprove ? "published" : "draft",
         original_url: url,
@@ -118,6 +131,10 @@ Your response MUST follow this exact JSON schema:
         category: aiResult.detected_category || category || "General",
         published_at: new Date().toISOString(),
       };
+
+      if (extractedArticle?.ogImage) {
+        insertPayload.image_url = extractedArticle.ogImage;
+      }
 
       if (audioUrl) {
         insertPayload.audio_bn_summary = audioUrl;

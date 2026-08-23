@@ -76,6 +76,7 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const sessionCounterRef = useRef(0);
 
   // Helper for language detection
   const getSiteLanguage = (): "EN" | "BN" => {
@@ -162,18 +163,14 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
       const wantFull = preferredType === "full";
 
       let targetMode: AudioMode = "bn_summary";
-      if (pref === "EN") {
-        if (wantFull && audioUrls?.en_full) targetMode = "en_full";
-        else if (audioUrls?.en_summary) targetMode = "en_summary";
-        else if (audioUrls?.en_full) targetMode = "en_full";
-        else if (audioUrls?.bn_summary) targetMode = "bn_summary";
-        else if (audioUrls?.bn_full) targetMode = "bn_full";
+      if (wantFull) {
+        targetMode = pref === "EN" ? "en_full" : "bn_full";
       } else {
-        if (wantFull && audioUrls?.bn_full) targetMode = "bn_full";
-        else if (audioUrls?.bn_summary) targetMode = "bn_summary";
-        else if (audioUrls?.bn_full) targetMode = "bn_full";
-        else if (audioUrls?.en_summary) targetMode = "en_summary";
-        else if (audioUrls?.en_full) targetMode = "en_full";
+        if (pref === "EN") {
+          targetMode = audioUrls?.en_summary ? "en_summary" : "bn_summary";
+        } else {
+          targetMode = audioUrls?.bn_summary ? "bn_summary" : "en_summary";
+        }
       }
       setAudioMode(targetMode);
 
@@ -201,14 +198,12 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
       const track = playlist[currentIndex];
       setActiveTrack(track);
 
-      // Auto-pick best available Gemini TTS URL if current mode has no URL for this track
+      // Auto-pick best available Gemini TTS URL if current mode has no URL for this track (summary only)
       const urls = track.audioUrls;
-      if (urls) {
+      if (urls && !audioMode.endsWith("_full")) {
         if (!urls[audioMode as keyof AudioUrls]) {
           if (urls.bn_summary) setAudioMode("bn_summary");
-          else if (urls.bn_full) setAudioMode("bn_full");
           else if (urls.en_summary) setAudioMode("en_summary");
-          else if (urls.en_full) setAudioMode("en_full");
         }
       }
     }
@@ -255,8 +250,14 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
   useEffect(() => {
     if (!activeTrack) return;
 
+    const currentSessionId = ++sessionCounterRef.current;
+
     window.speechSynthesis?.cancel();
-    if (audioRef.current) audioRef.current.pause();
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.onended = null;
+      audioRef.current.ontimeupdate = null;
+    }
 
     const currentUrl = activeTrack.audioUrls?.[audioMode as keyof AudioUrls];
 
@@ -271,7 +272,7 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
       audioRef.current.volume = isMuted ? 0 : volume;
 
       audioRef.current.onloadedmetadata = () => {
-        if (audioRef.current) {
+        if (sessionCounterRef.current === currentSessionId && audioRef.current) {
           setDuration(audioRef.current.duration);
           setCurrentTime(0);
           setProgress(0);
@@ -279,56 +280,116 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
       };
 
       audioRef.current.ontimeupdate = () => {
-        if (audioRef.current && audioRef.current.duration) {
+        if (sessionCounterRef.current === currentSessionId && audioRef.current && audioRef.current.duration) {
           setCurrentTime(audioRef.current.currentTime);
           setProgress(audioRef.current.currentTime / audioRef.current.duration);
         }
       };
 
-      audioRef.current.onended = () => handleNext();
+      audioRef.current.onended = () => {
+        if (sessionCounterRef.current === currentSessionId) {
+          handleNext();
+        }
+      };
 
       if (isPlaying) {
-        audioRef.current.play().catch(console.error);
+        const playPromise = audioRef.current.play();
+        if (playPromise !== undefined) {
+          playPromise.catch((err) => {
+            if (err.name !== "AbortError") {
+              console.warn("Audio playback exception:", err);
+            }
+          });
+        }
       }
     } else {
       if (typeof window !== "undefined" && window.speechSynthesis) {
-        const text = activeTrack.text || activeTrack.title;
-        const estDuration = Math.max(8, Math.round((text.length || 100) / 12));
+        // Clean text thoroughly of any markdown symbols or hashtags
+        const rawText = activeTrack.text || activeTrack.title;
+        const cleanedForSpeech = rawText
+          .replace(/#{1,6}\s+/g, ' ') // Strip ###, ##, #
+          .replace(/!\[.*?\]\([^\s)]+\)/g, ' ') // Strip images
+          .replace(/\[([^\]]+)\]\([^\s)]+\)/g, '$1') // Convert links
+          .replace(/[*_~`[\]()<>\\\/^=+]/g, ' ') // Strip markdown symbols
+          .replace(/https?:\/\/\S+/gi, ' ') // Strip URLs
+          .replace(/\s+/g, ' ')
+          .trim();
 
+        // Split text into safe short sentence chunks (~100-120 chars) to prevent Chrome 15s freeze
+        const rawSentences = cleanedForSpeech.split(/(?<=[।?!.\n;])/g).map((s) => s.trim()).filter(Boolean);
+        const speechChunks: string[] = [];
+        let curBuffer = '';
+        for (const s of rawSentences) {
+          if (curBuffer && curBuffer.length + s.length > 120) {
+            speechChunks.push(curBuffer);
+            curBuffer = s;
+          } else {
+            curBuffer = curBuffer ? `${curBuffer} ${s}` : s;
+          }
+        }
+        if (curBuffer) speechChunks.push(curBuffer);
+        if (speechChunks.length === 0) speechChunks.push(cleanedForSpeech || activeTrack.title);
+
+        const estDuration = Math.max(8, Math.round((cleanedForSpeech.length || 100) / 12));
         setProgress(0);
         setCurrentTime(0);
         setDuration(estDuration);
 
-        const utterance = new SpeechSynthesisUtterance(text);
         const isEnglish = audioMode.includes("en") || getSiteLanguage() === "EN";
         const matchedVoice = voices.find((v) =>
           isEnglish ? v.lang.startsWith("en") : v.lang.startsWith("bn")
         );
-        if (matchedVoice) utterance.voice = matchedVoice;
 
-        utterance.rate = ttsSettings.speed || 1.0;
-        utterance.volume = isMuted ? 0 : volume;
-        utterance.onend = () => {
-          setCurrentTime(estDuration);
-          setProgress(1);
-          handleNext();
-        };
-        utterance.onboundary = (event) => {
-          if (text.length > 0) {
-            const p = event.charIndex / text.length;
+        const speakChunk = (idx: number) => {
+          if (sessionCounterRef.current !== currentSessionId) return;
+
+          if (idx >= speechChunks.length) {
+            setCurrentTime(estDuration);
+            setProgress(1);
+            if (sessionCounterRef.current === currentSessionId) {
+              handleNext();
+            }
+            return;
+          }
+
+          const chunkText = speechChunks[idx];
+          const utterance = new SpeechSynthesisUtterance(chunkText);
+          if (matchedVoice) utterance.voice = matchedVoice;
+          utterance.rate = ttsSettings.speed || 1.0;
+          utterance.volume = isMuted ? 0 : volume;
+
+          utterance.onend = () => {
+            if (sessionCounterRef.current !== currentSessionId) return;
+            const p = (idx + 1) / speechChunks.length;
             setProgress(p);
             setCurrentTime(Math.min(estDuration, Math.round(p * estDuration)));
-          }
+            speakChunk(idx + 1);
+          };
+
+          utterance.onerror = (err: any) => {
+            if (sessionCounterRef.current !== currentSessionId) return;
+            if (err.error === "canceled" || err.error === "interrupted") return;
+            console.warn("Speech synthesis chunk error:", err);
+            speakChunk(idx + 1);
+          };
+
+          utteranceRef.current = utterance;
+          window.speechSynthesis.speak(utterance);
         };
 
-        utteranceRef.current = utterance;
-        if (isPlaying) window.speechSynthesis.speak(utterance);
+        if (isPlaying) {
+          speakChunk(0);
+        }
       }
     }
 
     return () => {
+      ++sessionCounterRef.current;
       window.speechSynthesis?.cancel();
-      if (audioRef.current) audioRef.current.pause();
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.onended = null;
+      }
     };
   }, [activeTrack?.id, audioMode]);
 
@@ -433,7 +494,7 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
 
   // Dynamic & Interactive Model Badge
   const currentAudioUrl = activeTrack?.audioUrls?.[audioMode as keyof AudioUrls];
-  const hasGeminiAudio = !!currentAudioUrl && currentAudioUrl.includes("_gemini_");
+  const hasGeminiAudio = !!currentAudioUrl;
 
   return (
     <>
@@ -452,20 +513,24 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
       <AnimatePresence>
         {isOpen && activeTrack && (
           <motion.div
-            initial={{ y: 100, opacity: 0, scale: 0.95 }}
-            animate={{ y: 0, opacity: 1, scale: 1 }}
-            exit={{ y: 100, opacity: 0, scale: 0.95 }}
-            className="fixed bottom-20 sm:bottom-24 md:bottom-28 left-1/2 -translate-x-1/2 z-[140] w-[95%] sm:w-[92%] max-w-lg bg-card/95 backdrop-blur-2xl border border-border p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl shadow-2xl flex flex-col gap-2.5 sm:gap-3.5 text-foreground select-none"
+            initial={{ opacity: 0, y: 50, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 50, scale: 0.95 }}
+            transition={{ type: "spring", stiffness: 350, damping: 25 }}
+            className="fixed bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-[100] w-[calc(100vw-24px)] sm:w-[420px] md:w-[460px] max-w-[460px] bg-card/95 backdrop-blur-2xl border border-border/80 rounded-2xl sm:rounded-3xl shadow-2xl p-3.5 sm:p-4 text-foreground font-sans overflow-hidden select-none"
           >
-            {/* Top Bar: Clean Static Icon, Title, Dynamic Interactive Model Badge & Single Close Button */}
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2.5 sm:gap-3 overflow-hidden">
-                {/* Clean AI Bot Icon (Synced with 3-dot bar) */}
-                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-primary/10 border border-primary/20 rounded-xl sm:rounded-2xl flex items-center justify-center text-primary shrink-0">
-                  <Bot className="w-4 h-4 sm:w-5 sm:h-5" />
+            {/* Header / Active Track Info */}
+            <div className="flex items-center justify-between gap-2.5 sm:gap-3 mb-2.5 sm:mb-3">
+              <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
+                <div className="relative w-9 h-9 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl overflow-hidden bg-primary/10 border border-primary/20 shrink-0 flex items-center justify-center">
+                  {activeTrack.imageUrl ? (
+                    <img src={activeTrack.imageUrl} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <Radio className="w-4 h-4 sm:w-5 sm:h-5 text-primary animate-pulse" />
+                  )}
                 </div>
-                <div className="truncate">
-                  <div className="flex items-center gap-1.5 sm:gap-2">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5 flex-wrap">
                     {/* DYNAMIC MODEL BADGE */}
                     {hasGeminiAudio ? (
                       <button
@@ -480,7 +545,7 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
                       <button
                         onClick={() => setIsSettingsOpen(true)}
                         className="text-[9px] sm:text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30 flex items-center gap-1 hover:bg-amber-500/25 transition-colors cursor-pointer"
-                        title="Playing via Browser Native Voice Fallback - Click to change settings"
+                        title="Playing via Browser Native Voice - Click to change settings"
                       >
                         <Mic className="w-2.5 h-2.5" />
                         Browser Native Voice
@@ -506,7 +571,7 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
             </div>
 
             {/* Audio Dropdown Options */}
-            <div className="flex items-center gap-1.5 sm:gap-2 bg-muted/50 border border-border rounded-xl p-1 sm:p-1.5">
+            <div className="flex items-center gap-1.5 sm:gap-2 bg-muted/50 border border-border rounded-xl p-1 sm:p-1.5 mb-3">
               <FileAudio className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary shrink-0 ml-1" />
               <select
                 value={audioMode}
@@ -517,21 +582,17 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
                 className="w-full text-[11px] sm:text-xs font-semibold bg-transparent text-foreground focus:outline-none cursor-pointer truncate"
               >
                 <option value="bn_summary" className="bg-card text-foreground">
-                  সংবাদ সারসংক্ষেপ (Bangla)
+                  সংবাদ সারসংক্ষেপ {activeTrack.audioUrls?.bn_summary ? "(Gemini 3.1 Flash AI)" : "(Bangla Summary)"}
+                </option>
+                <option value="bn_full" className="bg-card text-foreground">
+                  সম্পূর্ণ সংবাদ (Full News - Native Voice)
                 </option>
                 <option value="en_summary" className="bg-card text-foreground">
-                  News Summary (English)
+                  News Summary {activeTrack.audioUrls?.en_summary ? "(Gemini 3.1 Flash AI)" : "(English)"}
                 </option>
-                {activeTrack.audioUrls?.bn_full && (
-                  <option value="bn_full" className="bg-card text-foreground">
-                    সম্পূর্ণ সংবাদ (Bangla)
-                  </option>
-                )}
-                {activeTrack.audioUrls?.en_full && (
-                  <option value="en_full" className="bg-card text-foreground">
-                    English Full News (English)
-                  </option>
-                )}
+                <option value="en_full" className="bg-card text-foreground">
+                  English Full News (Native Voice)
+                </option>
               </select>
             </div>
 

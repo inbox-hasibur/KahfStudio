@@ -38,7 +38,11 @@ export const scrapeRssFeeds = inngest.createFunction(
           const topItems = feed.items.slice(0, 15);
           
           for (const item of topItems) {
-            if (item.link && item.title) {
+            const itemTitle = typeof item.title === 'string'
+              ? item.title.trim()
+              : (item.title as any)?._ || (item.title as any)?.value || (item.title ? String(item.title) : '');
+
+            if (item.link && itemTitle) {
               const { data: existing } = await supabase
                 .from("news_articles")
                 .select("id")
@@ -48,7 +52,7 @@ export const scrapeRssFeeds = inngest.createFunction(
               if (!existing) {
                 candidates.push({
                   url: item.link,
-                  title: item.title,
+                  title: itemTitle,
                   sourceId: source.id,
                   sourceName: source.name,
                   category: source.category,
