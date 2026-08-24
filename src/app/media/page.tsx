@@ -136,7 +136,7 @@ const defaultChannels: IPTVChannel[] = [
     name: "Jamuna TV", 
     category: "জাতীয় সংবাদ", 
     videoId: "4Wpv0HhFU1M",
-    streamUrl: "https://www.youtube.com/embed/4Wpv0HhFU1M?autoplay=1&playsinline=1&rel=0&modestbranding=1",
+    streamUrl: "https://www.youtube.com/embed/4Wpv0HhFU1M?autoplay=0&mute=0&enablejsapi=1&playsinline=1&rel=0&modestbranding=1",
     color: "bg-blue-600", 
     text: "text-white",
     source: "24/7 লাইভ এইচডি"
@@ -146,7 +146,7 @@ const defaultChannels: IPTVChannel[] = [
     name: "Somoy TV", 
     category: "ব্রেকিং নিউজ", 
     videoId: "i8VSQO6TlFc",
-    streamUrl: "https://www.youtube.com/embed/i8VSQO6TlFc?autoplay=1&playsinline=1&rel=0&modestbranding=1",
+    streamUrl: "https://www.youtube.com/embed/i8VSQO6TlFc?autoplay=0&mute=0&enablejsapi=1&playsinline=1&rel=0&modestbranding=1",
     color: "bg-orange-600", 
     text: "text-white",
     source: "24/7 লাইভ এইচডি"
@@ -156,7 +156,7 @@ const defaultChannels: IPTVChannel[] = [
     name: "Channel 24", 
     category: "সংবাদ ২৪", 
     videoId: "LVPgC7LQOw0",
-    streamUrl: "https://www.youtube.com/embed/LVPgC7LQOw0?autoplay=1&playsinline=1&rel=0&modestbranding=1",
+    streamUrl: "https://www.youtube.com/embed/LVPgC7LQOw0?autoplay=0&mute=0&enablejsapi=1&playsinline=1&rel=0&modestbranding=1",
     color: "bg-emerald-600", 
     text: "text-white",
     source: "24/7 লাইভ এইচডি"
@@ -166,7 +166,7 @@ const defaultChannels: IPTVChannel[] = [
     name: "News24", 
     category: "ব্রেকিং নিউজ", 
     videoId: "oCslIqfoOZw",
-    streamUrl: "https://www.youtube.com/embed/oCslIqfoOZw?autoplay=1&playsinline=1&rel=0&modestbranding=1",
+    streamUrl: "https://www.youtube.com/embed/oCslIqfoOZw?autoplay=0&mute=0&enablejsapi=1&playsinline=1&rel=0&modestbranding=1",
     color: "bg-red-700", 
     text: "text-white",
     source: "24/7 লাইভ"
@@ -176,7 +176,7 @@ const defaultChannels: IPTVChannel[] = [
     name: "Ekattor TV", 
     category: "জাতীয়", 
     videoId: "9L9ymmaPIS0",
-    streamUrl: "https://www.youtube.com/embed/9L9ymmaPIS0?autoplay=1&playsinline=1&rel=0&modestbranding=1",
+    streamUrl: "https://www.youtube.com/embed/9L9ymmaPIS0?autoplay=0&mute=0&enablejsapi=1&playsinline=1&rel=0&modestbranding=1",
     color: "bg-green-700", 
     text: "text-white",
     source: "24/7 লাইভ এইচডি"
@@ -186,7 +186,7 @@ const defaultChannels: IPTVChannel[] = [
     name: "Independent TV", 
     category: "বাংলাদেশ", 
     videoId: "qREvoxxG6Nc",
-    streamUrl: "https://www.youtube.com/embed/qREvoxxG6Nc?autoplay=1&playsinline=1&rel=0&modestbranding=1",
+    streamUrl: "https://www.youtube.com/embed/qREvoxxG6Nc?autoplay=0&mute=0&enablejsapi=1&playsinline=1&rel=0&modestbranding=1",
     color: "bg-slate-800", 
     text: "text-white",
     source: "24/7 লাইভ"
@@ -196,7 +196,7 @@ const defaultChannels: IPTVChannel[] = [
     name: "RTV News", 
     category: "জাতীয় সংবাদ", 
     videoId: "PtztZQi5hCg",
-    streamUrl: "https://www.youtube.com/embed/PtztZQi5hCg?autoplay=1&playsinline=1&rel=0&modestbranding=1",
+    streamUrl: "https://www.youtube.com/embed/PtztZQi5hCg?autoplay=0&mute=0&enablejsapi=1&playsinline=1&rel=0&modestbranding=1",
     color: "bg-red-600", 
     text: "text-white",
     source: "24/7 লাইভ"
@@ -206,7 +206,7 @@ const defaultChannels: IPTVChannel[] = [
     name: "Banglavision", 
     category: "সংবাদ ও খবর", 
     videoId: "95oEnwrvJRs",
-    streamUrl: "https://www.youtube.com/embed/95oEnwrvJRs?autoplay=1&playsinline=1&rel=0&modestbranding=1",
+    streamUrl: "https://www.youtube.com/embed/95oEnwrvJRs?autoplay=0&mute=0&enablejsapi=1&playsinline=1&rel=0&modestbranding=1",
     color: "bg-sky-600", 
     text: "text-white",
     source: "24/7 লাইভ"
@@ -216,7 +216,7 @@ const defaultChannels: IPTVChannel[] = [
     name: "Desh TV", 
     category: "খবর ও রাজনীতি", 
     videoId: "me25ctmn8H8",
-    streamUrl: "https://www.youtube.com/embed/me25ctmn8H8?autoplay=1&playsinline=1&rel=0&modestbranding=1",
+    streamUrl: "https://www.youtube.com/embed/me25ctmn8H8?autoplay=0&mute=0&enablejsapi=1&playsinline=1&rel=0&modestbranding=1",
     color: "bg-teal-700", 
     text: "text-white",
     source: "24/7 লাইভ"
@@ -226,7 +226,7 @@ const defaultChannels: IPTVChannel[] = [
     name: "Al Jazeera English", 
     category: "আন্তর্জাতিক", 
     videoId: "gCNeDWCI0vo",
-    streamUrl: "https://www.youtube.com/embed/gCNeDWCI0vo?autoplay=1&playsinline=1&rel=0&modestbranding=1",
+    streamUrl: "https://www.youtube.com/embed/gCNeDWCI0vo?autoplay=0&mute=0&enablejsapi=1&playsinline=1&rel=0&modestbranding=1",
     color: "bg-amber-600", 
     text: "text-white",
     source: "Global Live HD"
@@ -236,7 +236,7 @@ const defaultChannels: IPTVChannel[] = [
     name: "DW News", 
     category: "বিশ্ব সংবাদ", 
     videoId: "LuKwFajn37U",
-    streamUrl: "https://www.youtube.com/embed/LuKwFajn37U?autoplay=1&playsinline=1&rel=0&modestbranding=1",
+    streamUrl: "https://www.youtube.com/embed/LuKwFajn37U?autoplay=0&mute=0&enablejsapi=1&playsinline=1&rel=0&modestbranding=1",
     color: "bg-sky-700", 
     text: "text-white",
     source: "Global Live HD"
@@ -246,7 +246,7 @@ const defaultChannels: IPTVChannel[] = [
     name: "Sky News", 
     category: "আন্তর্জাতিক", 
     videoId: "YDvsBbKfLPA",
-    streamUrl: "https://www.youtube.com/embed/YDvsBbKfLPA?autoplay=1&playsinline=1&rel=0&modestbranding=1",
+    streamUrl: "https://www.youtube.com/embed/YDvsBbKfLPA?autoplay=0&mute=0&enablejsapi=1&playsinline=1&rel=0&modestbranding=1",
     color: "bg-rose-700", 
     text: "text-white",
     source: "Global Live HD"
@@ -376,9 +376,11 @@ export default function MediaPage() {
     }
   };
 
+  const [hasUserInteracted, setHasUserInteracted] = useState(false);
+
   const activeEmbedUrl = streamType === "live" 
-    ? `https://www.youtube.com/embed/${activeChannel.videoId}?autoplay=1&playsinline=1&rel=0&modestbranding=1`
-    : `https://www.youtube.com/embed/${currentVideo.videoId}?autoplay=1&playsinline=1&rel=0&modestbranding=1`;
+    ? `https://www.youtube.com/embed/${activeChannel.videoId}?autoplay=${hasUserInteracted ? 1 : 0}&mute=0&enablejsapi=1&playsinline=1&rel=0&modestbranding=1`
+    : `https://www.youtube.com/embed/${currentVideo.videoId}?autoplay=${hasUserInteracted ? 1 : 0}&mute=0&enablejsapi=1&playsinline=1&rel=0&modestbranding=1`;
 
   return (
     <main className="max-w-[1200px] mx-auto px-3 sm:px-6 pt-16 sm:pt-24 md:pt-32 pb-4 space-y-3 notranslate">
@@ -546,6 +548,7 @@ export default function MediaPage() {
               <div
                 key={video.id}
                 onClick={() => {
+                  setHasUserInteracted(true);
                   setStreamType("video");
                   setCurrentVideo(video);
                 }}
@@ -646,6 +649,7 @@ export default function MediaPage() {
               <div
                 key={channel.id}
                 onClick={() => {
+                  setHasUserInteracted(true);
                   setStreamType("live");
                   setActiveChannel(channel);
                 }}
