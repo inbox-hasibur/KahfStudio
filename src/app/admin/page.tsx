@@ -87,7 +87,7 @@ export default function AdminDashboard() {
     conversionRate: stats.totalUsers > 0 ? Number(((stats.premiumUsers / stats.totalUsers) * 100).toFixed(1)) : 0,
     paidSubscribers: stats.premiumUsers,
     freeSubscribers: Math.max(0, stats.totalUsers - stats.premiumUsers),
-    gateways: { sslcommerz: 0, aamarpay: 0, paddle: 0, stripe: 0, trial: 0 }
+    gateways: { sslcommerz: 0, stripe: 0, trial: 0 }
   };
 
   const users = reportsData?.users || {
@@ -403,8 +403,7 @@ export default function AdminDashboard() {
             <CardContent className="p-3.5 space-y-2">
               {[
                 { name: "SSLCommerz (bKash / Nagad / Cards)", count: revenue.gateways.sslcommerz || 0, badge: "Local" },
-                { name: "Aamarpay (Mobile Banking)", count: revenue.gateways.aamarpay || 0, badge: "Local" },
-                { name: "Stripe / Paddle (Global Cards)", count: (revenue.gateways.stripe || 0) + (revenue.gateways.paddle || 0), badge: "Global" },
+                { name: "Stripe (Global Cards)", count: revenue.gateways.stripe || 0, badge: "Global" },
                 { name: "7-Day Free Trial Subscribers", count: revenue.gateways.trial || 0, badge: "Trial" },
               ].map((gw, idx) => (
                 <div key={idx} className="flex items-center justify-between p-2 rounded-lg bg-card/60 border border-border/40 text-xs">

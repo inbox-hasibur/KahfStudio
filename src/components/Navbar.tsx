@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
@@ -35,6 +35,36 @@ const Navbar = () => {
   const [mounted, setMounted] = useState(false);
   const [language, setLanguage] = useState("BN");
   const [isLangDropdownOpen, setIsLangDropdownOpen] = useState(false);
+
+  const profileDropdownRef = useRef<HTMLDivElement>(null);
+  const langDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdowns and menus on route change
+  useEffect(() => {
+    setIsProfileDropdownOpen(false);
+    setIsLangDropdownOpen(false);
+    setIsMenuOpen(false);
+    setIsSearchOpen(false);
+  }, [pathname]);
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      if (profileDropdownRef.current && !profileDropdownRef.current.contains(event.target as Node)) {
+        setIsProfileDropdownOpen(false);
+      }
+      if (langDropdownRef.current && !langDropdownRef.current.contains(event.target as Node)) {
+        setIsLangDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("touchstart", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
+    };
+  }, []);
 
   const handleLanguageChange = (lang: string) => {
     setLanguage(lang);
@@ -144,7 +174,7 @@ const Navbar = () => {
               )}
 
               {/* Language Toggle Dropdown */}
-              <div className="relative">
+              <div className="relative" ref={langDropdownRef}>
                 {mounted && (
                   <button 
                     onClick={() => setIsLangDropdownOpen(!isLangDropdownOpen)}
@@ -247,7 +277,7 @@ const Navbar = () => {
                   <LogOut className="w-3.5 h-3.5" />
                 </motion.button>
                 
-                <div className="relative">
+                <div className="relative" ref={profileDropdownRef}>
                   <motion.button 
                     onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
                     className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold hover:bg-primary/90 transition-colors shadow-sm cursor-pointer"
@@ -311,6 +341,12 @@ const Navbar = () => {
                               <Link href="/profile/library" onClick={() => setIsProfileDropdownOpen(false)}>
                                 <div className="px-3 py-2 text-[13px] font-medium hover:bg-muted rounded-xl cursor-pointer transition-colors text-muted-foreground hover:text-foreground">
                                   News Approval
+                                </div>
+                              </Link>
+
+                              <Link href="/profile/preferences" onClick={() => setIsProfileDropdownOpen(false)}>
+                                <div className="px-3 py-2 text-[13px] font-medium hover:bg-muted rounded-xl cursor-pointer transition-colors text-muted-foreground hover:text-foreground">
+                                  Preferences
                                 </div>
                               </Link>
                             </>

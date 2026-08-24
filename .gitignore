@@ -78,4 +78,11 @@ next-env.d.ts
 
 # reference folder
 /reference_kahfnews_main
+
+# auto-generated AI tools & scratch
+.agents/
+graphify-out/
+scratch/
+
+
 

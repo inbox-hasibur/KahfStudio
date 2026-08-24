@@ -66,6 +66,7 @@ export default function ProfileDashboard() {
       const data = await res.json();
       if (data.success) {
         setSubscription((prev: any) => ({ ...prev, status: 'cancelled', auto_renew: false }));
+        setStats((prev: any) => ({ ...prev, tier: 'Free' }));
         setActionMessage(data.message);
       } else {
         alert(data.error || 'Failed to cancel subscription');
@@ -90,6 +91,7 @@ export default function ProfileDashboard() {
       const data = await res.json();
       if (data.success) {
         setSubscription((prev: any) => ({ ...prev, status: 'active', auto_renew: true }));
+        setStats((prev: any) => ({ ...prev, tier: 'Premium' }));
         setActionMessage(data.message);
       } else {
         alert(data.error || 'Failed to reactivate subscription');

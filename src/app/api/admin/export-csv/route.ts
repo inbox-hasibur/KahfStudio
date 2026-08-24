@@ -46,8 +46,6 @@ export async function GET(req: Request) {
     const subscriptions = subscriptionsRes.data || [];
     const gatewayCounts: Record<string, number> = {
       sslcommerz: 0,
-      aamarpay: 0,
-      paddle: 0,
       stripe: 0,
       trial: 0
     };
@@ -110,8 +108,7 @@ export async function GET(req: Request) {
     csv += `3. PAYMENT GATEWAYS BREAKDOWN\n`;
     csv += `Channel,Transactions / Volume\n`;
     csv += `SSLCommerz (bKash / Nagad / Cards),${gatewayCounts.sslcommerz || 0}\n`;
-    csv += `Aamarpay (Mobile Banking),${gatewayCounts.aamarpay || 0}\n`;
-    csv += `Stripe / Paddle (Global Cards),${(gatewayCounts.stripe || 0) + (gatewayCounts.paddle || 0)}\n`;
+    csv += `Stripe (Global Cards),${gatewayCounts.stripe || 0}\n`;
     csv += `7-Day Free Trial Users,${gatewayCounts.trial || 0}\n\n`;
 
     csv += `4. REGIONAL AUDIENCE DISTRIBUTION\n`;

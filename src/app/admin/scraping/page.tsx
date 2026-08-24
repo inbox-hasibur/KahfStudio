@@ -399,20 +399,30 @@ export default function AdminScrapingPage() {
               )}
               
               <div className="flex flex-wrap gap-2 mt-2">
-                {scrapTimes.map((t, i) => (
-                  <Input 
-                    key={i} 
-                    type="time" 
-                    className="w-[100px] h-9 text-xs disabled:opacity-50" 
-                    value={t} 
-                    disabled={!isScheduleEnabled}
-                    onChange={e => {
-                      const newT = [...scrapTimes];
-                      newT[i] = e.target.value;
-                      setScrapTimes(newT);
-                    }} 
-                  />
-                ))}
+                {scrapTimes.map((t, i) => {
+                  const [h, m] = (t || "00:00").split(":");
+                  const hour = parseInt(h || "0", 10);
+                  const ampm = hour >= 12 ? "PM" : "AM";
+                  const formattedHour = hour % 12 || 12;
+                  const displayStr = `${formattedHour}:${(m || "00").padStart(2, "0")} ${ampm}`;
+
+                  return (
+                    <div key={i} className="flex items-center gap-1 bg-muted px-2.5 py-1 rounded-xl border border-border">
+                      <Input 
+                        type="time" 
+                        className="w-[95px] h-7 text-xs bg-transparent border-0 p-0 focus-visible:ring-0 disabled:opacity-50 font-mono" 
+                        value={t} 
+                        disabled={!isScheduleEnabled}
+                        onChange={e => {
+                          const newT = [...scrapTimes];
+                          newT[i] = e.target.value;
+                          setScrapTimes(newT);
+                        }} 
+                      />
+                      <span className="text-[10px] font-bold text-primary font-mono">{displayStr}</span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 

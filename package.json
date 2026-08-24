@@ -12,8 +12,6 @@
     "@google/generative-ai": "^0.24.1",
     "@hookform/resolvers": "^5.4.0",
     "@mozilla/readability": "^0.6.0",
-    "@paddle/paddle-js": "^1.6.4",
-    "@paddle/paddle-node-sdk": "^3.10.0",
     "@stripe/stripe-js": "^9.13.0",
     "@supabase/ssr": "^0.12.3",
     "@supabase/supabase-js": "^2.110.5",

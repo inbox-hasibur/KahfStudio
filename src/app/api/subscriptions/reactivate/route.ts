@@ -24,36 +24,59 @@ export async function POST(req: Request) {
       .limit(1);
 
     if (fetchErr) {
-      return NextResponse.json({ error: fetchErr.message }, { status: 500 });
+      console.error("Subscription fetch error:", fetchErr);
     }
 
-    if (!subs || subs.length === 0) {
-      return NextResponse.json({ error: 'No subscription found for this user.' }, { status: 404 });
-    }
+    let activeSub = subs && subs.length > 0 ? subs[0] : null;
+    const validUntil = new Date();
+    validUntil.setMonth(validUntil.getMonth() + 1);
 
-    const activeSub = subs[0];
-
-    // Mark subscription auto_renew = true and status = active
-    const { error: updateErr } = await supabase
-      .from('subscriptions')
-      .update({
-        status: 'active',
-        auto_renew: true,
-      })
-      .eq('id', activeSub.id);
-
-    if (updateErr) {
-      // Fallback update without auto_renew column if schema lacks it
-      await supabase
+    if (activeSub) {
+      const { error: updateErr } = await supabase
         .from('subscriptions')
-        .update({ status: 'active' })
+        .update({
+          status: 'active',
+          auto_renew: true,
+        })
         .eq('id', activeSub.id);
+
+      if (updateErr) {
+        await supabase
+          .from('subscriptions')
+          .update({ status: 'active' })
+          .eq('id', activeSub.id);
+      }
+    } else {
+      const { data: newSub } = await supabase
+        .from('subscriptions')
+        .insert({
+          user_id: userId,
+          plan_type: 'premium_monthly',
+          status: 'active',
+          auto_renew: true,
+          valid_until: validUntil.toISOString()
+        })
+        .select('*')
+        .single();
+      activeSub = newSub;
     }
+
+    // Update user profile tier to premium
+    await supabase
+      .from('profiles')
+      .update({ tier: 'premium' })
+      .eq('id', userId);
+
+    try {
+      await supabase.auth.admin.updateUserById(userId, {
+        user_metadata: { tier: 'premium' }
+      });
+    } catch (e) {}
 
     return NextResponse.json({
       success: true,
       message: 'Subscription recurring auto-renew reactivated successfully.',
-      valid_until: activeSub.valid_until,
+      valid_until: activeSub?.valid_until || validUntil.toISOString(),
     });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });

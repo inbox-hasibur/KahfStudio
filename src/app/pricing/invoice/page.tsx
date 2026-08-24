@@ -5,7 +5,7 @@ import { Shield, FileText, CheckCircle, Printer } from 'lucide-react';
 
 export default function LocalInvoicePage({ searchParams }: { searchParams: any }) {
   const gateway = searchParams?.gateway || 'Local Payment';
-  const displayGateway = gateway === 'sslcommerz' ? 'SSLCommerz' : gateway === 'aamarpay' ? 'aamarPay' : gateway;
+  const displayGateway = gateway === 'sslcommerz' ? 'SSLCommerz' : gateway;
   
   const today = new Date();
   const invoiceNumber = `INV-${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}-${Math.floor(Math.random() * 10000)}`;

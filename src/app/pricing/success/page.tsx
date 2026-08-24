@@ -19,7 +19,7 @@ function CheckoutSuccessContent() {
     const gateway = searchParams.get("gateway");
     
     // For local gateways, verification is already handled by the callback route
-    if (gateway === "sslcommerz" || gateway === "aamarpay") {
+    if (gateway === "sslcommerz") {
       const refresh = async () => {
         const supabase = createClient();
         await supabase.auth.refreshSession();

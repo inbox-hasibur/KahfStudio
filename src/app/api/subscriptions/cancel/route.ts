@@ -24,36 +24,59 @@ export async function POST(req: Request) {
       .limit(1);
 
     if (fetchErr) {
-      return NextResponse.json({ error: fetchErr.message }, { status: 500 });
+      console.error("Subscription fetch error:", fetchErr);
     }
 
-    if (!subs || subs.length === 0) {
-      return NextResponse.json({ error: 'No active subscription found for this user.' }, { status: 404 });
-    }
+    let activeSub = subs && subs.length > 0 ? subs[0] : null;
 
-    const activeSub = subs[0];
-
-    // Mark subscription auto_renew = false and status = cancelled
-    const { error: updateErr } = await supabase
-      .from('subscriptions')
-      .update({
-        status: 'cancelled',
-        auto_renew: false,
-      })
-      .eq('id', activeSub.id);
-
-    if (updateErr) {
-      // Fallback update without auto_renew column if schema lacks it
-      await supabase
+    if (activeSub) {
+      // Mark subscription auto_renew = false and status = cancelled
+      const { error: updateErr } = await supabase
         .from('subscriptions')
-        .update({ status: 'cancelled' })
+        .update({
+          status: 'cancelled',
+          auto_renew: false,
+        })
         .eq('id', activeSub.id);
+
+      if (updateErr) {
+        await supabase
+          .from('subscriptions')
+          .update({ status: 'cancelled' })
+          .eq('id', activeSub.id);
+      }
+    } else {
+      // If no sub record exists, insert a cancelled sub record so history is consistent
+      const { data: newSub } = await supabase
+        .from('subscriptions')
+        .insert({
+          user_id: userId,
+          plan_type: 'premium_monthly',
+          status: 'cancelled',
+          auto_renew: false,
+          valid_until: new Date().toISOString()
+        })
+        .select('*')
+        .single();
+      activeSub = newSub;
     }
+
+    // Also update profiles tier to 'free'
+    await supabase
+      .from('profiles')
+      .update({ tier: 'free' })
+      .eq('id', userId);
+
+    try {
+      await supabase.auth.admin.updateUserById(userId, {
+        user_metadata: { tier: 'free' }
+      });
+    } catch (e) {}
 
     return NextResponse.json({
       success: true,
-      message: 'Subscription recurring auto-renew cancelled successfully. Your premium features remain active until the end of your billing cycle.',
-      valid_until: activeSub.valid_until,
+      message: 'Subscription recurring auto-renew cancelled successfully.',
+      valid_until: activeSub?.valid_until || new Date().toISOString(),
     });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
