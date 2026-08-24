@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSession } from "@/lib/auth-client";
 import Link from "next/link";
+import { HalalExperimentSection } from "@/components/media/HalalExperimentSection";
 
 export interface IPTVChannel {
   id: string;
@@ -677,6 +678,8 @@ export default function MediaPage() {
         </div>
       </section>
 
+      {/* 🧪 Isolated Halal Sound Mode Experimental Lab (Step 5E & 6) */}
+      <HalalExperimentSection />
 
     </main>
   );
