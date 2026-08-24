@@ -523,17 +523,27 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
 
     const userForcedWebSpeech = ttsSettings.model === "browser-native";
 
-    // ONLY bn_summary uses Gemini Audio; other 3 modes (en_summary, bn_full, en_full) use WebSpeech
-    if (audioMode === "bn_summary" && !userForcedWebSpeech) {
-      const geminiUrl = activeTrack.audioUrls?.bn_summary;
-      if (geminiUrl) {
-        startGeminiAudio(geminiUrl, activeTrack, currentSessionId);
-      } else {
-        // Fallback directly to WebSpeech if no URL exists
-        startWebSpeech(activeTrack, "bn_summary", currentSessionId);
-      }
+    // Extract target audio URL based on selected mode
+    const modeAudioUrl =
+      audioMode === "bn_summary"
+        ? activeTrack.audioUrls?.bn_summary
+        : audioMode === "bn_full"
+        ? activeTrack.audioUrls?.bn_full
+        : audioMode === "en_summary"
+        ? activeTrack.audioUrls?.en_summary
+        : activeTrack.audioUrls?.en_full;
+
+    const textToSpeak =
+      audioMode.includes("full")
+        ? activeTrack.raw_content || activeTrack.text || `${activeTrack.title}. ${activeTrack.summary || ""}`
+        : `${activeTrack.title}. ${activeTrack.summary || ""}`;
+
+    // Fallback to server TTS route (/api/audio/tts) for natural voice if no pre-rendered URL exists
+    const targetAudioUrl = modeAudioUrl || `/api/audio/tts?text=${encodeURIComponent(textToSpeak.slice(0, 800))}`;
+
+    if (!userForcedWebSpeech) {
+      startGeminiAudio(targetAudioUrl, activeTrack, currentSessionId);
     } else {
-      // en_summary, bn_full, en_full or user picked WebSpeech
       startWebSpeech(activeTrack, audioMode, currentSessionId);
     }
 
