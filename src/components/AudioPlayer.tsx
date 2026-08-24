@@ -38,6 +38,7 @@ export interface AudioTrack {
   source?: string;
   imageUrl?: string;
   audioUrls?: AudioUrls;
+  isPodcast?: boolean;
 }
 
 interface AudioPlayerProps {
@@ -193,6 +194,7 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
         imageUrl,
         source: source || "KahfNews",
         audioUrls: audioUrls || {},
+        isPodcast: id === "daily-podcast" || source?.toLowerCase().includes("podcast"),
       };
 
       setActiveTrack(newTrack);
@@ -367,9 +369,12 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
           isSpeakingRef.current = false;
           setCurrentTime(totalEstimatedDuration);
           setProgress(1);
-          if (webSpeechTimerRef.current) clearInterval(webSpeechTimerRef.current);
           if (sessionCounterRef.current === sessionId) {
-            handleNext();
+            if (track.id === "daily-podcast" || track.isPodcast) {
+              setIsPlaying(false);
+            } else {
+              handleNext();
+            }
           }
           return;
         }
@@ -472,7 +477,12 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
 
       audio.onended = () => {
         if (sessionCounterRef.current === sessionId) {
-          handleNext();
+          if (track.id === "daily-podcast" || track.isPodcast) {
+            setIsPlaying(false);
+            setProgress(1);
+          } else {
+            handleNext();
+          }
         }
       };
 

@@ -8,7 +8,6 @@ import { useSession } from "@/lib/auth-client";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { initializePaddle, Paddle } from '@paddle/paddle-js';
 
 function CheckoutContent() {
   const { data: sessionData, status } = useSession();
@@ -21,7 +20,6 @@ function CheckoutContent() {
   );
   const [activeTab, setActiveTab] = useState<"local" | "global">("global");
   const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
-  const [paddle, setPaddle] = useState<Paddle>();
   const [selectedMethod, setSelectedMethod] = useState<string | null>("stripe");
 
   const isAnnual = cycle === "yearly";
@@ -32,21 +30,6 @@ function CheckoutContent() {
 
   const displayCurrency = activeTab === "local" ? "৳" : "$";
   const displayAmount = activeTab === "local" ? localAmount : globalAmount;
-
-  useEffect(() => {
-    // Only initialize paddle if the token is available
-    const token = process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN;
-    if (!token) return;
-
-    initializePaddle({ 
-      environment: token.startsWith('test_') ? 'sandbox' : 'production', 
-      token 
-    }).then(
-      (paddleInstance: Paddle | undefined) => {
-        if (paddleInstance) setPaddle(paddleInstance);
-      }
-    );
-  }, []);
 
   // Sync URL when toggling cycle
   useEffect(() => {
@@ -61,36 +44,9 @@ function CheckoutContent() {
     }
   }, [status, router, sessionData]);
 
-  const handleCheckout = async (gateway: 'lemonsqueezy' | 'aamarpay' | 'stripe' | 'paddle') => {
+  const handleCheckout = async (gateway: 'lemonsqueezy' | 'stripe') => {
     if (!sessionData?.user?.id) return;
     setIsCheckoutLoading(true);
-    
-    // Paddle Client-Side Integration
-    if (gateway === 'paddle' && paddle) {
-      const priceId = isAnnual 
-        ? process.env.NEXT_PUBLIC_PADDLE_YEARLY_PRICE_ID 
-        : process.env.NEXT_PUBLIC_PADDLE_MONTHLY_PRICE_ID;
-        
-      if (!priceId) {
-        console.error("Paddle Price ID is missing.");
-        setIsCheckoutLoading(false);
-        return;
-      }
-
-      paddle.Checkout.open({
-        items: [
-          {
-            priceId: priceId,
-            quantity: 1
-          }
-        ],
-        customData: {
-          userId: sessionData.user.id
-        }
-      });
-      setIsCheckoutLoading(false);
-      return;
-    }
 
     const endpoint = gateway === 'stripe' ? '/api/checkout' : `/api/checkout/${gateway}`;
 
@@ -118,19 +74,10 @@ function CheckoutContent() {
 
   const handlePayClick = () => {
     if (activeTab === "local") {
-      if (selectedMethod === "sslcommerz") {
-        handleCheckout("sslcommerz" as any);
-      } else {
-        // bKash, aamarPay, Card all go through aamarpay for now, or use their respective endpoints
-        // wait, we replaced bKash with SSLCommerz, but if we want distinct, we should pass it.
-        // I will just map sslcommerz to sslcommerz, and everything else to aamarpay
-        handleCheckout(selectedMethod === "sslcommerz" ? "sslcommerz" : "aamarpay" as any);
-      }
+      handleCheckout("sslcommerz" as any);
     } else {
       if (selectedMethod === "stripe") {
         handleCheckout("stripe");
-      } else if (selectedMethod === "paddle") {
-        handleCheckout("paddle" as any);
       } else if (selectedMethod === "razorpay") {
         handleCheckout("razorpay" as any);
       } else {
@@ -266,23 +213,11 @@ function CheckoutContent() {
                     )}
                     <span className="font-extrabold text-blue-600 tracking-tight text-xl">SSLCommerz</span>
                   </div>
-
-                  <div 
-                    onClick={() => { setActiveTab("local"); setSelectedMethod("aamarpay"); }}
-                    className={`relative border-2 rounded-2xl p-4 flex flex-row items-center justify-center cursor-pointer transition-all hover:shadow-md hover:border-emerald-500 hover:-translate-y-0.5 h-16 bg-background group ${selectedMethod === "aamarpay" && activeTab === "local" ? "border-emerald-500 shadow-lg shadow-emerald-500/20 bg-emerald-500/10 ring-4 ring-emerald-500/10" : "border-border"}`}
-                  >
-                    {selectedMethod === "aamarpay" && activeTab === "local" && (
-                      <div className="absolute top-1/2 -translate-y-1/2 right-4 bg-emerald-500 rounded-full p-1 shadow-sm">
-                        <Check className="w-3 h-3 text-white" />
-                      </div>
-                    )}
-                    <span className="font-extrabold text-emerald-600 tracking-tight text-xl">aamarPay</span>
-                  </div>
                 </div>
 
                 <div className="bg-muted/50 border border-border rounded-2xl p-4 flex items-start gap-3 mt-4 transition-colors">
                   <Shield className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
-                  <p className="text-xs text-muted-foreground leading-relaxed">Processed securely by <span className="font-bold text-foreground">{selectedMethod === 'sslcommerz' ? 'SSLCommerz' : 'aamarPay'} PGW</span> in BDT.</p>
+                  <p className="text-xs text-muted-foreground leading-relaxed">Processed securely by <span className="font-bold text-foreground">SSLCommerz PGW</span> in BDT.</p>
                 </div>
               </div>
 
@@ -306,23 +241,11 @@ function CheckoutContent() {
                     <span className="font-extrabold text-[#635BFF] text-2xl tracking-tight">stripe</span>
                   </div>
 
-                  {/* Paddle - ENABLED */}
-                  <div 
-                    onClick={() => { setActiveTab("global"); setSelectedMethod("paddle"); }}
-                    className={`relative border-2 rounded-2xl p-4 flex flex-row items-center justify-center cursor-pointer transition-all hover:shadow-md hover:border-[#FF5A00] hover:-translate-y-0.5 h-16 bg-background group ${selectedMethod === "paddle" && activeTab === "global" ? "border-[#FF5A00] shadow-lg shadow-[#FF5A00]/20 bg-[#FF5A00]/10 ring-4 ring-[#FF5A00]/10" : "border-border"}`}
-                  >
-                    {selectedMethod === "paddle" && activeTab === "global" && (
-                      <div className="absolute top-1/2 -translate-y-1/2 right-4 bg-[#FF5A00] rounded-full p-1 shadow-sm">
-                        <Check className="w-3 h-3 text-white" />
-                      </div>
-                    )}
-                    <span className="font-bold text-foreground text-xl tracking-tight">Paddle</span>
-                  </div>
                 </div>
 
                 <div className="bg-muted/50 border border-border rounded-2xl p-4 flex items-start gap-3 mt-4 transition-colors">
                   <Globe className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
-                  <p className="text-xs text-muted-foreground leading-relaxed">Processed by <span className="font-bold text-foreground">Stripe / Paddle</span> in USD.</p>
+                  <p className="text-xs text-muted-foreground leading-relaxed">Processed by <span className="font-bold text-foreground">Stripe</span> in USD.</p>
                 </div>
               </div>
 

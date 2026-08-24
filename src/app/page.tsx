@@ -191,9 +191,10 @@ export default function Home() {
     category: item.category || "General",
     priority: (item.priority || defaultPriority) as "high" | "medium" | "low",
     publishedAt: item.published_at
-      ? new Date(item.published_at).toLocaleTimeString([], {
+      ? new Date(item.published_at).toLocaleTimeString("en-US", {
         hour: "2-digit",
         minute: "2-digit",
+        hour12: true,
       })
       : defaultPriority === "high" ? "Just now" : "Recent",
     imageUrl: item.image_url || item.imageUrl,
@@ -276,12 +277,7 @@ export default function Home() {
         preferredType: "summary",
         audioUrls: podcastAudioUrl
           ? { bn_summary: podcastAudioUrl }
-          : {
-              bn_full: firstHeadline?.audio_bn_full,
-              bn_summary: firstHeadline?.audio_bn_summary,
-              en_full: firstHeadline?.audio_en_full,
-              en_summary: firstHeadline?.audio_en_summary,
-            }
+          : undefined
       }
     });
     window.dispatchEvent(event);
@@ -615,10 +611,7 @@ export default function Home() {
               >
                 {/* 1. Listen Daily Podcast / Open Player */}
                 <button
-                  onClick={() => {
-                    const audioPlayerTrigger = document.getElementById("global-audio-trigger");
-                    if (audioPlayerTrigger) audioPlayerTrigger.click();
-                  }}
+                  onClick={handlePlayFullAudio}
                   className="flex items-center gap-2 px-3.5 py-1.5 bg-primary hover:bg-primary/90 text-primary-foreground rounded-full text-xs font-bold transition-all shadow-md shadow-primary/20 whitespace-nowrap cursor-pointer"
                 >
                   <Headphones className="w-3.5 h-3.5" />

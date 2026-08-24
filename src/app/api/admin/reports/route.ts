@@ -60,8 +60,6 @@ export async function GET(req: Request) {
     let totalRevenueBDT = 0;
     const gatewayCounts: Record<string, number> = {
       sslcommerz: 0,
-      aamarpay: 0,
-      paddle: 0,
       stripe: 0,
       trial: 0
     };
