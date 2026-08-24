@@ -347,6 +347,7 @@ export default function MediaPage() {
   const [currentVideo, setCurrentVideo] = useState<NewsVideo>(realNewsVideos[0]);
 
   const [isHalalMode, setIsHalalMode] = useState(false);
+  const [halalModel, setHalalModel] = useState<"HTDemucs" | "NatSep">("NatSep");
   const [isDescExpanded, setIsDescExpanded] = useState(false);
 
   const channelsScrollRef = useRef<HTMLDivElement | null>(null);
@@ -407,15 +408,37 @@ export default function MediaPage() {
           </div>
         </div>
 
-        <Button 
-          variant={isHalalMode ? "default" : "outline"} 
-          size="sm" 
-          disabled={!isPremium}
-          onClick={() => isPremium && setIsHalalMode(!isHalalMode)}
-          className={`h-7 px-3 text-[11px] font-bold rounded-full shrink-0 cursor-pointer ${isHalalMode ? "bg-primary text-primary-foreground" : ""}`}
-        >
-          {isPremium ? (isHalalMode ? "চালু আছে" : "চালু করুন") : "Upgrade"}
-        </Button>
+        <div className="flex items-center gap-2 shrink-0">
+          {/* Halal Model Selector (HTDemucs vs NatSep) */}
+          {isHalalMode && (
+            <div className="inline-flex bg-muted/90 p-0.5 rounded-full border border-border text-[10px] sm:text-[11px] font-bold">
+              <button
+                type="button"
+                onClick={() => setHalalModel("HTDemucs")}
+                className={`px-2.5 py-0.5 rounded-full transition-colors cursor-pointer ${halalModel === "HTDemucs" ? "bg-primary text-primary-foreground shadow-sm font-bold" : "text-muted-foreground hover:text-foreground"}`}
+              >
+                HTDemucs
+              </button>
+              <button
+                type="button"
+                onClick={() => setHalalModel("NatSep")}
+                className={`px-2.5 py-0.5 rounded-full transition-colors cursor-pointer ${halalModel === "NatSep" ? "bg-primary text-primary-foreground shadow-sm font-bold" : "text-muted-foreground hover:text-foreground"}`}
+              >
+                NatSep
+              </button>
+            </div>
+          )}
+
+          <Button 
+            variant={isHalalMode ? "default" : "outline"} 
+            size="sm" 
+            disabled={!isPremium}
+            onClick={() => isPremium && setIsHalalMode(!isHalalMode)}
+            className={`h-7 px-3 text-[11px] font-bold rounded-full shrink-0 cursor-pointer ${isHalalMode ? "bg-primary text-primary-foreground" : ""}`}
+          >
+            {isPremium ? (isHalalMode ? "চালু আছে" : "চালু করুন") : "Upgrade"}
+          </Button>
+        </div>
       </div>
 
       {/* 3. Main 100% Real Live Stream & Video Player Card */}
@@ -650,42 +673,7 @@ export default function MediaPage() {
         </div>
       </section>
 
-      {/* 6. Trial / Join Pro Utility Banner */}
-      <div className="pt-0.5">
-        {(session?.user as any)?.trial_days_left !== undefined ? (
-          <div className="bg-primary/10 border border-primary/25 rounded-xl sm:rounded-2xl p-2 sm:p-2.5 shadow-sm flex items-center justify-between gap-2">
-            <div>
-              <h3 className="font-bold text-primary text-xs flex items-center gap-1">
-                <Star className="w-3.5 h-3.5 fill-current" /> 7-Day Free Trial
-              </h3>
-              <p className="text-[10px] sm:text-[11px] text-muted-foreground mt-0.5">
-                You have <strong>{(session?.user as any)?.trial_days_left} days</strong> left in your trial.
-              </p>
-            </div>
-            <Link href="/pricing">
-              <Button size="sm" className="h-7 text-[11px] font-bold bg-primary text-primary-foreground hover:bg-primary/90 rounded-full shrink-0">
-                Upgrade
-              </Button>
-            </Link>
-          </div>
-        ) : (
-          <div className="bg-card border border-border rounded-xl sm:rounded-2xl p-2 sm:p-2.5 shadow-sm flex items-center justify-between gap-2">
-            <div>
-              <h3 className="font-bold text-foreground text-xs flex items-center gap-1">
-                <Sparkles className="w-3.5 h-3.5 text-primary" /> আনলিমিটেড এআই নিউজ
-              </h3>
-              <p className="text-[10px] sm:text-[11px] text-muted-foreground mt-0.5">
-                সবগুলো লাইভ টিভি ও এআই ভয়েস ব্রিফিং আনলক করুন।
-              </p>
-            </div>
-            <Link href="/pricing">
-              <Button size="sm" variant="outline" className="h-7 text-[11px] font-bold border-primary text-primary hover:bg-primary hover:text-white rounded-full shrink-0">
-                Join Pro
-              </Button>
-            </Link>
-          </div>
-        )}
-      </div>
+
     </main>
   );
 }
