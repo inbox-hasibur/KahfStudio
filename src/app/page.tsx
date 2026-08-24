@@ -265,6 +265,7 @@ export default function Home() {
     }
     
     const firstHeadline = headlines[0];
+    const podcastAudio = podcastAudioUrl || `/api/audio/tts?text=${encodeURIComponent(dailyPodcastScript.slice(0, 800))}`;
 
     const event = new CustomEvent('play-audio', {
       detail: {
@@ -275,9 +276,12 @@ export default function Home() {
         source: "KahfNews AI Podcast",
         preferredLang: "BN",
         preferredType: "summary",
-        audioUrls: podcastAudioUrl
-          ? { bn_summary: podcastAudioUrl }
-          : undefined
+        audioUrls: {
+          bn_summary: podcastAudio,
+          bn_full: firstHeadline?.audio_bn_full || podcastAudio,
+          en_summary: firstHeadline?.audio_en_summary,
+          en_full: firstHeadline?.audio_en_full,
+        }
       }
     });
     window.dispatchEvent(event);
