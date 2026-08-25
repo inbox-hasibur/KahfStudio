@@ -14,9 +14,13 @@ export interface HlsVideoPlayerProps {
   title?: string;
   autoPlay?: boolean;
   onVideoElementReady?: (videoEl: HTMLVideoElement | null) => void;
+  onPlayStateChange?: (playing: boolean) => void;
   className?: string;
   halalActive?: boolean;
   onToggleHalal?: () => void;
+  mode?: string;
+  mlStatus?: string;
+  mlPrimed?: boolean;
 }
 
 export interface QualityLevel {
@@ -35,9 +39,13 @@ export const HlsVideoPlayer: React.FC<HlsVideoPlayerProps> = ({
   title = "Media Player",
   autoPlay = true,
   onVideoElementReady,
+  onPlayStateChange,
   className = "",
   halalActive = false,
-  onToggleHalal
+  onToggleHalal,
+  mode = "dsp",
+  mlStatus = "",
+  mlPrimed = false
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -126,6 +134,7 @@ export const HlsVideoPlayer: React.FC<HlsVideoPlayerProps> = ({
     const video = videoRef.current;
     if (!video || !resolvedSrc) return;
 
+    video.crossOrigin = "anonymous";
     applySafeVolume(userVolume, isMuted);
 
     if (onVideoElementReady) {
@@ -152,6 +161,7 @@ export const HlsVideoPlayer: React.FC<HlsVideoPlayerProps> = ({
       });
       hlsRef.current = hls;
 
+      video.crossOrigin = "anonymous";
       hls.loadSource(resolvedSrc);
       hls.attachMedia(video);
 
@@ -361,14 +371,28 @@ export const HlsVideoPlayer: React.FC<HlsVideoPlayerProps> = ({
       >
         <video
           ref={videoRef}
+          crossOrigin="anonymous"
           className="w-full h-full object-contain pointer-events-none"
           playsInline
-          onPlay={() => setIsPlaying(true)}
-          onPause={() => setIsPlaying(false)}
+          onPlay={() => {
+            setIsPlaying(true);
+            onPlayStateChange?.(true);
+          }}
+          onPause={() => {
+            setIsPlaying(false);
+            onPlayStateChange?.(false);
+          }}
+          onEnded={() => {
+            setIsPlaying(false);
+            onPlayStateChange?.(false);
+          }}
           onTimeUpdate={handleTimeUpdate}
           onLoadedMetadata={handleTimeUpdate}
           onWaiting={() => setIsLoading(true)}
-          onPlaying={() => setIsLoading(false)}
+          onPlaying={() => {
+            setIsLoading(false);
+            onPlayStateChange?.(true);
+          }}
         />
 
         {/* Loading Spinner */}
@@ -391,9 +415,24 @@ export const HlsVideoPlayer: React.FC<HlsVideoPlayerProps> = ({
         {/* Top Header Badge */}
         <div className={`absolute top-0 left-0 right-0 p-3 sm:p-4 bg-gradient-to-b from-black/80 via-black/40 to-transparent flex items-center justify-between transition-opacity duration-300 z-20 ${controlsVisible ? "opacity-100" : "opacity-0 pointer-events-none"}`}>
           <div className="flex items-center gap-2">
-            <span className="text-xs sm:text-sm font-bold text-white drop-shadow truncate max-w-[200px] sm:max-w-sm">
+            <span className="text-xs sm:text-sm font-bold text-white drop-shadow truncate max-w-[160px] sm:max-w-xs">
               {title}
             </span>
+
+            {/* Neural ML Status Overlay Pill */}
+            {halalActive && mode === "ml" && (
+              !mlPrimed ? (
+                <div className="px-2 py-0.5 rounded-full bg-amber-950/80 border border-amber-500/50 text-amber-300 text-[9px] sm:text-[10px] font-mono font-semibold flex items-center gap-1 shadow-md backdrop-blur-md animate-pulse">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                  <span>AI Warming up (DSP active)...</span>
+                </div>
+              ) : (
+                <div className="px-2 py-0.5 rounded-full bg-teal-950/80 border border-teal-500/50 text-teal-300 text-[9px] sm:text-[10px] font-mono font-semibold flex items-center gap-1 shadow-md backdrop-blur-md">
+                  <span className="w-1.5 h-1.5 rounded-full bg-teal-400 animate-pulse" />
+                  <span>Neural AI: Separating music ✓</span>
+                </div>
+              )
+            )}
           </div>
 
           <div className="flex items-center gap-2">

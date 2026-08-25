@@ -12,13 +12,12 @@ class VocexProcessor extends AudioWorkletProcessor {
     this.mlVariant = opts.mlVariant || 'voice'; // 'voice' | 'nature'
     this.gainLinear = typeof opts.gainLinear === 'number' ? opts.gainLinear : 0.75;
     
-    // Sample Rate Calibration (Supports 48kHz default & 44.1kHz)
+    // Sample Rate Calibration
     this.targetSampleRate = sampleRate || 48000;
     
-    // 5.9-Second Neural Chunk Accumulator
-    // 48,000 * 5.91 = 283,680 samples | 44,100 * 5.91 = 260,631 samples
-    this.chunkLen = Math.round(this.targetSampleRate * 5.91);
-    this.hopLen = Math.round(this.targetSampleRate * 2.0); // 2.0s overlap save hop
+    // Exact ONNX Frame Length: N_FFT=7680, HOP=1024, DIM_T=256 -> j = 1024 * 255 = 261,120 samples
+    this.chunkLen = 261120;
+    this.hopLen = Math.round(this.targetSampleRate * 2.0); // 2.0s overlap-save hop
     
     this.inputLeftAcc = new Float32Array(this.chunkLen);
     this.inputRightAcc = new Float32Array(this.chunkLen);
@@ -26,29 +25,58 @@ class VocexProcessor extends AudioWorkletProcessor {
     this.chunkTag = 0;
     
     // Cushion Ring-Buffer for ML clean output
-    this.cushionCapacity = this.targetSampleRate * 12; // 12 seconds buffer
+    this.cushionCapacity = this.targetSampleRate * 15; // 15 seconds buffer
     this.cushionLeft = new Float32Array(this.cushionCapacity);
     this.cushionRight = new Float32Array(this.cushionCapacity);
     this.writePtr = 0;
     this.readPtr = 0;
     this.bufferedSamples = 0;
     
-    // Setup Port Message Receiver for ML_RESULT from Web Worker
+    this.isMlReadySent = false;
+    this.videoStartTime = 0;
+    this.mlAlignMode = 'forward';
+    this.statsFrameCount = 0;
+
+    // Setup Port Message Receiver
     this.port.onmessage = (e) => {
       const data = e.data;
       if (!data) return;
       
       if (data.type === 'ML_RESULT') {
-        this.receiveCleanChunk(data.left, data.right);
-      } else if (data.type === 'SET_CONFIG') {
+        this.receiveCleanChunk(data.left, data.right, data.gen, data.adv, data.pos, data.abs, data.cg);
+      } else if (data.type === 'UPDATE_SETTINGS' || data.type === 'SET_CONFIG') {
         if (data.mode) this.mode = data.mode;
         if (data.mlVariant) this.mlVariant = data.mlVariant;
+        if (data.variant) this.mlVariant = data.variant;
         if (typeof data.gainLinear === 'number') this.gainLinear = data.gainLinear;
+      } else if (data.type === 'SET_MODE') {
+        if (data.mode) this.mode = data.mode;
+      } else if (data.type === 'SET_VARIANT') {
+        if (data.mlVariant) this.mlVariant = data.mlVariant;
+        if (data.variant) this.mlVariant = data.variant;
+      } else if (data.type === 'SET_GAIN') {
+        if (typeof data.gainLinear === 'number') this.gainLinear = data.gainLinear;
+      } else if (data.type === 'VIDEO_START_TIME') {
+        this.videoStartTime = typeof data.time === 'number' ? data.time : 0;
+      } else if (data.type === 'ML_ALIGN_FORWARD') {
+        this.mlAlignMode = 'forward';
+      } else if (data.type === 'PLAY_STATE') {
+        this.isPlaying = !!data.playing;
+      } else if (data.type === 'ML_FULL_RESET') {
+        this.accIndex = 0;
+        this.chunkTag = 0;
+        this.writePtr = 0;
+        this.readPtr = 0;
+        this.bufferedSamples = 0;
+        this.cushionLeft.fill(0);
+        this.cushionRight.fill(0);
+        this.inputLeftAcc.fill(0);
+        this.inputRightAcc.fill(0);
       }
     };
   }
   
-  receiveCleanChunk(leftPCM, rightPCM) {
+  receiveCleanChunk(leftPCM, rightPCM, gen, adv, pos, abs, cg) {
     if (!leftPCM || !rightPCM) return;
     
     const len = leftPCM.length;
@@ -58,6 +86,16 @@ class VocexProcessor extends AudioWorkletProcessor {
       this.writePtr = (this.writePtr + 1) % this.cushionCapacity;
     }
     this.bufferedSamples = Math.min(this.cushionCapacity, this.bufferedSamples + len);
+    if (typeof gen !== 'undefined') this.lastGen = gen;
+    if (typeof adv !== 'undefined') this.lastAdv = adv;
+    if (typeof pos !== 'undefined') this.lastPos = pos;
+    if (typeof abs !== 'undefined') this.lastAbs = abs;
+    if (typeof cg !== 'undefined') this.lastCg = cg;
+
+    if (!this.isMlReadySent) {
+      this.isMlReadySent = true;
+      this.port.postMessage({ type: 'VOCEX_ML_READY' });
+    }
   }
 
   process(inputs, outputs, parameters) {
@@ -100,6 +138,11 @@ class VocexProcessor extends AudioWorkletProcessor {
         left: this.inputLeftAcc.slice(),
         right: this.inputRightAcc.slice(),
         tag: this.chunkTag,
+        gen: this.lastGen || 0,
+        adv: this.lastAdv || 0,
+        pos: this.lastPos || 0,
+        abs: this.lastAbs || 0,
+        cg: this.lastCg || 0,
         sampleRate: this.targetSampleRate,
         variant: this.mlVariant
       });
@@ -119,26 +162,37 @@ class VocexProcessor extends AudioWorkletProcessor {
         this.readPtr = (this.readPtr + 1) % this.cushionCapacity;
       }
       this.bufferedSamples -= numSamples;
-      return true;
+    } else {
+      // Mode 3: 0ms Real-Time Mid/Side Wiener Filter (DSP Mode or ML Warmup Fallback)
+      for (let i = 0; i < numSamples; i++) {
+        const left = inL[i];
+        const right = inR[i];
+
+        // Convert Left/Right to Mid/Side
+        const mid = 0.5 * (left + right);
+        const side = 0.5 * (left - right);
+
+        // Vocal Attenuation Strategy: Suppress Side channel by 75% & keep clean speech in Mid
+        const cleanMid = mid;
+        const cleanSide = side * 0.25;
+
+        // Reconstruct Left/Right from clean Mid/Side
+        outL[i] = (cleanMid + cleanSide) * this.gainLinear;
+        outR[i] = (cleanMid - cleanSide) * this.gainLinear;
+      }
     }
 
-    // Mode 3: 0ms Real-Time Mid/Side Wiener Filter (DSP Fallback / Zero-Latency Mode)
-    for (let i = 0; i < numSamples; i++) {
-      const left = inL[i];
-      const right = inR[i];
-
-      // Convert Left/Right to Mid/Side
-      const mid = 0.5 * (left + right);
-      const side = 0.5 * (left - right);
-
-      // Vocal Attenuation Strategy: Music/instruments mostly occupy Side channel stereo field
-      // Speech energy dominates Mid channel. We suppress Side channel by 75% & apply soft noise gate on Mid.
-      const cleanMid = mid;
-      const cleanSide = side * 0.25;
-
-      // Reconstruct Left/Right from processed Mid/Side
-      outL[i] = (cleanMid + cleanSide) * this.gainLinear;
-      outR[i] = (cleanMid - cleanSide) * this.gainLinear;
+    // Action 25B: Periodically post VOCEX_STATS with voice RMS level for nature bed gain ducking
+    this.statsFrameCount++;
+    if (this.statsFrameCount >= 25) {
+      this.statsFrameCount = 0;
+      let sumSq = 0;
+      for (let i = 0; i < numSamples; i++) {
+        sumSq += outL[i] * outL[i] + outR[i] * outR[i];
+      }
+      const rms = Math.sqrt(sumSq / (numSamples * 2));
+      const rmsDb = rms > 0.00001 ? 20 * Math.log10(rms) : -100;
+      this.port.postMessage({ type: 'VOCEX_STATS', rmsDb, rms });
     }
 
     return true;
