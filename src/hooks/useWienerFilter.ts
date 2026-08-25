@@ -26,6 +26,9 @@ export interface UseWienerFilterReturn {
   getVisualizerData: () => Uint8Array | null;
 }
 
+// Global MediaElementSource node cache to eliminate InvalidStateError on stream/channel change
+const sourceNodeCache = new WeakMap<HTMLMediaElement, MediaElementAudioSourceNode>();
+
 export function useWienerFilter({
   videoElement,
   enabled = false,
@@ -83,17 +86,20 @@ export function useWienerFilter({
         analyserRef.current = analyser;
         freqDataRef.current = new Uint8Array(analyser.frequencyBinCount);
 
-        // Create MediaElementSourceNode
-        if (!sourceNodeRef.current) {
+        // Create or retrieve cached MediaElementSourceNode
+        let source = sourceNodeCache.get(videoEl);
+        if (!source) {
           try {
-            sourceNodeRef.current = ctx.createMediaElementSource(videoEl);
+            source = ctx.createMediaElementSource(videoEl);
+            sourceNodeCache.set(videoEl, source);
           } catch (e: any) {
-            console.warn("[useWienerFilter] MediaElementSource already attached:", e);
+            console.warn("[useWienerFilter] MediaElementSource creation warning:", e);
           }
         }
+        sourceNodeRef.current = source || null;
 
-        const source = sourceNodeRef.current;
-        if (!source) throw new Error("Could not create MediaElementSourceNode.");
+        const activeSourceNode = sourceNodeRef.current;
+        if (!activeSourceNode) throw new Error("Could not create MediaElementSourceNode.");
 
         // Create Worklet Node
         const workletNode = new AudioWorkletNode(ctx, "vocex-processor", {
@@ -119,14 +125,14 @@ export function useWienerFilter({
         bypassGainRef.current = bypassGain;
 
         // Routing:
-        // Filtered: source -> worklet -> gainNode -> analyser -> destination
-        source.connect(workletNode);
+        // Filtered: activeSourceNode -> worklet -> gainNode -> analyser -> destination
+        activeSourceNode.connect(workletNode);
         workletNode.connect(gainNode);
         gainNode.connect(analyser);
         analyser.connect(ctx.destination);
 
-        // Bypass: source -> bypassGain -> destination
-        source.connect(bypassGain);
+        // Bypass: activeSourceNode -> bypassGain -> destination
+        activeSourceNode.connect(bypassGain);
         bypassGain.connect(ctx.destination);
       }
 

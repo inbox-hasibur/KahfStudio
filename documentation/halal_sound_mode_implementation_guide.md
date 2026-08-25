@@ -177,3 +177,61 @@ To prevent complex component errors, the implementation is broken into micro-ste
 --------------------------------------------------------------------
 - Action 7A: Verified `npm run build` and TypeScript types (zero errors).
 - Action 7B: Verified audio normalization, UI layout, and HLS streaming.
+
+====================================================================
+7. PHASE 2: PRODUCTION-GRADE NEURAL ENGINE & UX RECONSTRUCTION
+====================================================================
+
+Deep Problem & Root Cause Breakdown:
+1. Worklet-Worker Message Bridge: `vocex-worklet.js` did not buffer audio samples into 5.9-second frames or post `ML_CHUNK` to `vocex-ml-worker.js`. The ONNX neural models were loaded in memory but never received live audio packets to process.
+2. Web Audio Node Reconnection Bug: `AudioContext.createMediaElementSource(video)` throws `InvalidStateError` when changing channel streams or re-rendering unless node instances are memoized via a `WeakMap`.
+3. Sample Rate & Pitch Fidelity: MDX-Net & Bandit-v2 models are trained at 44.1kHz, while modern browser AudioContext often operates at 48kHz. Frame sizing and hop calculation must match the dynamic AudioContext sample rate.
+4. Initial Inference Warmup: Neural inference takes ~400-700ms. A smooth cushion buffer with linear crossfading and temporary Wiener DSP transition is required to prevent audio dropouts during the first chunk.
+5. Cognitive Overload: The media UI displayed too many low-level controls at once. Advanced technical settings must be neatly tucked away inside a collapsed accordion.
+
+--------------------------------------------------------------------
+[x] STEP 8: Reconstruct vocex-worklet.js with 5.9s Ring Buffer & Message Protocol
+--------------------------------------------------------------------
+- Action 8A: Implement 5.9-second audio sample accumulator (283,648 samples at 48kHz / 260,100 samples at 44.1kHz).
+- Action 8B: Add `this.port.postMessage({ type: "ML_CHUNK", left, right, tag, sampleRate })` trigger when chunk buffer fills.
+- Action 8C: Add `this.port.onmessage` handler for `{ type: "ML_RESULT", left, right, tag }` storing clean audio in a cushion ring buffer.
+- Action 8D: In `process()`, stream clean separated audio with linear interpolation crossfading when `mode === 'ml'`.
+- Action 8E: Implement zero-latency real-time STFT mid/side Wiener filter when `mode === 'dsp'` for instant 0ms fallback.
+
+--------------------------------------------------------------------
+[x] STEP 9: Upgrade vocex-ml-worker.js for MDX-Net & Bandit-v2 Neural Inference
+--------------------------------------------------------------------
+- Action 9A: Initialize ONNX Runtime Web (`ort.all.min.mjs`) with WebGPU priority and multithreaded WASM fallback.
+- Action 9B: Load `vocals.onnx` for Voice Only (কণ্ঠস্বর শুধু) and `bandit_v2_sfx.onnx` for Nature Mode (প্রাকৃতিক শব্দ সহ).
+- Action 9C: Run inference on incoming `ML_CHUNK` audio frames and return clean PCM buffers via zero-copy `ArrayBuffer` transfer.
+- Action 9D: Handle model inference error handling with auto-fallback to DSP Wiener mode if GPU memory is constrained.
+
+--------------------------------------------------------------------
+[x] STEP 10: Robust Web Audio Graph & Node Caching (useWienerFilter.ts & useHalalMLEngine.ts)
+--------------------------------------------------------------------
+- Action 10A: Implement `WeakMap<HTMLMediaElement, MediaElementAudioSourceNode>` cache to eliminate `InvalidStateError` on channel switching.
+- Action 10B: Ensure `<video>` element has `crossOrigin="anonymous"` and proper CORS headers for HLS live streams.
+- Action 10C: Wire `workletNode.port` directly to `vocex-ml-worker.js` in `useHalalMLEngine.ts`.
+- Action 10D: Add smooth equal-power bypass crossfader for seamless ON/OFF transition without audible clicks.
+
+--------------------------------------------------------------------
+[x] STEP 11: Simplify Media Section UI with Collapsible Advanced Accordion
+--------------------------------------------------------------------
+- Action 11A: Primary Hero Card:
+  * Single Halal Sound Mode Master Switch (ON / OFF) with status badge (✨ হালাল মোড সক্রিয়).
+  * 2 Clean Target Buttons: **🎤 কণ্ঠস্বর শুধু (Voice Only)** vs **🌿 প্রাকৃতিক শব্দ সহ (Voice + Nature)**.
+- Action 11B: Collapsible "Advanced Audio Settings (অ্যাডভান্সড অপশন)" accordion (closed by default):
+  * Neural ML Engine vs 0ms DSP Wiener filter toggle.
+  * Fine-grained Gain & Decibel boost slider (-6dB to +6dB).
+  * Audio Spectrum Visualizer & Neural Worker Status log.
+  * Test audio tracks (Acoustic beat, Speech+Music).
+- Action 11C: Natural Sound Bed Auto-Ducking (Birds/Water/Storm smoothly dips when speech is prominent).
+
+--------------------------------------------------------------------
+[x] STEP 12: Verification & Live Music Separation Test
+--------------------------------------------------------------------
+- Action 12A: Type check compilation with `npx.cmd tsc --noEmit`.
+- Action 12B: Test music removal on test channels and acoustic guitar tracks.
+- Action 12C: Verify that advanced settings remain collapsed by default and the user experience is intuitive and fast.
+
+
