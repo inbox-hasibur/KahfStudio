@@ -223,18 +223,21 @@ export default function AdminScrapingPage() {
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let currentLogs = [...startLogs];
+      let buffer = "";
       
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
         
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split("\n\n");
+        buffer += decoder.decode(value, { stream: true });
+        const parts = buffer.split("\n\n");
+        buffer = parts.pop() || "";
         
-        for (const line of lines) {
-          if (line.startsWith("data: ")) {
+        for (const line of parts) {
+          const trimmed = line.trim();
+          if (trimmed.startsWith("data: ")) {
             try {
-              const data = JSON.parse(line.slice(6));
+              const data = JSON.parse(trimmed.slice(6));
               if (data.message) {
                 currentLogs = [...currentLogs, data.message];
                 setScrapeLogs([...currentLogs]);

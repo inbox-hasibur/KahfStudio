@@ -35,7 +35,7 @@ export const scrapeRssFeeds = inngest.createFunction(
       for (const source of sources) {
         try {
           const feed = await parser.parseURL(source.url);
-          const topItems = feed.items.slice(0, 15);
+          const topItems = feed.items ? feed.items.slice(0, 15) : [];
           
           for (const item of topItems) {
             const itemTitle = typeof item.title === 'string'
@@ -43,22 +43,14 @@ export const scrapeRssFeeds = inngest.createFunction(
               : (item.title as any)?._ || (item.title as any)?.value || (item.title ? String(item.title) : '');
 
             if (item.link && itemTitle) {
-              const { data: existing } = await supabase
-                .from("news_articles")
-                .select("id")
-                .eq("original_url", item.link)
-                .single();
-
-              if (!existing) {
-                candidates.push({
-                  url: item.link,
-                  title: itemTitle,
-                  sourceId: source.id,
-                  sourceName: source.name,
-                  category: source.category,
-                  country: source.country || "BD",
-                });
-              }
+              candidates.push({
+                url: item.link,
+                title: itemTitle,
+                sourceId: source.id,
+                sourceName: source.name,
+                category: source.category,
+                country: source.country || "BD",
+              });
             }
           }
         } catch (error) {
@@ -66,7 +58,25 @@ export const scrapeRssFeeds = inngest.createFunction(
         }
       }
 
-      return candidates;
+      if (candidates.length === 0) return [];
+
+      // Batch deduplication against database
+      const candidateUrls = Array.from(new Set(candidates.map((c) => c.url)));
+      const { data: existingRows } = await supabase
+        .from("news_articles")
+        .select("original_url")
+        .in("original_url", candidateUrls);
+
+      const existingSet = new Set(existingRows?.map((r: any) => r.original_url) || []);
+      const seen = new Set<string>();
+
+      return candidates.filter((item) => {
+        if (!existingSet.has(item.url) && !seen.has(item.url)) {
+          seen.add(item.url);
+          return true;
+        }
+        return false;
+      });
     });
 
     if (rawCandidates.length === 0) {
@@ -111,29 +121,31 @@ Respond with a strictly valid JSON object following this exact schema:
   "selected_indices": [<array of integer indices selected, e.g. 0, 3, 7, 12>]
 }`;
 
-      for (const apiKey of activeKeys) {
-        if (!apiKey) continue;
-        try {
-          const genAI = new GoogleGenerativeAI(apiKey);
-          const model = genAI.getGenerativeModel({
-            model: "gemini-2.5-flash",
-            generationConfig: { responseMimeType: "application/json" },
-          });
+      const modelsToTry = ["gemini-3.6-flash", "gemini-2.5-flash", "gemini-flash-latest"];
+      for (const modelName of modelsToTry) {
+        for (const apiKey of activeKeys) {
+          if (!apiKey) continue;
+          try {
+            const genAI = new GoogleGenerativeAI(apiKey);
+            const model = genAI.getGenerativeModel({
+              model: modelName,
+              generationConfig: { responseMimeType: "application/json" },
+            });
 
-          const result = await model.generateContent(prompt);
-          const parsed = JSON.parse(result.response.text());
+            const result = await model.generateContent(prompt);
+            const parsed = JSON.parse(result.response.text());
 
-          if (parsed && Array.isArray(parsed.selected_indices) && parsed.selected_indices.length > 0) {
-            const filtered = parsed.selected_indices
-              .map((idx: number) => rawCandidates[idx])
-              .filter(Boolean);
-            if (filtered.length > 0) {
-              return filtered;
+            if (parsed && Array.isArray(parsed.selected_indices) && parsed.selected_indices.length > 0) {
+              const filtered = parsed.selected_indices
+                .map((idx: number) => rawCandidates[idx])
+                .filter(Boolean);
+              if (filtered.length > 0) {
+                return filtered;
+              }
             }
+          } catch (err: any) {
+            continue;
           }
-        } catch (err: any) {
-          console.warn("AI title batch evaluation key error:", err.message);
-          continue;
         }
       }
 
