@@ -1,20 +1,32 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import Parser from "rss-parser";
-import axios from "axios";
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import { extractArticleContent } from "@/lib/scraper/universal-extractor";
 import { generateSeamlessGeminiAudio, uploadAudioToCloudinary } from "@/lib/audio/gemini-tts";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
-export const maxDuration = 300; // 300 seconds (5 minutes max timeout)
+export const maxDuration = 300; // 300 seconds (5 minutes max timeout where supported)
 export const dynamic = 'force-dynamic';
+
+// Helper: Wrap a promise with a hard timeout (default 10 seconds)
+function fetchWithTimeout<T>(promise: Promise<T>, timeoutMs: number = 10000, fallbackErrMsg: string = "Operation timed out"): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(fallbackErrMsg)), timeoutMs)
+    )
+  ]);
+}
 
 export async function GET(req: Request) {
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     async start(controller) {
       const sendLog = (msg: string) => {
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ message: msg })}\n\n`));
+        const timeStr = new Date().toLocaleTimeString('en-US', { hour12: true });
+        try {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ message: `[${timeStr}] ${msg}` })}\n\n`));
+        } catch (e) {}
       };
 
       try {
@@ -22,14 +34,19 @@ export async function GET(req: Request) {
         const targetLimit = parseInt(url.searchParams.get('limit') || '5', 10);
         const targetCategory = url.searchParams.get('category') || 'All';
 
-        sendLog("Starting Emergency Scraping Pipeline...");
+        sendLog("Pipeline Initialized. Starting Scraping Process...");
 
-        const supabase = createClient(
-          process.env.NEXT_PUBLIC_SUPABASE_URL!,
-          process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-        );
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-        sendLog(`Fetching active scraping sources (Category: ${targetCategory})...`);
+        if (!supabaseUrl || !supabaseKey) {
+          sendLog("[CRITICAL ERROR] Missing Supabase Environment Variables (NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY).");
+          return controller.close();
+        }
+
+        const supabase = createClient(supabaseUrl, supabaseKey);
+
+        sendLog(`Querying active scraping sources (Category: "${targetCategory}")...`);
         let sourceQuery = supabase
           .from("scraping_sources")
           .select("*")
@@ -41,12 +58,17 @@ export async function GET(req: Request) {
 
         const { data: sources, error: sourceError } = await sourceQuery;
 
-        if (sourceError) throw new Error(sourceError.message);
-        if (!sources || sources.length === 0) {
-          sendLog("No active sources found. Exiting.");
+        if (sourceError) {
+          sendLog(`[DB Error] Failed to fetch sources: ${sourceError.message}`);
           return controller.close();
         }
-        sendLog(`Found ${sources.length} active sources.`);
+
+        if (!sources || sources.length === 0) {
+          sendLog(`No active sources found for category "${targetCategory}". Exiting pipeline.`);
+          return controller.close();
+        }
+
+        sendLog(`✅ Found ${sources.length} active source(s).`);
 
         // Fetch System Settings & API keys
         const { data: sysData } = await supabase.from("system_settings").select("setting_key, setting_value");
@@ -64,10 +86,21 @@ export async function GET(req: Request) {
             } catch (e) {}
           }
         }
-        const activeKeys = (keys && keys.length > 0) ? keys : [process.env.GEMINI_API_KEY!];
-        sendLog(`Loaded System Settings. Available Gemini API Keys: ${activeKeys.length}`);
+        const activeKeys = (keys && keys.length > 0) ? keys : (process.env.GEMINI_API_KEY ? [process.env.GEMINI_API_KEY] : []);
+        sendLog(`System Config Loaded. Auto-Approve: ${autoApp ? "ON (published)" : "OFF (draft)"} | Available Gemini API Keys: ${activeKeys.length}`);
 
-        const parser = new Parser();
+        if (activeKeys.length === 0) {
+          sendLog("[Warning] No Gemini API key found. AI processing & TTS audio may fail.");
+        }
+
+        const parser = new Parser({
+          timeout: 8000,
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+            'Accept': 'application/rss+xml, application/xml, text/xml; q=0.9, */*; q=0.8'
+          }
+        });
+
         const rawCandidates: Array<{
           url: string;
           title: string;
@@ -76,11 +109,19 @@ export async function GET(req: Request) {
         }> = [];
 
         // 1. Collect candidate items from active RSS feeds
-        for (const source of sources) {
-          sendLog(`Parsing RSS feed: ${source.name}...`);
+        for (let sIdx = 0; sIdx < sources.length; sIdx++) {
+          const source = sources[sIdx];
+          sendLog(`[Source ${sIdx + 1}/${sources.length}] Parsing feed: ${source.name} (${source.url.slice(0, 45)}...)...`);
+
           try {
-            const feed = await parser.parseURL(source.url);
-            const topItems = feed.items.slice(0, 15);
+            // 8-second timeout per feed URL to prevent hanging pipelines on dead/blocked sites
+            const feed = await fetchWithTimeout(
+              parser.parseURL(source.url),
+              8000,
+              `RSS Feed request timed out after 8s`
+            );
+
+            const topItems = feed.items ? feed.items.slice(0, 15) : [];
             let addedFromSource = 0;
 
             for (const item of topItems) {
@@ -107,27 +148,27 @@ export async function GET(req: Request) {
                 }
               }
             }
-            sendLog(`Found ${addedFromSource} new candidate articles in ${source.name}.`);
+            sendLog(`  └─ ✅ [${source.name}] Success! Extracted ${addedFromSource} new candidate articles (out of ${topItems.length} items).`);
           } catch (error: any) {
-            sendLog(`[Warning] Failed to parse feed for ${source.name}: ${error.message}`);
+            sendLog(`  └─ [${source.name}] Skipped: ${error.message}`);
           }
         }
 
         if (rawCandidates.length === 0) {
-          sendLog("No new articles found across feeds to process.");
+          sendLog("No new articles found across active feeds. All articles already exist in database or feeds unreachable.");
           return controller.close();
         }
 
-        sendLog(`Total ${rawCandidates.length} new candidates collected. Starting AI Topic & Importance Selection...`);
+        sendLog(`Total ${rawCandidates.length} new candidate article(s) collected. Evaluating with Gemini AI...`);
 
-        // 2. AI Title Batch Pre-Filtering: Send ALL titles to Gemini in 1 prompt & pick top targetLimit
+        // 2. AI Title Batch Pre-Filtering
         let selectedArticles: typeof rawCandidates = [];
 
         if (rawCandidates.length <= targetLimit) {
           selectedArticles = rawCandidates;
-          sendLog(`Candidate count (${rawCandidates.length}) is <= target limit (${targetLimit}). Processing all of them.`);
+          sendLog(`Candidate count (${rawCandidates.length}) is <= target limit (${targetLimit}). Selecting all of them.`);
         } else {
-          sendLog(`Batch evaluating ${rawCandidates.length} headlines with Gemini to pick TOP ${targetLimit} for Topic: "${targetCategory}"...`);
+          sendLog(`AI Pre-Filtering: Sending ${rawCandidates.length} headlines to Gemini to select top ${targetLimit}...`);
 
           const titleListString = rawCandidates
             .map((c, i) => `[Index ${i}] Title: "${c.title}" | Source: ${c.sourceName} | Category: ${c.category}`)
@@ -150,7 +191,7 @@ Respond with a strictly valid JSON object following this exact schema:
             try {
               const genAI = new GoogleGenerativeAI(apiKey);
               const model = genAI.getGenerativeModel({
-                model: "gemini-2.5-flash",
+                model: "gemini-3.6-flash",
                 generationConfig: { responseMimeType: "application/json" },
               });
 
@@ -166,20 +207,20 @@ Respond with a strictly valid JSON object following this exact schema:
                 if (selectedArticles.length > 0) break;
               }
             } catch (err: any) {
-              sendLog(`[Warning] AI Title Selection failed with a key: ${err.message}. Retrying key...`);
+              sendLog(`  └─ [Gemini Title Selection Warning]: ${err.message}`);
               continue;
             }
           }
 
           if (selectedArticles.length === 0) {
-            sendLog(`[Fallback] AI batch filtering returned empty. Processing top ${targetLimit} candidates.`);
+            sendLog(`[Fallback] AI title filtering returned empty. Processing top ${targetLimit} candidates directly.`);
             selectedArticles = rawCandidates.slice(0, targetLimit);
           }
         }
 
-        sendLog(`[AI Editor] Selected ${selectedArticles.length} top articles for processing:`);
+        sendLog(`[AI Selected ${selectedArticles.length} Article(s)]:`);
         selectedArticles.forEach((a, idx) => {
-          sendLog(`  ${idx + 1}. [${a.sourceName}] ${a.title.slice(0, 50)}...`);
+          sendLog(`   ${idx + 1}. [${a.sourceName}] ${a.title.slice(0, 60)}...`);
         });
 
         // 3. Deep Process & Scrape ONLY the selected articles
@@ -187,15 +228,15 @@ Respond with a strictly valid JSON object following this exact schema:
 
         for (let i = 0; i < selectedArticles.length; i++) {
           const article = selectedArticles[i];
-          sendLog(`[${i + 1}/${selectedArticles.length}] Scraping: ${article.title.slice(0, 45)}...`);
+          sendLog(`\n[Article ${i + 1}/${selectedArticles.length}] Starting extraction for: "${article.title.slice(0, 50)}..."`);
 
-          // 3a. Universal Content Extraction (Mozilla Readability -> JSON-LD -> Jina AI fallback)
+          // 3a. Universal Content Extraction
           const extracted = await extractArticleContent(article.url, article.title);
           const cleanedContent = extracted.bodyText || article.title;
 
-          sendLog(`[${i + 1}/${selectedArticles.length}] Extracted via [${extracted.extractionMethod}] (${cleanedContent.length} chars). Running Unified AI Processing...`);
+          sendLog(`  ├─ Extracted via [${extracted.extractionMethod}] (${cleanedContent.length} chars). Running Gemini AI Processing...`);
 
-          // 3b. Unified Gemini AI Processing: Full News Cleanup + Summary + Importance Score in 1 Call
+          // 3b. Unified Gemini AI Processing
           const prompt = `You are a chief news editor and journalist for a premium multimedia news platform.
 Analyze the following news content and return a strictly valid JSON object.
 
@@ -230,7 +271,7 @@ Your response MUST follow this exact JSON schema:
                 aiResult = JSON.parse(result.response.text());
                 if (aiResult && aiResult.clean_content) break;
               } catch (err: any) {
-                sendLog(`[Warning] Unified AI Processing API error (${modelName}): ${err.message}`);
+                sendLog(`  ├─ [Gemini AI Warning (${modelName})]: ${err.message}`);
                 continue;
               }
             }
@@ -238,31 +279,35 @@ Your response MUST follow this exact JSON schema:
           }
 
           if (!aiResult) {
-            sendLog(`[Error] Unified AI processing failed for article. Skipping.`);
+            sendLog(`  └─ [Error] Unified AI processing failed for this article. Skipping.`);
             continue;
           }
 
-          sendLog(`[${i + 1}/${selectedArticles.length}] AI Complete! Importance Score: ${aiResult.importance_score || 50}/100. Generating Audio TTS...`);
+          sendLog(`  ├─ AI Complete! Headline: "${aiResult.clean_headline?.slice(0, 45)}..." | Score: ${aiResult.importance_score || 50}/100`);
 
           // 3c. Generate Audio TTS for summary
           let audioUrl: string | null = null;
-          try {
-            const textToSpeak = (aiResult.ai_summary || aiResult.clean_headline)
-              .replace(/[*_#`[\]()]/g, " ")
-              .replace(/\s+/g, " ")
-              .trim();
+          if (activeKeys.length > 0) {
+            sendLog(`  ├─ Generating Bengali Audio TTS...`);
+            try {
+              const textToSpeak = (aiResult.ai_summary || aiResult.clean_headline)
+                .replace(/[*_#`[\]()]/g, " ")
+                .replace(/\s+/g, " ")
+                .trim();
 
-            const wavBuffer = await generateSeamlessGeminiAudio(textToSpeak, "bn", activeKeys);
-            const publicId = `news_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-            audioUrl = await uploadAudioToCloudinary(wavBuffer, publicId);
-          } catch (audioErr: any) {
-            sendLog(`[Warning] Audio TTS generation failed: ${audioErr.message}. Proceeding without audio.`);
+              const wavBuffer = await generateSeamlessGeminiAudio(textToSpeak, "bn", activeKeys);
+              const publicId = `news_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+              audioUrl = await uploadAudioToCloudinary(wavBuffer, publicId);
+              sendLog(`  ├─ ✅ Audio TTS Uploaded to Cloudinary successfully!`);
+            } catch (audioErr: any) {
+              sendLog(`  ├─ Audio TTS Skipped: ${audioErr.message}`);
+            }
           }
 
           // 3d. Save Cleaned Full News, Cover Image, and Summary to Supabase DB
           const insertPayload: any = {
             headline: aiResult.clean_headline || article.title,
-            raw_content: aiResult.clean_content || cleanedContent, // Stores the full unabridged Bengali body!
+            raw_content: aiResult.clean_content || cleanedContent,
             ai_summary: aiResult.ai_summary,
             status: autoApp ? "published" : "draft",
             original_url: article.url,
@@ -293,13 +338,13 @@ Your response MUST follow this exact JSON schema:
             }
 
             totalSuccessful++;
-            sendLog(`[${i + 1}/${selectedArticles.length}] Saved cleanly to database! (Status: ${autoApp ? "published" : "draft"}, Has Audio: ${!!audioUrl})`);
+            sendLog(`  └─ ✅ Saved cleanly to Supabase DB! (Status: ${autoApp ? "published" : "draft"}, Has Image: ${!!extracted.ogImage}, Has Audio: ${!!audioUrl})`);
           } catch (dbErr: any) {
-            sendLog(`[Error] Database save failed: ${dbErr.message}`);
+            sendLog(`  └─ [Database Error]: ${dbErr.message}`);
           }
         }
 
-        sendLog(`Pipeline finished! Total new articles successfully processed and saved: ${totalSuccessful}`);
+        sendLog(`\n✅ Pipeline Finished! Successfully scraped, processed & saved ${totalSuccessful} new article(s).`);
         controller.close();
       } catch (err: any) {
         sendLog(`[CRITICAL ERROR]: ${err.message}`);
@@ -310,9 +355,13 @@ Your response MUST follow this exact JSON schema:
 
   return new NextResponse(stream, {
     headers: {
-      "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache",
-      Connection: "keep-alive",
+      "Content-Type": "text/event-stream; charset=utf-8",
+      "Cache-Control": "no-cache, no-transform",
+      "Connection": "keep-alive",
+      "X-Accel-Buffering": "no",
+      "Content-Encoding": "none",
     },
   });
 }
+
+
