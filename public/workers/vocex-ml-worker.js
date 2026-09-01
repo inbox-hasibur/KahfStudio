@@ -229,29 +229,63 @@ function ut(e, t, n, r, o, c = 0) {
 }
 
 let v = null;
-const le = "/models/vocals.onnx";
-const De = "/models/inst3.onnx";
+const VOCALS_MODEL_PATH = "/models/vocals.onnx";
+const INST_MODEL_PATH = "/models/inst3.onnx";
+const BANDIT_MODEL_PATH = "/models/bandit_v2_sfx.onnx";
+
 const k = S.DIM_F;
 const E = S.DIM_T;
 
-let ne = null;
-let ie = "input";
-let ue = "output";
-let J = null;
-let _e = "input";
-let Fe = "output";
-let D = "";
+let vocalSession = null;
+let vocalInputName = "input";
+let vocalOutputName = "output";
 
-const Ue = new Map();
+let instSession = null;
+let instInputName = "input";
+let instOutputName = "output";
 
-async function se(e) {
-  const t = Ue.get(e);
-  if (t) return t;
-  const n = await fetch(e);
-  if (!n.ok) throw new Error(`Model fetch failed: ${n.status}`);
-  const r = await n.arrayBuffer();
-  Ue.set(e, r);
-  return r;
+let banditSession = null;
+let banditInputName = "input";
+let banditOutputName = "output";
+
+let activeBackend = "wasm";
+const modelBufferCache = new Map();
+
+async function fetchModelBuffer(url, modelName = "AI Model") {
+  const cached = modelBufferCache.get(url);
+  if (cached) return cached;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Model fetch failed (${url}): ${res.status}`);
+  
+  const contentLength = res.headers.get('content-length');
+  const total = contentLength ? parseInt(contentLength, 10) : 0;
+  
+  if (total && res.body) {
+    let loaded = 0;
+    const reader = res.body.getReader();
+    const chunks = [];
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+      loaded += value.length;
+      const percent = Math.round((loaded / total) * 100);
+      self.postMessage({ type: "PROGRESS", payload: { model: modelName, loaded, total, percent } });
+    }
+    const buf = new Uint8Array(loaded);
+    let position = 0;
+    for (const chunk of chunks) {
+      buf.set(chunk, position);
+      position += chunk.length;
+    }
+    const arrayBuf = buf.buffer;
+    modelBufferCache.set(url, arrayBuf);
+    return arrayBuf;
+  } else {
+    const buf = await res.arrayBuffer();
+    modelBufferCache.set(url, buf);
+    return buf;
+  }
 }
 
 const me = new Float32Array(2 * R);
@@ -296,37 +330,79 @@ function $e(e, t, n, r, o, c, i, f, d, s, a) {
   }
 }
 
+async function createSessionWithFallback(modelBuffer) {
+  const optionsWebGPU = {
+    executionProviders: ["webgpu", "wasm"],
+    graphOptimizationLevel: "all"
+  };
+  
+  const optionsWASM = {
+    executionProviders: ["wasm"],
+    graphOptimizationLevel: "all"
+  };
+
+  try {
+    const session = await v.InferenceSession.create(modelBuffer, optionsWebGPU);
+    activeBackend = "webgpu";
+    return session;
+  } catch (gpuErr) {
+    console.warn("[VocEx ML Worker] WebGPU session creation fallback to WASM:", gpuErr);
+    const session = await v.InferenceSession.create(modelBuffer, optionsWASM);
+    activeBackend = "wasm (cpu-simd)";
+    return session;
+  }
+}
+
 async function initModels() {
   try {
     v = await import("/assets/ort.all.min.mjs");
     v.env.wasm.wasmPaths = "/assets/";
     
-    self.postMessage({ type: "STATUS", payload: "Loading VocEx ONNX models..." });
-    const vocBuf = await se(le);
-    
-    ne = await v.InferenceSession.create(vocBuf, {
-      executionProviders: ["webgpu", "wasm"],
-      graphOptimizationLevel: "all"
-    });
-    ie = ne.inputNames[0];
-    ue = ne.outputNames[0];
-    D = "onnx-ready";
-    
+    // Enable multi-threading & SIMD acceleration
     try {
-      const instBuf = await se(De);
-      J = await v.InferenceSession.create(instBuf, {
-        executionProviders: ["webgpu", "wasm"],
-        graphOptimizationLevel: "all"
-      });
-      _e = J.inputNames[0];
-      Fe = J.outputNames[0];
-      D = "onnx-ready+ens";
-    } catch (e) {
-      console.warn("[VocEx ML Worker] inst session failed, voc-only mode:", e);
-    }
+      if (typeof navigator !== "undefined" && navigator.hardwareConcurrency) {
+        v.env.wasm.numThreads = Math.min(navigator.hardwareConcurrency, 4);
+      }
+    } catch (_) {}
+
+    self.postMessage({ type: "STATUS", payload: "Loading MDX-Net & Bandit-v2 Neural Models..." });
     
-    self.postMessage({ type: "MODEL_READY", payload: D });
-    console.log("[VocEx ML Worker] Models initialized successfully!");
+    // Action 12A & 12C: Load vocals.onnx & bandit_v2_sfx.onnx in parallel
+    const [vocBuf, banditBuf] = await Promise.all([
+      fetchModelBuffer(VOCALS_MODEL_PATH, "Vocals AI"),
+      fetchModelBuffer(BANDIT_MODEL_PATH, "Nature AI").catch((bErr) => {
+        console.warn("[VocEx ML Worker] Bandit-v2 model fetch notice:", bErr);
+        return null;
+      })
+    ]);
+
+    vocalSession = await createSessionWithFallback(vocBuf);
+    vocalInputName = vocalSession.inputNames[0];
+    vocalOutputName = vocalSession.outputNames[0];
+
+    if (banditBuf) {
+      try {
+        banditSession = await createSessionWithFallback(banditBuf);
+        banditInputName = banditSession.inputNames[0];
+        banditOutputName = banditSession.outputNames[0];
+      } catch (bInitErr) {
+        console.warn("[VocEx ML Worker] Bandit-v2 session init notice:", bInitErr);
+      }
+    }
+
+    // Optional inst3 ensemble model
+    try {
+      const instBuf = await fetchModelBuffer(INST_MODEL_PATH);
+      instSession = await createSessionWithFallback(instBuf);
+      instInputName = instSession.inputNames[0];
+      instOutputName = instSession.outputNames[0];
+    } catch (instErr) {
+      console.warn("[VocEx ML Worker] inst3 ensemble model optional load failed:", instErr);
+    }
+
+    // Action 12C: Report MODEL_READY only after sessions are initialized
+    self.postMessage({ type: "MODEL_READY", payload: activeBackend });
+    console.log(`[VocEx ML Worker] All neural models initialized with ${activeBackend} backend.`);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error("[VocEx ML Worker] Failed to init models:", msg);
@@ -334,9 +410,24 @@ async function initModels() {
   }
 }
 
-async function runInference(leftPCM, rightPCM) {
-  if (!ne) await initModels();
-  if (!ne) throw new Error("Model unavailable");
+async function loadBanditModelIfNeeded() {
+  if (banditSession) return banditSession;
+  try {
+    self.postMessage({ type: "STATUS", payload: "Loading Bandit-v2 Nature Model..." });
+    const banditBuf = await fetchModelBuffer(BANDIT_MODEL_PATH, "Nature AI");
+    banditSession = await createSessionWithFallback(banditBuf);
+    banditInputName = banditSession.inputNames[0];
+    banditOutputName = banditSession.outputNames[0];
+    return banditSession;
+  } catch (err) {
+    console.warn("[VocEx ML Worker] Bandit-v2 model load fallback to vocals:", err);
+    return null;
+  }
+}
+
+async function runInference(leftPCM, rightPCM, variant = "voice") {
+  if (!vocalSession) await initModels();
+  if (!vocalSession) throw new Error("Vocal model session unavailable");
 
   We(leftPCM, 0);
   We(rightPCM, 1);
@@ -353,15 +444,24 @@ async function runInference(leftPCM, rightPCM) {
   }
 
   const tensor = new v.Tensor("float32", Q, [1, 4, k, E]);
-  const outResult = await ne.run({ [ie]: tensor });
-  const outData = outResult[ue].data;
+  
+  // Choose session (Bandit-v2 for nature if available, otherwise Vocal session)
+  const targetSession = (variant === "nature" && banditSession) ? banditSession : vocalSession;
+  const inputName = targetSession.inputNames[0];
+  const outputName = targetSession.outputNames[0];
+
+  const outResult = await targetSession.run({ [inputName]: tensor });
+  const outData = outResult[outputName].data;
+  
   let instData = null;
-  if (J) {
-    const instResult = await J.run({ [_e]: tensor });
-    instData = instResult[Fe].data;
+  if (instSession && variant === "voice") {
+    try {
+      const instResult = await instSession.run({ [instInputName]: tensor });
+      instData = instResult[instOutputName].data;
+    } catch (_) {}
   }
 
-  const isEnsemble = J !== null && instData !== null;
+  const isEnsemble = instSession !== null && instData !== null;
   if (isEnsemble) {
     $e(A.subarray(0, g), T.subarray(0, g), outData, instData, 0, r, k, E, P, S.COMPENSATE, S.INST_COMPENSATE);
     $e(A.subarray(g, 2 * g), T.subarray(g, 2 * g), outData, instData, 2 * r, 3 * r, k, E, P, S.COMPENSATE, S.INST_COMPENSATE);
@@ -398,15 +498,48 @@ self.onmessage = async (e) => {
     await initModels();
   } else if (type === "INFER") {
     try {
-      const { left, right, tag } = payload;
-      const res = await runInference(left, right);
+      const { left, right, tag, gen, adv, pos, abs, cg, variant } = payload;
+      const res = await runInference(left, right, variant);
       self.postMessage({
         type: "INFER_RESULT",
-        payload: { left: res.left, right: res.right, tag }
+        payload: {
+          left: res.left,
+          right: res.right,
+          tag,
+          gen,
+          adv,
+          pos,
+          abs,
+          cg
+        }
       }, [res.left.buffer, res.right.buffer]);
     } catch (err) {
       self.postMessage({
         type: "INFER_ERROR",
+        payload: err instanceof Error ? err.message : String(err)
+      });
+    }
+  } else if (type === "NATURE_INFER") {
+    try {
+      const p = payload || {};
+      const { left, right, tag, gen, nativeRate, sampleRate } = p;
+      const res = await runInference(left || new Float32Array(261120), right || left || new Float32Array(261120), "nature");
+      const resultMono = res.left;
+      self.postMessage({
+        type: "NATURE_INFER_RESULT",
+        payload: {
+          ...p,
+          left: res.left,
+          right: res.right,
+          mono: resultMono,
+          gen: typeof gen !== "undefined" ? gen : 0,
+          nativeRate: nativeRate || sampleRate || 48000,
+          tag
+        }
+      }, [res.left.buffer, res.right.buffer]);
+    } catch (err) {
+      self.postMessage({
+        type: "NATURE_INFER_ERROR",
         payload: err instanceof Error ? err.message : String(err)
       });
     }

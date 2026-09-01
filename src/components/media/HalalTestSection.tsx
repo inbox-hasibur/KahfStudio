@@ -8,7 +8,7 @@ import { useHalalMLEngine } from "@/hooks/useHalalMLEngine";
 import { 
   Sparkles, Volume2, ShieldCheck, ShieldAlert, Sliders, 
   Activity, Zap, Mic, TreePine, Tv, Video, Play, Music,
-  Bird, CloudRain, Droplets
+  Bird, CloudRain, Droplets, Cpu
 } from "lucide-react";
 
 export const HalalTestSection: React.FC = () => {
@@ -105,7 +105,8 @@ export const HalalTestSection: React.FC = () => {
     isModelLoading,
     isModelReady,
     modelStatus,
-    backend
+    backend,
+    modelProgress
   } = useHalalMLEngine({
     workletNode,
     enabled: halalEnabled && mode === "ml"
@@ -157,6 +158,11 @@ export const HalalTestSection: React.FC = () => {
     updateVariant(v);
   };
 
+  const handleModeSelect = (m: HalalFilterMode) => {
+    setMode(m);
+    updateMode(m);
+  };
+
   return (
     <section className="mt-10 mb-16 p-4 sm:p-6 rounded-3xl bg-zinc-950/95 border border-emerald-500/30 shadow-[0_0_60px_rgba(16,185,129,0.08)] backdrop-blur-2xl relative overflow-hidden">
       {/* Background glow accent */}
@@ -206,8 +212,37 @@ export const HalalTestSection: React.FC = () => {
       </div>
 
       {/* ── UNIFIED CONTROL TOOLBAR ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 p-3 rounded-2xl bg-zinc-900/60 border border-zinc-800/80 mb-5 text-xs">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 p-3 rounded-2xl bg-zinc-900/60 border border-zinc-800/80 mb-5 text-xs">
         
+        {/* 0. Filter Engine Mode (DSP Wiener vs Neural ML) */}
+        <div className="flex flex-col gap-1.5 p-2.5 rounded-xl bg-zinc-950/70 border border-zinc-800/60 justify-between">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-1">
+            <Cpu className="w-3 h-3 text-emerald-400" /> Engine:
+          </span>
+          <div className="grid grid-cols-2 gap-1.5 h-full">
+            <button
+              onClick={() => handleModeSelect("dsp")}
+              className={`py-1.5 px-2 rounded-lg font-bold text-[10px] transition-all flex items-center justify-center gap-1.5 cursor-pointer truncate ${
+                mode === "dsp"
+                  ? "bg-emerald-500 text-black shadow-md shadow-emerald-500/20"
+                  : "bg-zinc-900 text-zinc-400 hover:text-zinc-200"
+              }`}
+            >
+              DSP (0ms)
+            </button>
+            <button
+              onClick={() => handleModeSelect("ml")}
+              className={`py-1.5 px-2 rounded-lg font-bold text-[10px] transition-all flex items-center justify-center gap-1.5 cursor-pointer truncate ${
+                mode === "ml"
+                  ? "bg-teal-500 text-black shadow-md shadow-teal-500/20"
+                  : "bg-zinc-900 text-zinc-400 hover:text-zinc-200"
+              }`}
+            >
+              Neural AI
+            </button>
+          </div>
+        </div>
+
         {/* 1. Exactly 2 Options: Vocal Only vs Vocal + Natural Sounds */}
         <div className="flex flex-col gap-1.5 p-2.5 rounded-xl bg-zinc-950/70 border border-zinc-800/60">
           <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-1">
@@ -286,21 +321,30 @@ export const HalalTestSection: React.FC = () => {
           </div>
         </div>
 
-        {/* 4. Spectrum Equalizer Visualizer */}
+        {/* 4. Spectrum Equalizer Visualizer OR Loading Progress */}
         <div className="flex flex-col gap-1.5 p-2.5 rounded-xl bg-zinc-950/70 border border-zinc-800/60 justify-between">
           <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-zinc-400">
             <span className="flex items-center gap-1">
-              <Activity className="w-3 h-3 text-emerald-400" /> Spectrum VU:
+              <Activity className="w-3 h-3 text-emerald-400" /> {isActive && mode === "ml" && isModelLoading ? "AI DOWNLOAD" : "Spectrum VU"}:
             </span>
             <span className={`font-mono text-[9px] ${isActive ? "text-emerald-400 font-bold" : "text-zinc-500"}`}>
-              {isActive ? (mode === "ml" ? (isModelLoading ? "ML WARMING..." : `ML READY (${backend})`) : "DSP FILTER (0ms)") : "BYPASS (OFF)"}
+              {isActive ? (mode === "ml" ? (isModelLoading ? `${modelProgress}%` : `ML READY (${backend})`) : "DSP FILTER (0ms)") : "BYPASS (OFF)"}
             </span>
           </div>
-          <AudioVisualizer
-            getVisualizerData={getVisualizerData}
-            isActive={isActive}
-            className="w-full"
-          />
+          {isActive && mode === "ml" && isModelLoading ? (
+            <div className="w-full h-full flex flex-col justify-center px-1">
+               <div className="w-full bg-zinc-800 rounded-full h-1.5 overflow-hidden">
+                 <div className="bg-emerald-500 h-1.5 rounded-full transition-all duration-300" style={{ width: `${modelProgress}%` }}></div>
+               </div>
+               <p className="text-[9px] text-zinc-400 mt-1.5 text-center truncate">{modelStatus}</p>
+            </div>
+          ) : (
+            <AudioVisualizer
+              getVisualizerData={getVisualizerData}
+              isActive={isActive}
+              className="w-full"
+            />
+          )}
         </div>
 
       </div>

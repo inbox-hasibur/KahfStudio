@@ -7,7 +7,7 @@ import { useWienerFilter, HalalFilterMode } from "@/hooks/useWienerFilter";
 import { useHalalMLEngine } from "@/hooks/useHalalMLEngine";
 import { 
   Volume2, Sliders, Activity, Mic, TreePine, Tv, Video,
-  Bird, CloudRain, Droplets, Disc3
+  Bird, CloudRain, Droplets, Disc3, ChevronDown, ChevronUp, Cpu, Sparkles, Settings2
 } from "lucide-react";
 
 export interface MediaItem {
@@ -29,6 +29,7 @@ export const HalalExperimentSection: React.FC = () => {
   const [gainDb, setGainDb] = useState<number>(0); // 0dB neutral calibrated safe default
   const [mode, setMode] = useState<HalalFilterMode>("dsp");
   const [variant, setVariant] = useState<"voice" | "nature">("voice");
+  const [isAdvancedOpen, setIsAdvancedOpen] = useState<boolean>(false);
 
   // 3 Natural Sound Bed Presets
   const naturePresets = [
@@ -285,6 +286,7 @@ export const HalalExperimentSection: React.FC = () => {
   // Connect Real-Time Wiener & Audio Worklet Hook (Acoustically Normalized)
   const { 
     isActive, 
+    isContextSuspended,
     workletNode, 
     error, 
     toggleFilter, 
@@ -304,38 +306,93 @@ export const HalalExperimentSection: React.FC = () => {
   const {
     isModelLoading,
     isModelReady,
-    backend
+    mlPrimed,
+    modelStatus,
+    backend,
+    modelProgress
   } = useHalalMLEngine({
     workletNode,
     enabled: halalEnabled && mode === "ml"
   });
 
-  // Ambient Nature Sound Bed Player (Automatic in Vocal+Natural mode)
+  const duckFactorRef = useRef<number>(1.0);
+
+  // Listen for VOCEX_STATS from AudioWorklet to dynamically duck Nature Bed during active speech
   useEffect(() => {
+    if (!workletNode) return;
+
+    const handleWorkletMessage = (e: MessageEvent) => {
+      const data = e.data;
+      if (data && data.type === "VOCEX_STATS") {
+        if (typeof data.rmsDb === "number") {
+          if (data.rmsDb > -20) {
+            // Voice active: duck nature bed volume to 0.4x factor
+            duckFactorRef.current = 0.4;
+          } else if (data.rmsDb < -30) {
+            // Voice pause/silence: restore nature bed volume to 1.0x factor
+            duckFactorRef.current = 1.0;
+          }
+          if (natureAudioRef.current) {
+            const targetVol = Math.max(0, Math.min(1, natureVolume * duckFactorRef.current));
+            natureAudioRef.current.volume = targetVol;
+          }
+        }
+      }
+    };
+
+    workletNode.port.addEventListener("message", handleWorkletMessage);
+    return () => {
+      workletNode.port.removeEventListener("message", handleWorkletMessage);
+    };
+  }, [workletNode, natureVolume]);
+
+  // Ambient Nature Sound Bed Player (Automatic in Vocal+Natural mode with 0.5s fade-in / 0.3s fade-out)
+  useEffect(() => {
+    let fadeInterval: NodeJS.Timeout | null = null;
+
     if (variant === "nature" && isActive) {
+      const targetVol = Math.max(0, Math.min(1, natureVolume * duckFactorRef.current));
       if (!natureAudioRef.current) {
         const audio = new Audio(selectedNature.url);
         audio.loop = true;
-        audio.volume = natureVolume;
+        audio.volume = 0;
         natureAudioRef.current = audio;
-        audio.play().catch(() => {});
+        audio.play().then(() => {
+          let step = 0;
+          const totalSteps = 10;
+          fadeInterval = setInterval(() => {
+            step++;
+            if (natureAudioRef.current) {
+              natureAudioRef.current.volume = (step / totalSteps) * targetVol;
+            }
+            if (step >= totalSteps && fadeInterval) clearInterval(fadeInterval);
+          }, 50); // 0.5s fade in
+        }).catch(() => {});
       } else {
         natureAudioRef.current.src = selectedNature.url;
-        natureAudioRef.current.volume = natureVolume;
+        natureAudioRef.current.volume = targetVol;
         natureAudioRef.current.play().catch(() => {});
       }
     } else {
       if (natureAudioRef.current) {
-        natureAudioRef.current.pause();
-        natureAudioRef.current = null;
+        const audio = natureAudioRef.current;
+        let step = 10;
+        fadeInterval = setInterval(() => {
+          step--;
+          if (audio) {
+            audio.volume = Math.max(0, (step / 10) * audio.volume);
+          }
+          if (step <= 0) {
+            if (fadeInterval) clearInterval(fadeInterval);
+            audio.pause();
+            natureAudioRef.current = null;
+          }
+        }, 30); // 0.3s fade out
       }
     }
 
     return () => {
-      if (natureAudioRef.current) {
-        natureAudioRef.current.pause();
-        natureAudioRef.current = null;
-      }
+      if (fadeInterval) clearInterval(fadeInterval);
     };
   }, [variant, isActive, selectedNature, natureVolume]);
 
@@ -343,6 +400,11 @@ export const HalalExperimentSection: React.FC = () => {
     const next = !halalEnabled;
     setHalalEnabled(next);
     await toggleFilter(next);
+  };
+
+  const handleModeSelect = (m: HalalFilterMode) => {
+    setMode(m);
+    updateMode(m);
   };
 
   const handleGainChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -358,6 +420,10 @@ export const HalalExperimentSection: React.FC = () => {
 
   const handleSelectMedia = (item: MediaItem) => {
     setActiveMedia(item);
+    if (workletNode && isActive) {
+      workletNode.port.postMessage({ type: "ML_FULL_RESET" });
+      workletNode.port.postMessage({ type: "VIDEO_START_TIME", time: 0 });
+    }
   };
 
   return (
@@ -404,105 +470,176 @@ export const HalalExperimentSection: React.FC = () => {
         </div>
       </div>
 
-      {/* ── UNIFIED COMPACT 2X2 TOOLBAR ON MOBILE (4 COLS ON DESKTOP) ── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-1.5 sm:gap-2.5 p-2 sm:p-2.5 rounded-xl sm:rounded-2xl bg-muted/40 border border-border/70 mb-3 sm:mb-4 text-xs">
+      {/* ── SIMPLIFIED ALWAYS-VISIBLE PRIMARY CONTROL BAR ── */}
+      <div className="flex items-center justify-between gap-2 p-2 sm:p-2.5 rounded-xl sm:rounded-2xl bg-muted/40 border border-border/70 mb-3 sm:mb-4 text-xs">
         
-        {/* 1. Audio Target */}
-        <div className="flex flex-col gap-1 p-1.5 rounded-lg sm:rounded-xl bg-card border border-border/60 justify-between">
-          <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
-            <Sliders className="w-2.5 h-2.5 text-emerald-500" /> Target:
-          </span>
-          <div className="grid grid-cols-2 gap-1">
-            <button
-              onClick={() => handleVariantSelect("voice")}
-              className={`py-1 px-1 rounded-md sm:rounded-lg font-bold text-[8px] sm:text-[10px] transition-all flex items-center justify-center gap-0.5 cursor-pointer truncate ${
-                variant === "voice"
-                  ? "bg-emerald-500 text-black shadow-xs"
-                  : "bg-muted hover:bg-muted/80 text-foreground"
-              }`}
-            >
-              <Mic className="w-2.5 h-2.5" /> Vocal Only
-            </button>
-            <button
-              onClick={() => handleVariantSelect("nature")}
-              className={`py-1 px-1 rounded-md sm:rounded-lg font-bold text-[8px] sm:text-[10px] transition-all flex items-center justify-center gap-0.5 cursor-pointer truncate ${
-                variant === "nature"
-                  ? "bg-emerald-500 text-black shadow-xs"
-                  : "bg-muted hover:bg-muted/80 text-foreground"
-              }`}
-            >
-              <TreePine className="w-2.5 h-2.5" /> + Nature
-            </button>
-          </div>
+        {/* Target Buttons */}
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => handleVariantSelect("voice")}
+            className={`py-1.5 px-2.5 sm:px-3 rounded-lg font-bold text-[9px] sm:text-xs transition-all flex items-center gap-1 cursor-pointer ${
+              variant === "voice"
+                ? "bg-emerald-500 text-black shadow-xs"
+                : "bg-muted hover:bg-muted/80 text-foreground border border-border/60"
+            }`}
+          >
+            <Mic className="w-3 h-3" /> Vocal Only
+          </button>
+          <button
+            onClick={() => handleVariantSelect("nature")}
+            className={`py-1.5 px-2.5 sm:px-3 rounded-lg font-bold text-[9px] sm:text-xs transition-all flex items-center gap-1 cursor-pointer ${
+              variant === "nature"
+                ? "bg-emerald-500 text-black shadow-xs"
+                : "bg-muted hover:bg-muted/80 text-foreground border border-border/60"
+            }`}
+          >
+            <TreePine className="w-3 h-3" /> + Nature Bed
+          </button>
         </div>
 
-        {/* 2. Natural Sound Bed Presets */}
-        <div className="flex flex-col gap-1 p-1.5 rounded-lg sm:rounded-xl bg-card border border-border/60 justify-between">
-          <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
-            <TreePine className="w-2.5 h-2.5 text-emerald-500" /> Nature Bed:
-          </span>
-          <div className="grid grid-cols-3 gap-0.5 sm:gap-1">
-            {naturePresets.map((n) => {
-              const Icon = n.icon;
-              const isSel = selectedNature.id === n.id;
-              return (
-                <button
-                  key={n.id}
-                  onClick={() => setSelectedNature(n)}
-                  className={`py-1 px-0.5 rounded-md font-bold text-[8px] sm:text-[9px] truncate transition-all flex items-center justify-center gap-0.5 cursor-pointer ${
-                    isSel && variant === "nature"
-                      ? "bg-emerald-500/20 border border-emerald-500 text-emerald-600 dark:text-emerald-400"
-                      : "bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground border border-transparent"
-                  }`}
-                  title={n.label}
-                >
-                  <Icon className="w-2 h-2" />
-                  {n.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
+        {/* Mode Status Pill & Advanced Toggle */}
+        <div className="flex items-center gap-2">
+          {/* Audio Context Suspended Hint (Mobile Browser Protection) */}
+          {isContextSuspended ? (
+            <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400 text-[9px] sm:text-[10px] font-mono font-bold animate-pulse">
+              <span>Tap video to activate audio engine</span>
+            </div>
+          ) : (
+            /* Status Pill */
+            <div className="hidden sm:flex items-center gap-1 px-2.5 py-1 rounded-full bg-card border border-border text-[9px] sm:text-[10px] font-mono font-bold">
+              <span className={`w-1.5 h-1.5 rounded-full ${isActive ? "bg-emerald-500 animate-pulse" : "bg-zinc-500"}`} />
+              {mode === "dsp" ? (
+                <span className="text-emerald-600 dark:text-emerald-400">DSP Active (0ms)</span>
+              ) : isModelLoading ? (
+                <span className="text-amber-500 animate-pulse">Neural AI: Warming up...</span>
+              ) : (
+                <span className="text-teal-500">Neural AI: Active ({backend})</span>
+              )}
+            </div>
+          )}
 
-        {/* 3. Vocal Gain Boost (Safe 0dB Default, 0-6dB max) */}
-        <div className="flex flex-col gap-1 p-1.5 rounded-lg sm:rounded-xl bg-card border border-border/60 justify-between">
-          <div className="flex items-center justify-between text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-            <span className="flex items-center gap-1">
-              <Volume2 className="w-2.5 h-2.5 text-emerald-500" /> Boost:
-            </span>
-            <span className="font-mono text-emerald-600 dark:text-emerald-400 font-bold">+{gainDb} dB</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <input
-              type="range"
-              min="0"
-              max="6"
-              step="1"
-              value={gainDb}
-              onChange={handleGainChange}
-              className="w-full accent-emerald-500 h-1 bg-muted rounded-lg cursor-pointer"
-            />
-          </div>
+          {/* Advanced Accordion Toggle Button */}
+          <button
+            onClick={() => setIsAdvancedOpen(!isAdvancedOpen)}
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-card hover:bg-muted border border-border text-[10px] sm:text-xs font-semibold text-foreground transition-all cursor-pointer shadow-xs"
+          >
+            <Settings2 className="w-3 h-3 text-emerald-500" />
+            <span>Advanced</span>
+            {isAdvancedOpen ? <ChevronUp className="w-3 h-3 ml-0.5" /> : <ChevronDown className="w-3 h-3 ml-0.5" />}
+          </button>
         </div>
-
-        {/* 4. Smooth Zero-Lag Wave Visualizer */}
-        <div className="flex flex-col gap-1 p-1.5 rounded-lg sm:rounded-xl bg-card border border-border/60 justify-between">
-          <div className="flex items-center justify-between text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-            <span className="flex items-center gap-1">
-              <Activity className="w-2.5 h-2.5 text-emerald-500" /> Wave:
-            </span>
-            <span className={`font-mono text-[8px] sm:text-[9px] font-bold ${isActive ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"}`}>
-              {isActive ? "LIVE (0MS)" : "OFF"}
-            </span>
-          </div>
-          <AudioVisualizer
-            getVisualizerData={getVisualizerData}
-            isActive={isActive}
-            className="w-full"
-          />
-        </div>
-
       </div>
+
+      {/* ── COLLAPSIBLE ACCORDION FOR ADVANCED SETTINGS ── */}
+      {isAdvancedOpen && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-1.5 sm:gap-2.5 p-2 sm:p-2.5 rounded-xl sm:rounded-2xl bg-card border border-border/80 mb-3 sm:mb-4 text-xs animate-in fade-in slide-in-from-top-2 duration-200">
+          
+          {/* 1. Filter Engine Mode (DSP Wiener vs Neural ML) */}
+          <div className="flex flex-col gap-1 p-1.5 rounded-lg sm:rounded-xl bg-muted/30 border border-border/60 justify-between">
+            <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+              <Cpu className="w-2.5 h-2.5 text-emerald-500" /> Engine:
+            </span>
+            <div className="grid grid-cols-2 gap-1">
+              <button
+                onClick={() => handleModeSelect("dsp")}
+                className={`py-1 px-1 rounded-md sm:rounded-lg font-bold text-[8px] sm:text-[10px] transition-all flex items-center justify-center gap-0.5 cursor-pointer truncate ${
+                  mode === "dsp"
+                    ? "bg-emerald-500 text-black shadow-xs"
+                    : "bg-muted hover:bg-muted/80 text-foreground"
+                }`}
+              >
+                DSP (0ms)
+              </button>
+              <button
+                onClick={() => handleModeSelect("ml")}
+                className={`py-1 px-1 rounded-md sm:rounded-lg font-bold text-[8px] sm:text-[10px] transition-all flex items-center justify-center gap-0.5 cursor-pointer truncate ${
+                  mode === "ml"
+                    ? "bg-teal-500 text-black shadow-xs"
+                    : "bg-muted hover:bg-muted/80 text-foreground"
+                }`}
+              >
+                Neural AI
+              </button>
+            </div>
+          </div>
+
+          {/* 2. Natural Sound Bed Presets */}
+          <div className="flex flex-col gap-1 p-1.5 rounded-lg sm:rounded-xl bg-muted/30 border border-border/60 justify-between">
+            <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+              <TreePine className="w-2.5 h-2.5 text-emerald-500" /> Sound Bed:
+            </span>
+            <div className="grid grid-cols-3 gap-0.5 sm:gap-1">
+              {naturePresets.map((n) => {
+                const Icon = n.icon;
+                const isSel = selectedNature.id === n.id;
+                return (
+                  <button
+                    key={n.id}
+                    onClick={() => setSelectedNature(n)}
+                    className={`py-1 px-0.5 rounded-md font-bold text-[8px] sm:text-[9px] truncate transition-all flex items-center justify-center gap-0.5 cursor-pointer ${
+                      isSel && variant === "nature"
+                        ? "bg-emerald-500/20 border border-emerald-500 text-emerald-600 dark:text-emerald-400"
+                        : "bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground border border-transparent"
+                    }`}
+                    title={n.label}
+                  >
+                    <Icon className="w-2 h-2" />
+                    {n.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 3. Vocal Gain Boost (Safe 0dB Default, 0-6dB max) */}
+          <div className="flex flex-col gap-1 p-1.5 rounded-lg sm:rounded-xl bg-muted/30 border border-border/60 justify-between">
+            <div className="flex items-center justify-between text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              <span className="flex items-center gap-1">
+                <Volume2 className="w-2.5 h-2.5 text-emerald-500" /> Boost:
+              </span>
+              <span className="font-mono text-emerald-600 dark:text-emerald-400 font-bold">+{gainDb} dB</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <input
+                type="range"
+                min="0"
+                max="6"
+                step="1"
+                value={gainDb}
+                onChange={handleGainChange}
+                className="w-full accent-emerald-500 h-1 bg-muted rounded-lg cursor-pointer"
+              />
+            </div>
+          </div>
+
+          {/* 4. Real-Time Audio Visualizer OR Loading Progress */}
+          <div className="flex flex-col gap-1 p-1.5 rounded-lg sm:rounded-xl bg-muted/30 border border-border/60 justify-between">
+            <div className="flex items-center justify-between text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              <span className="flex items-center gap-1">
+                <Activity className="w-2.5 h-2.5 text-emerald-500" /> {isActive && mode === "ml" && isModelLoading ? "AI DOWNLOAD" : "Spectrum"}:
+              </span>
+              <span className={`font-mono text-[8px] sm:text-[9px] font-bold ${isActive ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"}`}>
+                {isActive ? (mode === "ml" && isModelLoading ? `${modelProgress}%` : "LIVE") : "OFF"}
+              </span>
+            </div>
+            {isActive && mode === "ml" && isModelLoading ? (
+              <div className="w-full h-full flex flex-col justify-center px-1">
+                 <div className="w-full bg-muted-foreground/30 rounded-full h-1 overflow-hidden">
+                   <div className="bg-emerald-500 h-1 rounded-full transition-all duration-300" style={{ width: `${modelProgress}%` }}></div>
+                 </div>
+                 <p className="text-[8px] sm:text-[9px] text-muted-foreground mt-1 text-center truncate">{modelStatus}</p>
+              </div>
+            ) : (
+              <AudioVisualizer
+                getVisualizerData={getVisualizerData}
+                isActive={isActive}
+                className="w-full"
+              />
+            )}
+          </div>
+
+        </div>
+      )}
 
       {/* ── VIDEO PLAYER VIEWPORT ── */}
       <div className="w-full max-w-4xl mx-auto rounded-xl sm:rounded-2xl overflow-hidden shadow-md border border-border mb-3 sm:mb-5">
@@ -512,6 +649,14 @@ export const HalalExperimentSection: React.FC = () => {
           halalActive={isActive}
           onToggleHalal={handleToggleHalal}
           onVideoElementReady={(el) => setVideoElement(el)}
+          onPlayStateChange={(playing) => {
+            if (workletNode) {
+              workletNode.port.postMessage({ type: "PLAY_STATE", playing });
+            }
+          }}
+          mode={mode}
+          mlStatus={modelStatus}
+          mlPrimed={mlPrimed}
           className="w-full"
         />
       </div>
