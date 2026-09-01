@@ -25,15 +25,10 @@ In Bangladesh, missing a sudden holiday notice or a road-block update can ruin y
 
 ## Core Features
 
-**Smart Audio Playlist (The "Walking" Mode)**
+**Daily Summarised AI Podcast (The "Walking" Mode)**
 
-- **Auto-play:** Just hit play and put your phone in your pocket.
-- **Skip Control:** Don't like a topic? Skip to the next one using your earphone buttons.
-
-**AI Editor (Powered by Gemini 1.5 Flash)**
-
-- **Daily Briefing:** Read or listen to an overall summary of the most important news every day.
-- **Intelligent Summarization:** Converts complex reports into conversational Bangla.
+- **Auto-play:** Just hit play and put your phone in your pocket and stay updated with daily important news.
+- **Intelligent Summarization:** Converts complex long news context into natural Bangla audio.
 - **Priority Engine:** High-impact news (like a sudden road block) is automatically moved to the top of your morning brief.
 
 **Halal Mode**
@@ -43,11 +38,10 @@ In Bangladesh, missing a sudden holiday notice or a road-block update can ruin y
 **Unbiased & Trusted Sources**
 
 - **Verified Outlets:** We aggregate news from credible Bangladeshi outlets, ensuring a balanced perspective.
-- **Sources Include:** Jamuna TV, BDNews24, Bangladesh Pratidin, Jugantor, Kaler Kantho, Ittefaq, Samakal, and more.
-
+- **Custom Sources:** Premium user can customize their own news sources.
 **Natural Bangla TTS**
 
-- **Human-like Voice:** Using advanced Neural TTS technology (Microsoft Edge TTS), our news doesn't sound like a robot. It feels like a human newsreader is speaking directly to you.
+- **Human-like Voice:** Using advanced Neural TTS technology (Gemini 3.1 flash tts, Microsoft Edge & Native TTS), our news doesn't sound like a robot. It feels like a human newsreader is speaking directly to you.
 
 ---
 
@@ -55,7 +49,7 @@ In Bangladesh, missing a sudden holiday notice or a road-block update can ruin y
 
 - **Frontend:** Next.js, React, Tailwind CSS, Framer Motion
 - **Backend & Database:** Supabase (PostgreSQL), Inngest (Background Jobs)
-- **AI Core:** Google Gemini AI
+- **AI Core:** Google Gemini AI, Kahf U-DiT
 - **Web Scraping:** Puppeteer, Cheerio
 - **Audio Engine:** Google TTS API, Howler.js
 - **Payments:** SSLCommerz, AamarPay, Stripe
@@ -63,12 +57,11 @@ In Bangladesh, missing a sudden holiday notice or a road-block update can ruin y
 ---
 
 ## Roadmap & Future Goals
-
-- [ ] **Crowdsourced Validation:** Integrating real-time user feedback for traffic news.
-- [ ] **Smart Alarms:** Wake you up 15 minutes early if there is heavy rain or severe traffic on your commute.
-- [ ] **Multi-language Support:** Switching between Bangla and English briefings seamlessly.
 - [ ] **Conversational News:** "Talk to your news" - ask questions to the AI to get deeper context on any story.
 - [ ] **Fact-Check Analyzer:** Built-in AI verification to identify misinformation and biased reporting.
+- [ ] **Traffic Jam Validation:** Integrating real-time user feedback for traffic news.
+- [ ] **Smart Alarms:** Wake you up 15 minutes early if there is heavy rain or severe traffic on your commute.
+- [ ] **Multi-language Support:** Switching between Bangla and English briefings seamlessly.
 - [ ] **Emergency Community Hub:** A dedicated feed where users can post real-time updates for emergencies, local help, and support.
 - [ ] **Smart Deals Aggregator:** Real-time collection of product offers, discounts, and coupons to save you money.
 - [ ] **Halal Product Scanner:** AI-powered image detection to scan product ingredients and identify non-permissible (haram) items.
