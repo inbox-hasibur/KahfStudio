@@ -1,57 +1,25 @@
 "use server";
 
-import { scrapeJamunaTV } from "@/lib/scraper";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/utils/supabase/server";
-import { summarizeNews, classifyNews } from "@/lib/ai";
 
 export async function fetchLatestNews(shouldRevalidate = true) {
   try {
     const supabase = await createClient();
-    console.log("Starting to scrape Jamuna TV...");
-    
-    const newsData = await scrapeJamunaTV();
-    console.log(`Successfully scraped ${newsData?.length || 0} articles.`);
-    
-    let processedNews = [];
+    const { data: newsData, error } = await supabase
+      .from('news_articles')
+      .select('*')
+      .eq('status', 'published')
+      .order('published_at', { ascending: false })
+      .limit(10);
 
-    if (newsData && newsData.length > 0) {
-      for (const item of newsData) {
-        const aiSummary = await summarizeNews(item.title, item.summary);
-        const priority = await classifyNews(item.title, aiSummary);
-
-        const processedItem = {
-          headline: item.title,
-          raw_content: item.summary,
-          ai_summary: aiSummary,
-          original_url: item.originalUrl,
-          source: item.source || "Jamuna TV",
-          status: "published",
-          published_at: item.publishedAt || new Date().toISOString(),
-          // priority can be stored in a new column or metadata later
-        };
-
-        const { data: savedItem, error } = await supabase
-          .from('news_articles')
-          .upsert(processedItem, { onConflict: 'original_url' })
-          .select()
-          .single();
-          
-        if (!error && savedItem) {
-          processedNews.push(savedItem);
-        }
-      }
-    } else {
-      console.log("No news scraped, using mock data for demonstration.");
-      processedNews = getMockNews();
-    }
+    if (error) throw error;
 
     if (shouldRevalidate) {
       revalidatePath("/");
     }
     
-    return processedNews;
-    
+    return newsData || getMockNews();
   } catch (error) {
     console.error("Error in server action:", error);
     return getMockNews();
