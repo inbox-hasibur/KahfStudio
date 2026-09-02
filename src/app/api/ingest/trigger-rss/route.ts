@@ -292,7 +292,7 @@ ${titlesList}
 Return a valid JSON array of chosen numbers (1-indexed), for example: [1, 3, 5]`;
 
         let selectedIndices: number[] = [];
-        const modelsToTry = ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-2.5-flash", "gemini-3.6-flash"];
+        const modelsToTry = ["gemini-2.5-flash", "gemini-3.6-flash", "gemini-2.5-flash-lite", "gemini-flash-latest"];
         const keysToTry = activeKeys.slice(0, 2);
 
         for (const modelName of modelsToTry) {
@@ -308,7 +308,7 @@ Return a valid JSON array of chosen numbers (1-indexed), for example: [1, 3, 5]`
 
               const res = await fetchWithTimeout(
                 model.generateContent(prompt),
-                4000,
+                5000,
                 "Gemini AI Pre-Filter timed out"
               );
 
@@ -352,7 +352,7 @@ Return a valid JSON array of chosen numbers (1-indexed), for example: [1, 3, 5]`
         }
 
         // 5b. Unified Gemini Processing: Summary + Clean Markdown + Importance Score
-        await sendLog(`  ├─ Running Unified AI News Synthesis with Gemini (Primary: gemini-3.6-flash)...`);
+        await sendLog(`  ├─ Running Unified AI News Synthesis with Gemini...`);
 
         const prompt = `You are a chief news editor and journalist for a premium multimedia news platform.
 Analyze the following article and return a strictly valid JSON object.
@@ -374,7 +374,7 @@ Your response MUST follow this exact JSON schema:
 }`;
 
         let aiResult: any = null;
-        const synthesisModels = ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-2.5-flash", "gemini-3.6-flash"];
+        const synthesisModels = ["gemini-2.5-flash", "gemini-3.6-flash", "gemini-2.5-flash-lite", "gemini-flash-latest"];
         const synthesisKeys = activeKeys.slice(0, 2);
 
         for (const modelName of synthesisModels) {
