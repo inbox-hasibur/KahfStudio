@@ -74,12 +74,15 @@ export async function POST(req: Request) {
           { name: "Kaler Kantho", url: "https://www.kalerkantho.com/rss.xml", category: "General", country: "BD", is_active: true }
         ];
       } else {
-        // Global / US defaults
+        // Global defaults requested by user
         defaults = [
-          { name: "BBC News World", url: "https://feeds.bbci.co.uk/news/world/rss.xml", category: "World", country: "GLOBAL", is_active: true },
-          { name: "Reuters Top News", url: "https://www.reutersagency.com/feed/?best-topics=world-at-work&post_type=best", category: "World", country: "GLOBAL", is_active: true },
-          { name: "CNN Top Stories", url: "http://rss.cnn.com/rss/edition.rss", category: "World", country: "GLOBAL", is_active: true },
-          { name: "The Verge Tech", url: "https://www.theverge.com/rss/index.xml", category: "Technology", country: "GLOBAL", is_active: true }
+          { name: "BBC News (World)", url: "http://bbci.co.uk", category: "World", country: "GLOBAL", is_active: true },
+          { name: "Al Jazeera English", url: "https://aljazeera.com", category: "World", country: "GLOBAL", is_active: true },
+          { name: "Reuters (World News)", url: "https://reutersagency.com", category: "World", country: "GLOBAL", is_active: true },
+          { name: "CNN (Top Stories)", url: "http://cnn.com", category: "World", country: "GLOBAL", is_active: true },
+          { name: "The New York Times (World)", url: "https://nytimes.com", category: "World", country: "GLOBAL", is_active: true },
+          { name: "Associated Press (AP News)", url: "https://apnews.com", category: "World", country: "GLOBAL", is_active: true },
+          { name: "Deutsche Welle (DW World)", url: "https://dw.com", category: "World", country: "GLOBAL", is_active: true }
         ];
       }
 

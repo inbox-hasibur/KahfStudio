@@ -27,9 +27,17 @@ function fetchWithTimeout<T>(promise: Promise<T>, timeoutMs: number = 8000, fall
   ]);
 }
 
+interface CandidateItem {
+  url: string;
+  title: string;
+  sourceName: string;
+  category: string;
+  country?: string;
+}
+
 // Jina-First / HTML Link Extractor when RSS feed is invalid or blocked by Cloudflare/Datacenter IP
-async function extractCandidatesFromHtmlOrJina(sourceUrl: string, sourceName: string, category: string): Promise<Array<{ url: string; title: string; sourceName: string; category: string }>> {
-  const results: Array<{ url: string; title: string; sourceName: string; category: string }> = [];
+async function extractCandidatesFromHtmlOrJina(sourceUrl: string, sourceName: string, category: string): Promise<CandidateItem[]> {
+  const results: CandidateItem[] = [];
   const seenUrls = new Set<string>();
 
   let targetUrl = sourceUrl;
@@ -126,6 +134,7 @@ export async function GET(req: NextRequest) {
       const searchParams = req.nextUrl?.searchParams || new URL(req.url, 'http://localhost').searchParams;
       const targetLimit = parseInt(searchParams.get('limit') || '5', 10);
       const targetCategory = searchParams.get('category') || 'All';
+      const targetCountry = searchParams.get('country') || 'All';
 
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
       const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -139,7 +148,7 @@ export async function GET(req: NextRequest) {
       await sendLog(`[Database Step 1] Connecting to Supabase instance (${supabaseHost})...`);
       const supabase = createClient(supabaseUrl, supabaseKey);
 
-      await sendLog(`[Database Step 2] Querying active scraping sources (Category: "${targetCategory}")...`);
+      await sendLog(`[Database Step 2] Querying active scraping sources (Category: "${targetCategory}", Country: "${targetCountry}")...`);
       let sourceQuery = supabase
         .from("scraping_sources")
         .select("*")
@@ -147,6 +156,9 @@ export async function GET(req: NextRequest) {
 
       if (targetCategory !== "All") {
         sourceQuery = sourceQuery.eq("category", targetCategory);
+      }
+      if (targetCountry !== "All") {
+        sourceQuery = sourceQuery.eq("country", targetCountry);
       }
 
       const { data: sources, error: sourceError } = await sourceQuery;
@@ -157,7 +169,7 @@ export async function GET(req: NextRequest) {
       }
 
       if (!sources || sources.length === 0) {
-        await sendLog(`⚠️ No active sources found for category "${targetCategory}". Exiting pipeline.`);
+        await sendLog(`⚠️ No active sources found for (Category: "${targetCategory}", Country: "${targetCountry}"). Exiting pipeline.`);
         return;
       }
 
@@ -194,7 +206,7 @@ export async function GET(req: NextRequest) {
 
       // 2. Parallel Source Discovery (Fast parallel fetch ~2-3s total)
       const sourcePromises = sources.map(async (source) => {
-        let feedCandidates: Array<{ url: string; title: string; sourceName: string; category: string }> = [];
+        let feedCandidates: CandidateItem[] = [];
 
         try {
           const feed = await fetchWithTimeout(
@@ -215,13 +227,15 @@ export async function GET(req: NextRequest) {
                 title: itemTitle,
                 sourceName: source.name,
                 category: source.category || "General",
+                country: source.country || "BD",
               });
             }
           }
           await sendLog(`  ├─ ✅ [${source.name}] RSS OK: Found ${feedCandidates.length} articles.`);
         } catch (rssErr: any) {
           try {
-            feedCandidates = await extractCandidatesFromHtmlOrJina(source.url, source.name, source.category || "General");
+            const extractedCandidates = await extractCandidatesFromHtmlOrJina(source.url, source.name, source.category || "General");
+            feedCandidates = extractedCandidates.map(c => ({ ...c, country: source.country || "BD" }));
             await sendLog(`  ├─ ⚡ [${source.name}] Jina Proxy OK: Discovered ${feedCandidates.length} articles.`);
           } catch (fallbackErr: any) {
             await sendLog(`  ├─ ⚠️ [${source.name}] Skipped: ${fallbackErr.message}`);
@@ -292,7 +306,7 @@ ${titlesList}
 Return a valid JSON array of chosen numbers (1-indexed), for example: [1, 3, 5]`;
 
         let selectedIndices: number[] = [];
-        const modelsToTry = ["gemini-2.5-flash", "gemini-3.6-flash", "gemini-2.5-flash-lite", "gemini-flash-latest"];
+        const modelsToTry = ["gemini-3.6-flash", "gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-flash-latest"];
         const keysToTry = activeKeys.slice(0, 2);
 
         for (const modelName of modelsToTry) {
@@ -352,14 +366,14 @@ Return a valid JSON array of chosen numbers (1-indexed), for example: [1, 3, 5]`
         }
 
         // 5b. Unified Gemini Processing: Summary + Clean Markdown + Importance Score
-        await sendLog(`  ├─ Running Unified AI News Synthesis with Gemini...`);
+        await sendLog(`  ├─ Running Unified AI News Synthesis with Gemini (Primary: gemini-3.6-flash)...`);
 
         const prompt = `You are a chief news editor and journalist for a premium multimedia news platform.
 Analyze the following article and return a strictly valid JSON object.
 
 Input Title: ${candidate.title}
 Source: ${candidate.sourceName}
-Country: BD
+Country: ${candidate.country || "BD"}
 Category Hint: ${candidate.category || "General"}
 Cleaned Article Body:
 ${extracted.bodyText.slice(0, 10000)}
@@ -374,7 +388,7 @@ Your response MUST follow this exact JSON schema:
 }`;
 
         let aiResult: any = null;
-        const synthesisModels = ["gemini-2.5-flash", "gemini-3.6-flash", "gemini-2.5-flash-lite", "gemini-flash-latest"];
+        const synthesisModels = ["gemini-3.6-flash", "gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-flash-latest"];
         const synthesisKeys = activeKeys.slice(0, 2);
 
         for (const modelName of synthesisModels) {
@@ -419,6 +433,7 @@ Your response MUST follow this exact JSON schema:
 
         // 5c. Save to Database
         let insertedArticleId: string | null = null;
+        const articleCountry = (candidate as any).country || (targetCountry !== "All" ? targetCountry : "BD");
         const insertPayload: any = {
           headline: aiResult.clean_headline || candidate.title,
           raw_content: aiResult.clean_content || extracted.bodyText,
@@ -427,6 +442,7 @@ Your response MUST follow this exact JSON schema:
           original_url: candidate.url,
           source: candidate.sourceName || "Web",
           category: aiResult.detected_category || candidate.category || "General",
+          country: articleCountry,
           image_url: extracted.ogImage || null,
           published_at: new Date().toISOString(),
         };
@@ -437,7 +453,6 @@ Your response MUST follow this exact JSON schema:
             .insert({
               ...insertPayload,
               importance_score: aiResult.importance_score || 50,
-              country: "BD",
             })
             .select("id")
             .single();
@@ -455,7 +470,7 @@ Your response MUST follow this exact JSON schema:
           }
 
           totalSuccessful++;
-          await sendLog(`  ├─ ✅ Saved to DB! (Status: ${autoApp ? "published" : "draft"}, Has Image: ${!!extracted.ogImage})`);
+          await sendLog(`  ├─ ✅ Saved to DB! (Status: ${autoApp ? "published" : "draft"}, Country: ${articleCountry})`);
         } catch (dbErr: any) {
           await sendLog(`  └─ [Database Error]: ${dbErr.message}`);
           continue;

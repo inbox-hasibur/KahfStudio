@@ -9,8 +9,6 @@ export async function summarizeNews(title: string, content: string) {
       return content.slice(0, 150) + "...";
     }
 
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-
     const prompt = `
       You are an expert news editor for "KahfNews". 
       Summarize the following news article into a concise, engaging, and conversational summary in Bangla.
@@ -22,7 +20,14 @@ export async function summarizeNews(title: string, content: string) {
       Summary (in Bangla):
     `;
 
-    const result = await model.generateContent(prompt);
+    let result;
+    try {
+      const model = genAI.getGenerativeModel({ model: "gemini-3.6-flash" });
+      result = await model.generateContent(prompt);
+    } catch (e) {
+      const fallbackModel = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+      result = await fallbackModel.generateContent(prompt);
+    }
     const response = await result.response;
     return response.text().trim();
   } catch (error) {
@@ -43,8 +48,6 @@ export async function summarizeWithGemini(
         summary: a.summary?.slice(0, 150) + "..." || "সংক্ষিপ্ত বিবরণ পাওয়া যায়নি।",
       }));
     }
-
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
     // Articles গুলো text এ convert করো
     const articlesText = articles
@@ -72,7 +75,14 @@ ${articlesText}
 - শুধু বলার উপযোগী টেক্সট দাও
 `;
 
-    const result = await model.generateContent(prompt);
+    let result;
+    try {
+      const model = genAI.getGenerativeModel({ model: "gemini-3.6-flash" });
+      result = await model.generateContent(prompt);
+    } catch (e) {
+      const fallbackModel = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+      result = await fallbackModel.generateContent(prompt);
+    }
     const script = result.response.text().trim();
 
     // Full script টা প্রথম item এ attach করো, বাকিগুলো আলাদা summary হিসেবে
@@ -100,8 +110,6 @@ export async function classifyNews(title: string, summary: string) {
   try {
     if (!process.env.GEMINI_API_KEY) return "medium";
 
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-
     const prompt = `
       Classify the following news item into one of these priorities: "high", "medium", or "low".
       High priority is for urgent utility news (traffic, protests, strikes, emergency alerts).
@@ -114,7 +122,14 @@ export async function classifyNews(title: string, summary: string) {
       Priority (high/medium/low):
     `;
 
-    const result = await model.generateContent(prompt);
+    let result;
+    try {
+      const model = genAI.getGenerativeModel({ model: "gemini-3.6-flash" });
+      result = await model.generateContent(prompt);
+    } catch (e) {
+      const fallbackModel = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+      result = await fallbackModel.generateContent(prompt);
+    }
     const response = await result.response;
     const priority = response.text().trim().toLowerCase();
     

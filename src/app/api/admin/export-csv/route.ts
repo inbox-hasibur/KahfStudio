@@ -111,12 +111,10 @@ export async function GET(req: Request) {
     csv += `Stripe (Global Cards),${gatewayCounts.stripe || 0}\n`;
     csv += `7-Day Free Trial Users,${gatewayCounts.trial || 0}\n\n`;
 
-    csv += `4. REGIONAL AUDIENCE DISTRIBUTION\n`;
-    csv += `Region,Share %,Estimated Users\n`;
-    csv += `"Dhaka Division",58%,${Math.round(totalUsers * 0.58)}\n`;
-    csv += `"Chittagong Division",20%,${Math.round(totalUsers * 0.20)}\n`;
-    csv += `"Sylhet Division",11%,${Math.round(totalUsers * 0.11)}\n`;
-    csv += `"Expat & International",11%,${Math.round(totalUsers * 0.11)}\n\n`;
+    csv += `4. COUNTRY AUDIENCE DISTRIBUTION\n`;
+    csv += `Country / Scope,Share %,Estimated Users\n`;
+    csv += `"Bangladesh",78%,${Math.round(totalUsers * 0.78)}\n`;
+    csv += `"Global & International",22%,${Math.round(totalUsers * 0.22)}\n\n`;
 
     csv += `5. TOP NEWS CATEGORIES\n`;
     csv += `Category,Articles Count,Share %\n`;

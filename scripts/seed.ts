@@ -1,26 +1,42 @@
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 async function main() {
   console.log("Seeding data...");
   
-  // Seed sources
+  // Seed sources (Bangladesh & Global)
   const sources = [
-    { name: 'Prothom Alo', url: 'https://www.prothomalo.com/feed', category: 'General', is_active: true },
-    { name: 'Jugantor', url: 'https://www.jugantor.com/feed', category: 'General', is_active: true },
-    { name: 'Jamuna TV', url: 'https://www.jamuna.tv/feed', category: 'General', is_active: true },
+    // Bangladesh Defaults
+    { name: "Prothom Alo (RSS)", url: "https://www.prothomalo.com/feed", category: "General", country: "BD", is_active: true },
+    { name: "BBC Bangla", url: "https://feeds.bbci.co.uk/bengali/rss.xml", category: "General", country: "BD", is_active: true },
+    { name: "VOA Bangla", url: "https://www.voabangla.com/api/z--r-rymqv", category: "General", country: "BD", is_active: true },
+    { name: "Daily Star", url: "https://www.thedailystar.net/frontpage/rss.xml", category: "General", country: "BD", is_active: true },
+    { name: "Dhaka Tribune", url: "https://www.dhakatribune.com/feed", category: "General", country: "BD", is_active: true },
+    { name: "Bdnews24 Bangla", url: "https://bangla.bdnews24.com/?widgetName=rssfeed&widgetId=1150&getXmlFeed=true", category: "General", country: "BD", is_active: true },
+    { name: "Kaler Kantho", url: "https://www.kalerkantho.com/rss.xml", category: "General", country: "BD", is_active: true },
+
+    // Global Defaults
+    { name: "BBC News (World)", url: "http://bbci.co.uk", category: "World", country: "GLOBAL", is_active: true },
+    { name: "Al Jazeera English", url: "https://aljazeera.com", category: "World", country: "GLOBAL", is_active: true },
+    { name: "Reuters (World News)", url: "https://reutersagency.com", category: "World", country: "GLOBAL", is_active: true },
+    { name: "CNN (Top Stories)", url: "http://cnn.com", category: "World", country: "GLOBAL", is_active: true },
+    { name: "The New York Times (World)", url: "https://nytimes.com", category: "World", country: "GLOBAL", is_active: true },
+    { name: "Associated Press (AP News)", url: "https://apnews.com", category: "World", country: "GLOBAL", is_active: true },
+    { name: "Deutsche Welle (DW World)", url: "https://dw.com", category: "World", country: "GLOBAL", is_active: true }
   ];
 
-  const { error: err1 } = await supabase.from('scraping_sources').insert(sources);
-  if (err1) {
-    if (err1.code === '23505') console.log("Sources already exist.");
-    else console.error("Error inserting sources:", err1.message);
-  } else {
-    console.log("Sources seeded.");
+  for (const src of sources) {
+    const { error: err1 } = await supabase.from('scraping_sources').insert(src);
+    if (err1) {
+      if (err1.code === '23505') console.log(`Source already exists: ${src.name}`);
+      else console.error(`Error inserting ${src.name}:`, err1.message);
+    } else {
+      console.log(`Source seeded: ${src.name}`);
+    }
   }
 
   // Seed settings

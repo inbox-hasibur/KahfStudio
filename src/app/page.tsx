@@ -38,46 +38,11 @@ const COUNTRIES = [
     code: "BD",
     name: "বাংলাদেশ",
     flag: "🇧🇩",
-    regions: [
-      "ঢাকা (Dhaka)",
-      "চট্টগ্রাম (Chattogram)",
-      "রাজশাহী (Rajshahi)",
-      "সিলেট (Sylhet)",
-      "খুলনা (Khulna)",
-      "বরিশাল (Barishal)",
-      "রংপুর (Rangpur)",
-      "ময়মনসিংহ (Mymensingh)",
-    ],
-  },
-  {
-    code: "US",
-    name: "United States",
-    flag: "🇺🇸",
-    regions: ["New York", "California", "Texas", "Florida", "Washington"],
-  },
-  {
-    code: "UK",
-    name: "United Kingdom",
-    flag: "🇬🇧",
-    regions: ["London", "Manchester", "Birmingham", "Edinburgh"],
-  },
-  {
-    code: "IN",
-    name: "India",
-    flag: "🇮🇳",
-    regions: ["West Bengal (Kolkata)", "Delhi", "Mumbai", "Bangalore"],
-  },
-  {
-    code: "SA",
-    name: "Saudi Arabia",
-    flag: "🇸🇦",
-    regions: ["Riyadh", "Jeddah", "Makkah", "Madinah"],
   },
   {
     code: "GLOBAL",
-    name: "Global",
+    name: "আন্তর্জাতিক (Global)",
     flag: "🌐",
-    regions: ["Worldwide / All Regions"],
   },
 ];
 
@@ -111,9 +76,8 @@ export default function Home() {
   const [isStickyExpanded, setIsStickyExpanded] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
 
-  // Country & Region state for location-based news widget
+  // Country state for location-based news (Bangladesh vs Global)
   const [selectedCountry, setSelectedCountry] = useState(COUNTRIES[0]);
-  const [selectedRegion, setSelectedRegion] = useState(COUNTRIES[0].regions[0]);
   const [isLocationDropdownOpen, setIsLocationDropdownOpen] = useState(false);
 
   const { news, loading: newsLoading } = useNews({
@@ -121,8 +85,8 @@ export default function Home() {
     sort: 'smart',
   });
   const { weather } = useWeather(
-    selectedRegion.split(' ')[0],
-    selectedCountry.code
+    selectedCountry.code === 'BD' ? 'Dhaka' : 'London',
+    selectedCountry.code === 'BD' ? 'BD' : 'GB'
   );
   const { data: sessionData } = useSession();
 
@@ -360,19 +324,17 @@ export default function Home() {
               </Link>
             )}
 
-            {/* 2. Country & Region Selector Widget */}
+            {/* 2. Country Selector Widget (Bangladesh vs Global) */}
             <div className="flex-1 sm:flex-initial relative">
               <button
                 onClick={() => setIsLocationDropdownOpen(!isLocationDropdownOpen)}
                 className="w-full sm:w-auto flex items-center justify-between sm:justify-start gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 bg-card/90 hover:bg-muted border border-border hover:border-primary/40 rounded-lg sm:rounded-xl font-semibold text-foreground transition-all cursor-pointer shadow-sm"
-                title="Change Country & Region"
+                title="Change Country / Edition"
               >
                 <div className="flex items-center gap-1 sm:gap-1.5 truncate">
                   <MapPin className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-primary shrink-0" />
                   <span className="text-xs">{selectedCountry.flag}</span>
                   <span className="font-bold">{selectedCountry.name}</span>
-                  <span className="text-border">|</span>
-                  <span className="text-primary font-medium truncate max-w-[100px] sm:max-w-none">{selectedRegion}</span>
                 </div>
                 <ChevronDown
                   className={`w-3 h-3 sm:w-3.5 sm:h-3.5 text-muted-foreground transition-transform duration-200 shrink-0 ml-1 ${isLocationDropdownOpen ? "rotate-180" : ""
@@ -387,66 +349,40 @@ export default function Home() {
                     initial={{ opacity: 0, y: 8, scale: 0.95 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 8, scale: 0.95 }}
-                    className="absolute right-0 mt-2 w-72 bg-popover/98 backdrop-blur-2xl border border-border rounded-2xl shadow-2xl p-3 z-50 text-popover-foreground space-y-3"
+                    className="absolute right-0 mt-2 w-64 bg-popover/98 backdrop-blur-2xl border border-border rounded-2xl shadow-2xl p-3 z-50 text-popover-foreground space-y-2.5"
                   >
                     <div className="flex items-center justify-between pb-2 border-b border-border">
                       <div className="flex items-center gap-1.5 text-xs font-bold text-foreground">
                         <Globe className="w-3.5 h-3.5 text-primary" />
-                        <span>লোকেশন ও রিজিয়ন সিলেক্ট</span>
+                        <span>সংস্করণ / দেশ নির্বাচন</span>
                       </div>
                       <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/20 text-primary font-bold">
-                        Regional Filter
+                        Edition
                       </span>
                     </div>
 
-                    <div>
-                      <label className="text-[11px] text-muted-foreground font-semibold mb-1.5 block">
-                        দেশ (Country):
-                      </label>
-                      <div className="grid grid-cols-2 gap-1.5">
-                        {COUNTRIES.map((c) => (
-                          <button
-                            key={c.code}
-                            onClick={() => {
-                              setSelectedCountry(c);
-                              setSelectedRegion(c.regions[0]);
-                            }}
-                            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium transition-all ${selectedCountry.code === c.code
-                              ? "bg-primary text-primary-foreground font-bold"
-                              : "bg-muted hover:bg-muted/80 text-muted-foreground"
-                              }`}
-                          >
-                            <span>{c.flag}</span>
-                            <span className="truncate">{c.name}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="text-[11px] text-muted-foreground font-semibold mb-1.5 block">
-                        বিভাগ / এলাকা (Region):
-                      </label>
-                      <div className="max-h-36 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
-                        {selectedCountry.regions.map((region) => (
-                          <button
-                            key={region}
-                            onClick={() => {
-                              setSelectedRegion(region);
-                              setIsLocationDropdownOpen(false);
-                            }}
-                            className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${selectedRegion === region
-                              ? "bg-primary/20 text-primary border border-primary/30 font-bold"
-                              : "bg-muted/60 hover:bg-muted text-muted-foreground"
-                              }`}
-                          >
-                            <span>{region}</span>
-                            {selectedRegion === region && (
-                              <Check className="w-3 h-3 text-primary" />
-                            )}
-                          </button>
-                        ))}
-                      </div>
+                    <div className="space-y-1.5">
+                      {COUNTRIES.map((c) => (
+                        <button
+                          key={c.code}
+                          onClick={() => {
+                            setSelectedCountry(c);
+                            setIsLocationDropdownOpen(false);
+                          }}
+                          className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-all ${selectedCountry.code === c.code
+                            ? "bg-primary text-primary-foreground font-bold shadow-sm"
+                            : "bg-muted/60 hover:bg-muted text-foreground"
+                            }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="text-base">{c.flag}</span>
+                            <span>{c.name}</span>
+                          </div>
+                          {selectedCountry.code === c.code && (
+                            <Check className="w-3.5 h-3.5 text-primary-foreground" />
+                          )}
+                        </button>
+                      ))}
                     </div>
                   </motion.div>
                 )}

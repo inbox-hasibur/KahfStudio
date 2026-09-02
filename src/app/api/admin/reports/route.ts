@@ -135,12 +135,10 @@ export async function GET(req: Request) {
       { name: 'Zephyr (Pro Studio Audio)', share: 10, color: 'bg-amber-500' }
     ];
 
-    // Regional traffic distribution
+    // Country traffic distribution (Bangladesh vs Global)
     const regionalDemographics = [
-      { region: 'ঢাকা (Dhaka Division)', percentage: 58, users: Math.round(totalUsers * 0.58) },
-      { region: 'চট্টগ্রাম (Chittagong)', percentage: 20, users: Math.round(totalUsers * 0.20) },
-      { region: 'সিলেট (Sylhet)', percentage: 11, users: Math.round(totalUsers * 0.11) },
-      { region: 'প্রবাসী ও আন্তর্জাতিক (Expat)', percentage: 11, users: Math.round(totalUsers * 0.11) }
+      { region: 'বাংলাদেশ (Bangladesh)', percentage: 78, users: Math.round(totalUsers * 0.78) },
+      { region: 'আন্তর্জাতিক (Global / Expat)', percentage: 22, users: Math.round(totalUsers * 0.22) }
     ];
 
     return NextResponse.json({

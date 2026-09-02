@@ -208,6 +208,7 @@ export default function AdminScrapingPage() {
 
   const [targetCount, setTargetCount] = useState("5");
   const [selectedCategory, setSelectedCategory] = useState("All");
+  const [selectedCountry, setSelectedCountry] = useState("All");
 
   const handleTriggerEmergencyScrape = async () => {
     setIsTriggeringRss(true);
@@ -218,7 +219,7 @@ export default function AdminScrapingPage() {
     const totalBatches = Math.ceil(totalTarget / CHUNK_SIZE);
 
     let allLogs: string[] = [
-      `[${getNowTime()}] 🚀 Initiating Ingestion Pipeline for ${totalTarget} article(s) (${totalBatches} auto-chunk batch(es))...`,
+      `[${getNowTime()}] 🚀 Initiating Ingestion Pipeline for ${totalTarget} article(s) (${totalBatches} auto-chunk batch(es)) [Country: "${selectedCountry}"]...`,
     ];
     setScrapeLogs([...allLogs]);
     try { localStorage.setItem("kahf_scrape_logs", JSON.stringify(allLogs)); } catch (e) {}
@@ -229,12 +230,12 @@ export default function AdminScrapingPage() {
         
         allLogs = [
           ...allLogs,
-          `\n[${getNowTime()}] 📦 [Batch ${batch}/${totalBatches}] Processing ${currentBatchLimit} article(s) (Category: "${selectedCategory}")...`,
+          `\n[${getNowTime()}] 📦 [Batch ${batch}/${totalBatches}] Processing ${currentBatchLimit} article(s) (Category: "${selectedCategory}", Country: "${selectedCountry}")...`,
         ];
         setScrapeLogs([...allLogs]);
         try { localStorage.setItem("kahf_scrape_logs", JSON.stringify(allLogs)); } catch (e) {}
 
-        const response = await fetch(`/api/ingest/trigger-rss?limit=${currentBatchLimit}&category=${encodeURIComponent(selectedCategory)}`);
+        const response = await fetch(`/api/ingest/trigger-rss?limit=${currentBatchLimit}&category=${encodeURIComponent(selectedCategory)}&country=${encodeURIComponent(selectedCountry)}`);
 
         if (!response.ok) {
           let errBody = "";
@@ -616,13 +617,26 @@ export default function AdminScrapingPage() {
             </div>
             
             <div className="flex items-center gap-2 px-1 sm:border-l sm:border-white/10 sm:pl-3">
+              <Label className="text-xs text-muted-foreground whitespace-nowrap">Country:</Label>
+              <select 
+                className="flex h-8 w-28 bg-black/40 rounded-md border border-white/10 text-xs focus-visible:outline-none px-2 text-foreground"
+                value={selectedCountry}
+                onChange={(e) => setSelectedCountry(e.target.value)}
+              >
+                <option value="All">All Countries</option>
+                <option value="BD">🇧🇩 Bangladesh</option>
+                <option value="GLOBAL">🌐 Global</option>
+              </select>
+            </div>
+
+            <div className="flex items-center gap-2 px-1 sm:border-l sm:border-white/10 sm:pl-3">
               <Label className="text-xs text-muted-foreground whitespace-nowrap">Category:</Label>
               <select 
-                className="flex h-8 w-28 bg-black/40 rounded-md border border-white/10 text-xs focus-visible:outline-none px-2"
+                className="flex h-8 w-28 bg-black/40 rounded-md border border-white/10 text-xs focus-visible:outline-none px-2 text-foreground"
                 value={selectedCategory}
                 onChange={(e) => setSelectedCategory(e.target.value)}
               >
-                <option value="All">All</option>
+                <option value="All">All Categories</option>
                 {CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
               </select>
             </div>
