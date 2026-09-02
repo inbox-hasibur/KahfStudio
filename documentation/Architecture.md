@@ -50,9 +50,10 @@ SECTION 3: END-TO-END NEWS PIPELINE DATAFLOW
 
 DETAILED EXECUTION STEPS:
 
-Step 1: Candidate Source Discovery & Deduplication
+Step 1: Candidate Source Discovery, Deduplication & Datacenter Bypass
 - Active scraping sources are loaded from Supabase PostgreSQL (scraping_sources table).
-- rss-parser fetches up to 15 candidate headlines per feed.
+- rss-parser fetches up to 15 candidate headlines per feed (4s hard timeout).
+- Datacenter / Cloudflare Protection Bypass: If direct RSS access fails or is blocked by anti-bot firewalls on serverless hosting (Vercel/AWS), the system automatically triggers Jina Reader Proxy (`r.jina.ai`) to extract candidate news articles seamlessly.
 - URLs are cross-checked against Supabase news_articles to prevent duplicate processing.
 
 Step 2: AI Title & Importance Pre-Filtering (1st Gemini Pass)
@@ -60,12 +61,10 @@ Step 2: AI Title & Importance Pre-Filtering (1st Gemini Pass)
 - Gemini evaluates headline significance and selects the TOP candidates (default top 5) with high breaking/importance values.
 
 Step 3: Universal Article HTML Extraction & Cover Image Scraping
-- For selected articles, universal-extractor.ts fetches raw HTML.
-- Cover Image (ogImage): Extracted from HTML meta tag (og:image), Twitter cards, or JSON-LD schema prior to AI processing.
-- Article Content: Extracted using a 3-tier fallback strategy:
-  Tier A: Mozilla Readability (DOM text density parser).
-  Tier B: JSON-LD Schema.org (NewsArticle / Article JSON script tags).
-  Tier C: Jina AI Reader (r.jina.ai) fallback for Javascript-heavy sites.
+- For selected articles, universal-extractor.ts fetches content using a multi-tiered failover strategy:
+  Tier A: Direct HTML Extraction (Mozilla Readability + JSON-LD) with fast 3.5s timeout.
+  Tier B: Jina AI Reader Residential Proxy (`https://r.jina.ai/<URL>`) with `X-No-Cache` and `X-Timeout: 6`. Bypasses Cloudflare / Akamai WAF and Datacenter IP restrictions on live deployments. Automatically discovers article cover images (`ogImage`), article titles, and clean markdown body.
+  Tier C: Resilient Minimal Fallback to ensure pipeline continuity.
 
 Step 4: Unified AI Content & Summary Generation (2nd Gemini Pass)
 - Extracted article text is sent to Gemini in a single unified prompt.

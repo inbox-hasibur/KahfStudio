@@ -16,26 +16,38 @@ export interface ExtractedArticle {
 const BROWSER_USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
 
+const BROWSER_HEADERS = {
+  'User-Agent': BROWSER_USER_AGENT,
+  'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+  'Accept-Language': 'bn-BD,bn;q=0.9,en-US;q=0.8,en;q=0.7',
+  'Sec-Ch-Ua': '"Chromium";v="122", "Not(A:Brand";v="24", "Google Chrome";v="122"',
+  'Sec-Ch-Ua-Mobile': '?0',
+  'Sec-Ch-Ua-Platform': '"Windows"',
+  'Sec-Fetch-Dest': 'document',
+  'Sec-Fetch-Mode': 'navigate',
+  'Sec-Fetch-Site': 'none',
+  'Sec-Fetch-User': '?1',
+  'Upgrade-Insecure-Requests': '1',
+};
+
 /**
- * Universal Content Extraction Pipeline
- * Tier 1: Mozilla Readability (DOM text density algorithm)
- * Tier 2: Schema.org (JSON-LD) and OpenGraph metadata
- * Tier 3: Jina AI Reader + Regex Cleaner fallback
+ * Universal Content Extraction Pipeline with Resilient Datacenter/Serverless Failover
+ * Tier 1: Direct HTML (Mozilla Readability + JSON-LD) - Fast 3.5s timeout
+ * Tier 2: Jina AI Reader Proxy (Residential Proxy bypass for Cloudflare/WAF) - 7s timeout
+ * Tier 3: Minimal fallback
  */
 export async function extractArticleContent(url: string, fallbackTitle?: string): Promise<ExtractedArticle> {
-  // 1. Attempt Direct HTML Download & Readability / JSON-LD extraction
+  // 1. Attempt Direct HTML Download (Short 3.5s timeout to fail fast on Cloudflare/WAF blocks)
   try {
     const response = await axios.get(url, {
-      timeout: 12000,
-      headers: {
-        'User-Agent': BROWSER_USER_AGENT,
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-        'Accept-Language': 'bn-BD,bn;q=0.9,en-US;q=0.8,en;q=0.7',
-      },
+      timeout: 3500,
+      headers: BROWSER_HEADERS,
+      maxRedirects: 5,
+      validateStatus: (status) => status >= 200 && status < 400,
     });
 
     const html = response.data;
-    if (typeof html === 'string' && html.length > 500) {
+    if (typeof html === 'string' && html.length > 500 && !html.includes('Just a moment...') && !html.includes('cf-browser-verification')) {
       const $ = cheerio.load(html);
 
       // OpenGraph & Meta Tags extraction
@@ -47,7 +59,7 @@ export async function extractArticleContent(url: string, fallbackTitle?: string)
         $('meta[name="publish-date"]').attr('content') ||
         null;
 
-      // Tier 1: Mozilla Readability
+      // Tier 1a: Mozilla Readability
       try {
         const dom = new JSDOM(html, { url });
         const reader = new Readability(dom.window.document);
@@ -70,7 +82,7 @@ export async function extractArticleContent(url: string, fallbackTitle?: string)
         console.warn(`[Extractor] Readability error for ${url}:`, readabilityError);
       }
 
-      // Tier 2: JSON-LD Schema.org NewsArticle Extraction
+      // Tier 1b: JSON-LD Schema.org NewsArticle Extraction
       try {
         const jsonLdScripts = $('script[type="application/ld+json"]').toArray();
         for (const scriptElem of jsonLdScripts) {
@@ -114,28 +126,63 @@ export async function extractArticleContent(url: string, fallbackTitle?: string)
       }
     }
   } catch (directHtmlError: any) {
-    console.warn(`[Extractor] Direct HTML fetch failed for ${url}: ${directHtmlError.message}`);
+    console.warn(`[Extractor] Direct fetch blocked/timed out (${directHtmlError.message}). Engaging Jina AI Residential Proxy for ${url}...`);
   }
 
-  // Tier 3: Jina AI Reader Fallback with CleanJinaMarkdown
+  // Tier 2: Jina AI Reader Residential Proxy (Bypasses Cloudflare / Datacenter IP bans)
   try {
-    const jinaRes = await axios.get(`https://r.jina.ai/${url}`, { timeout: 15000 });
-    const cleanedJina = cleanJinaMarkdown(jinaRes.data);
-    if (cleanedJina && cleanedJina.trim().length > 100) {
-      return {
-        title: fallbackTitle || '',
-        bodyText: cleanedJina,
-        ogImage: null,
-        author: null,
-        publishedTime: null,
-        extractionMethod: 'jina-ai',
-      };
+    const jinaRes = await axios.get(`https://r.jina.ai/${url}`, {
+      timeout: 7000,
+      headers: {
+        'User-Agent': BROWSER_USER_AGENT,
+        'X-No-Cache': 'true',
+        'X-Timeout': '6',
+        'X-With-Generated-Alt': 'true',
+      },
+    });
+
+    const rawJinaData = typeof jinaRes.data === 'string' ? jinaRes.data : '';
+    
+    if (rawJinaData && rawJinaData.trim().length > 80) {
+      // 1. Extract cover image from markdown if available: ![alt](https://...)
+      let extractedImage: string | null = null;
+      const imgMatch = /!\[.*?\]\((https?:\/\/[^\s\)]+)\)/.exec(rawJinaData);
+      if (imgMatch && imgMatch[1]) {
+        // Filter out tracking pixels / tiny icons
+        const foundImg = imgMatch[1];
+        if (!foundImg.includes('favicon') && !foundImg.includes('avatar') && !foundImg.includes('1x1')) {
+          extractedImage = foundImg;
+        }
+      }
+
+      // 2. Extract title if fallbackTitle is generic
+      let extractedTitle = fallbackTitle || '';
+      const titleMatch = /^#\s+(.+)$/m.exec(rawJinaData) || /Title:\s*(.+)/i.exec(rawJinaData);
+      if (titleMatch && titleMatch[1]) {
+        const foundTitle = titleMatch[1].trim();
+        if (foundTitle.length > 5 && (!extractedTitle || extractedTitle.length < 5)) {
+          extractedTitle = foundTitle;
+        }
+      }
+
+      // 3. Clean full text
+      const cleanedJina = cleanJinaMarkdown(rawJinaData);
+      if (cleanedJina && cleanedJina.trim().length > 80) {
+        return {
+          title: extractedTitle,
+          bodyText: cleanedJina,
+          ogImage: extractedImage,
+          author: null,
+          publishedTime: null,
+          extractionMethod: 'jina-ai',
+        };
+      }
     }
   } catch (jinaError: any) {
-    console.warn(`[Extractor] Jina AI fallback failed for ${url}: ${jinaError.message}`);
+    console.warn(`[Extractor] Jina AI proxy fallback error for ${url}: ${jinaError.message}`);
   }
 
-  // Final Fallback
+  // Tier 3: Final Fallback
   return {
     title: fallbackTitle || '',
     bodyText: fallbackTitle || '',

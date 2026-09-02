@@ -40,13 +40,14 @@ async function extractCandidatesFromHtmlOrJina(sourceUrl: string, sourceName: st
     }
   } catch (e) {}
 
-  // 1. Try Direct HTML extraction with Cheerio
+  // 1. Try Direct HTML extraction with Cheerio (Fast 3.5s timeout)
   try {
     const res = await axios.get(targetUrl, {
-      timeout: 7000,
+      timeout: 3500,
       headers: BROWSER_HEADERS,
+      validateStatus: (status) => status >= 200 && status < 400,
     });
-    if (typeof res.data === 'string' && res.data.length > 500) {
+    if (typeof res.data === 'string' && res.data.length > 500 && !res.data.includes('cf-browser-verification')) {
       const $ = cheerio.load(res.data);
       $('a').each((_, el) => {
         if (results.length >= 10) return;
@@ -74,11 +75,15 @@ async function extractCandidatesFromHtmlOrJina(sourceUrl: string, sourceName: st
     // Continue to Jina fallback
   }
 
-  // 2. Try Jina Reader Fallback
+  // 2. Try Jina Reader Residential Proxy Fallback (Bypasses Cloudflare on serverless IPs)
   try {
     const jinaRes = await axios.get(`https://r.jina.ai/${targetUrl}`, {
-      timeout: 9000,
-      headers: { 'User-Agent': 'Mozilla/5.0' },
+      timeout: 5500,
+      headers: {
+        'User-Agent': BROWSER_HEADERS['User-Agent'],
+        'X-No-Cache': 'true',
+        'X-Timeout': '5',
+      },
     });
     const markdown = typeof jinaRes.data === 'string' ? jinaRes.data : '';
     const linkRegex = /\[([^\]]{18,120})\]\((https?:\/\/[^\s\)]+)\)/g;
@@ -173,7 +178,7 @@ export async function GET(req: Request) {
         sendLog(`Config: Auto-Approve = ${autoApp ? "ON (published)" : "OFF (draft)"} | Gemini API Keys: ${activeKeys.length}`);
 
         const parser = new Parser({
-          timeout: 6000,
+          timeout: 4000,
           headers: {
             'User-Agent': BROWSER_HEADERS['User-Agent'],
             'Accept': 'application/rss+xml, application/xml, text/xml; q=0.9, */*; q=0.8'
@@ -195,11 +200,11 @@ export async function GET(req: Request) {
           let feedCandidates: Array<{ url: string; title: string; sourceName: string; category: string }> = [];
 
           try {
-            // Attempt standard RSS XML parsing
+            // Attempt standard RSS XML parsing (4s timeout)
             const feed = await fetchWithTimeout(
               parser.parseURL(source.url),
-              6000,
-              `RSS Feed request timed out after 6s`
+              4000,
+              `RSS Feed request timed out after 4s`
             );
 
             const topItems = feed.items ? feed.items.slice(0, 15) : [];

@@ -49,9 +49,10 @@ CLOUDINARY_API_SECRET=your_cloudinary_api_secret
 - Direct Single-URL Ingestion: Direct manual ingestion of individual URLs via `/api/ingest/direct`.
 - RLS Bypass API: Secured server routes (`/api/sources`, `/api/settings`) using `SUPABASE_SERVICE_ROLE_KEY`.
 
-### 2. Universal Article Extractor & Pre-AI Text Cleaner
-- 3-Tier Extractor: Content extraction via Mozilla Readability, JSON-LD Schema.org, and Jina AI Reader fallback (`universal-extractor.ts`).
-- Cover Image Extraction: OpenGraph (`og:image`), Twitter card, and schema image URL extraction prior to AI processing.
+### 2. Universal Article Extractor & Jina Reader Residential Proxy
+- Multi-Tier Extractor: Fast failover extraction via Mozilla Readability, JSON-LD Schema.org, and Jina AI Reader Proxy (`universal-extractor.ts`).
+- Datacenter IP & Cloudflare Bypass: Uses Jina AI Residential Proxy (`https://r.jina.ai/<URL>`) with `X-No-Cache` and `X-Timeout` headers to bypass Cloudflare 403 blocks and hang issues on serverless hosting (Vercel/AWS).
+- Cover Image & Metadata Extraction: Extracts OpenGraph (`og:image`), Twitter cards, schema images, and markdown images directly from Jina Reader markdown.
 - Pre-AI Local Noise Cleaner: Strips advertisements, social share buttons, header/footer noise, and truncates related news section boundaries before sending text to Gemini (`cleaner.ts`).
 
 ### 3. Two-Pass Gemini AI Processing Engine
