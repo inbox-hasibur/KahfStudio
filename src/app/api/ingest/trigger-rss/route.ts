@@ -117,8 +117,12 @@ export async function GET(req: Request) {
         } catch (e) {}
       };
 
-      // 1. Send instant handshake log to establish connection immediately
-      sendLog("Pipeline Connected. Initializing scraping sources...");
+      // 1. Send immediate handshake & keepalive ping to flush serverless proxy buffer
+      try {
+        controller.enqueue(encoder.encode(`: ping\n\n`));
+      } catch (e) {}
+
+      sendLog("🚀 Pipeline Connected. Initializing scraping sources...");
 
       try {
         const url = new URL(req.url);
@@ -129,13 +133,16 @@ export async function GET(req: Request) {
         const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
         if (!supabaseUrl || !supabaseKey) {
-          sendLog("[CRITICAL ERROR] Missing Supabase Environment Variables.");
-          return controller.close();
+          sendLog("❌ [CRITICAL ERROR] Missing Supabase Environment Variables (NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY).");
+          controller.close();
+          return;
         }
 
+        const supabaseHost = supabaseUrl.replace(/^https?:\/\//, '').split('.')[0];
+        sendLog(`[Database Step 1] Connecting to Supabase instance (${supabaseHost})...`);
         const supabase = createClient(supabaseUrl, supabaseKey);
 
-        sendLog(`Querying active scraping sources (Category: "${targetCategory}")...`);
+        sendLog(`[Database Step 2] Querying active scraping sources (Category: "${targetCategory}")...`);
         let sourceQuery = supabase
           .from("scraping_sources")
           .select("*")
@@ -148,13 +155,15 @@ export async function GET(req: Request) {
         const { data: sources, error: sourceError } = await sourceQuery;
 
         if (sourceError) {
-          sendLog(`[DB Error] Failed to fetch sources: ${sourceError.message}`);
-          return controller.close();
+          sendLog(`❌ [DB Error] Failed to fetch sources: ${sourceError.message}`);
+          controller.close();
+          return;
         }
 
         if (!sources || sources.length === 0) {
-          sendLog(`No active sources found for category "${targetCategory}". Exiting pipeline.`);
-          return controller.close();
+          sendLog(`⚠️ No active sources found for category "${targetCategory}". Exiting pipeline.`);
+          controller.close();
+          return;
         }
 
         sendLog(`✅ Found ${sources.length} active source(s).`);
@@ -193,15 +202,15 @@ export async function GET(req: Request) {
           category: string;
         }> = [];
 
-        // 2. Collect candidate items across active sources (RSS + Smart HTML/Jina fallback)
+        // 2. Collect candidate items across active sources (Primary: RSS XML -> Fallback: Jina AI Reader Proxy)
         for (let sIdx = 0; sIdx < sources.length; sIdx++) {
           const source = sources[sIdx];
-          sendLog(`[Source ${sIdx + 1}/${sources.length}] Checking: ${source.name}...`);
+          sendLog(`[Source ${sIdx + 1}/${sources.length}] Step 1: Trying Primary RSS Feed for "${source.name}" (${source.url})...`);
 
           let feedCandidates: Array<{ url: string; title: string; sourceName: string; category: string }> = [];
 
           try {
-            // Attempt standard RSS XML parsing
+            // Attempt standard RSS XML parsing with 3.5s timeout
             const feed = await fetchWithTimeout(
               parser.parseURL(source.url),
               3500,
@@ -223,14 +232,14 @@ export async function GET(req: Request) {
                 });
               }
             }
-            sendLog(`  └─ ✅ [${source.name}] RSS OK: Found ${feedCandidates.length} articles.`);
+            sendLog(`  └─ ✅ RSS Feed Succeeded: Found ${feedCandidates.length} candidate articles.`);
           } catch (rssErr: any) {
-            sendLog(`  └─ ⚠️ [${source.name}] RSS unavailable (${rssErr.message}). Switching to Jina/HTML reader...`);
+            sendLog(`  └─ ⚠️ RSS unavailable (${rssErr.message}). Step 2: Falling back to Jina AI Reader Proxy...`);
             try {
               feedCandidates = await extractCandidatesFromHtmlOrJina(source.url, source.name, source.category || "General");
-              sendLog(`  └─ ⚡ [${source.name}] Jina/HTML Recovery: Found ${feedCandidates.length} articles.`);
+              sendLog(`  └─ ⚡ Jina Reader Proxy Succeeded: Discovered ${feedCandidates.length} candidate articles.`);
             } catch (fallbackErr: any) {
-              sendLog(`  └─ ❌ [${source.name}] Skipped: ${fallbackErr.message}`);
+              sendLog(`  └─ ❌ Jina fallback skipped: ${fallbackErr.message}`);
             }
           }
 
@@ -238,8 +247,9 @@ export async function GET(req: Request) {
         }
 
         if (rawCandidates.length === 0) {
-          sendLog("No articles found across active sources. Exiting pipeline.");
-          return controller.close();
+          sendLog("⚠️ No articles found across active sources. Exiting pipeline.");
+          controller.close();
+          return;
         }
 
         sendLog(`Total ${rawCandidates.length} candidate(s) discovered. Running Batch Deduplication against Database...`);

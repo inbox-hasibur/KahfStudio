@@ -210,7 +210,12 @@ export default function AdminScrapingPage() {
 
   const handleTriggerEmergencyScrape = async () => {
     setIsTriggeringRss(true);
-    const startLogs = ["Connecting to scraping pipeline..."];
+    const getNowTime = () => new Date().toLocaleTimeString('en-US', { hour12: true });
+    
+    const startLogs = [
+      `[${getNowTime()}] [Client Step 1] Initiating connection to scraping pipeline...`,
+      `[${getNowTime()}] [Client Step 2] Sending GET /api/ingest/trigger-rss?limit=${targetCount}&category=${encodeURIComponent(selectedCategory)}...`,
+    ];
     setScrapeLogs(startLogs);
     try {
       localStorage.setItem("kahf_scrape_logs", JSON.stringify(startLogs));
@@ -218,11 +223,32 @@ export default function AdminScrapingPage() {
     
     try {
       const response = await fetch(`/api/ingest/trigger-rss?limit=${targetCount}&category=${encodeURIComponent(selectedCategory)}`);
-      if (!response.body) throw new Error("No response body");
+      
+      // Detailed check for non-200 HTTP responses
+      if (!response.ok) {
+        let errBody = "";
+        try {
+          errBody = await response.text();
+        } catch (e) {}
+        const errMsg = `[${getNowTime()}] ❌ [Server HTTP Error ${response.status}]: ${errBody || response.statusText || 'Unknown Server Error'}`;
+        const updated = [...startLogs, errMsg];
+        setScrapeLogs(updated);
+        try { localStorage.setItem("kahf_scrape_logs", JSON.stringify(updated)); } catch (e) {}
+        return;
+      }
+
+      if (!response.body) {
+        throw new Error("Server returned 200 OK but response stream body is empty");
+      }
+
+      let currentLogs = [
+        ...startLogs,
+        `[${getNowTime()}] [Client Step 3] HTTP 200 OK received (Content-Type: ${response.headers.get("content-type") || "unknown"}). Streaming pipeline logs...`,
+      ];
+      setScrapeLogs(currentLogs);
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
-      let currentLogs = [...startLogs];
       let buffer = "";
       
       while (true) {
@@ -246,13 +272,20 @@ export default function AdminScrapingPage() {
                 } catch (e) {}
               }
             } catch(e) {}
+          } else if (trimmed && !trimmed.startsWith(":") && !trimmed.startsWith("event:")) {
+            // Raw text fallback from stream
+            currentLogs = [...currentLogs, trimmed];
+            setScrapeLogs([...currentLogs]);
+            try {
+              localStorage.setItem("kahf_scrape_logs", JSON.stringify(currentLogs));
+            } catch (e) {}
           }
         }
       }
     } catch (e: any) {
       console.error(e);
       setScrapeLogs((prev) => {
-        const updated = [...prev, `Error: ${e.message}`];
+        const updated = [...prev, `[${getNowTime()}] ❌ [Network / Client Exception]: ${e.message}`];
         try { localStorage.setItem("kahf_scrape_logs", JSON.stringify(updated)); } catch (err) {}
         return updated;
       });
