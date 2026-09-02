@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import Parser from "rss-parser";
 import axios from "axios";
@@ -7,8 +7,9 @@ import { extractArticleContent } from "@/lib/scraper/universal-extractor";
 import { generateSeamlessGeminiAudio, uploadAudioToCloudinary } from "@/lib/audio/gemini-tts";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-export const maxDuration = 300; // 5 minutes max timeout
+export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60; // 60s max execution limit compliant with Vercel Hobby & Pro plans
 
 const BROWSER_HEADERS = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
@@ -106,7 +107,7 @@ async function extractCandidatesFromHtmlOrJina(sourceUrl: string, sourceName: st
   return results;
 }
 
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     async start(controller) {
@@ -125,9 +126,9 @@ export async function GET(req: Request) {
       sendLog("🚀 Pipeline Connected. Initializing scraping sources...");
 
       try {
-        const url = new URL(req.url);
-        const targetLimit = parseInt(url.searchParams.get('limit') || '5', 10);
-        const targetCategory = url.searchParams.get('category') || 'All';
+        const searchParams = req.nextUrl?.searchParams || new URL(req.url, 'http://localhost').searchParams;
+        const targetLimit = parseInt(searchParams.get('limit') || '5', 10);
+        const targetCategory = searchParams.get('category') || 'All';
 
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
         const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -516,7 +517,7 @@ Your response MUST follow this exact JSON schema:
     },
   });
 
-  return new NextResponse(stream, {
+  return new Response(stream, {
     headers: {
       "Content-Type": "text/event-stream; charset=utf-8",
       "Cache-Control": "no-cache, no-transform",
