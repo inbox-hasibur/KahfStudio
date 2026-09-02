@@ -10,44 +10,89 @@ export interface ExtractedArticle {
   ogImage?: string | null;
   author?: string | null;
   publishedTime?: string | null;
-  extractionMethod: 'readability' | 'json-ld' | 'jina-ai' | 'fallback';
+  extractionMethod: 'jina-ai' | 'readability' | 'json-ld' | 'fallback';
 }
 
 const BROWSER_USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
 
-const BROWSER_HEADERS = {
-  'User-Agent': BROWSER_USER_AGENT,
-  'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-  'Accept-Language': 'bn-BD,bn;q=0.9,en-US;q=0.8,en;q=0.7',
-  'Sec-Ch-Ua': '"Chromium";v="122", "Not(A:Brand";v="24", "Google Chrome";v="122"',
-  'Sec-Ch-Ua-Mobile': '?0',
-  'Sec-Ch-Ua-Platform': '"Windows"',
-  'Sec-Fetch-Dest': 'document',
-  'Sec-Fetch-Mode': 'navigate',
-  'Sec-Fetch-Site': 'none',
-  'Sec-Fetch-User': '?1',
-  'Upgrade-Insecure-Requests': '1',
-};
-
 /**
- * Universal Content Extraction Pipeline with Resilient Datacenter/Serverless Failover
- * Tier 1: Direct HTML (Mozilla Readability + JSON-LD) - Fast 3.5s timeout
- * Tier 2: Jina AI Reader Proxy (Residential Proxy bypass for Cloudflare/WAF) - 7s timeout
- * Tier 3: Minimal fallback
+ * Universal Content Extraction Pipeline
+ * Tier 1 (Primary): Jina AI Reader Proxy (Headless browser + Clean Markdown, Bypasses Cloudflare & Datacenter IP Blocks)
+ * Tier 2 (Fallback): Direct HTML Extraction with Mozilla Readability & JSON-LD (Strict 4s timeout)
+ * Tier 3 (Final Fallback): Fallback Title & Basic Metadata
  */
 export async function extractArticleContent(url: string, fallbackTitle?: string): Promise<ExtractedArticle> {
-  // 1. Attempt Direct HTML Download (Short 3.5s timeout to fail fast on Cloudflare/WAF blocks)
+  // Tier 1 (Primary): Jina AI Reader Proxy
+  try {
+    const jinaRes = await axios.get(`https://r.jina.ai/${url}`, {
+      timeout: 8000,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; KahfStudioBot/1.0)',
+        'Accept': 'text/plain, text/markdown, */*',
+        'X-No-Cache': 'true',
+      },
+    });
+
+    const rawJinaData = typeof jinaRes.data === 'string' ? jinaRes.data : '';
+    if (rawJinaData && rawJinaData.length > 100) {
+      // 1. Extract Title from Jina Markdown header
+      let extractedTitle = fallbackTitle || '';
+      const titleMatch = rawJinaData.match(/^Title:\s*(.+)$/m) || rawJinaData.match(/^#\s*(.+)$/m);
+      if (titleMatch && titleMatch[1]?.trim().length > 5) {
+        extractedTitle = titleMatch[1].trim();
+      }
+
+      // 2. Extract Author & Publish Date from Jina metadata header if present
+      const authorMatch = rawJinaData.match(/^Author:\s*(.+)$/m);
+      const author = authorMatch ? authorMatch[1].trim() : null;
+
+      const dateMatch = rawJinaData.match(/^Published Time:\s*(.+)$/m);
+      const publishedTime = dateMatch ? dateMatch[1].trim() : null;
+
+      // 3. Extract Cover Image from markdown image syntax
+      let ogImage: string | null = null;
+      const imgRegex = /!\[.*?\]\((https?:\/\/[^\s\)]+)\)/g;
+      let imgMatch;
+      while ((imgMatch = imgRegex.exec(rawJinaData)) !== null) {
+        const potentialImg = imgMatch[1];
+        // Filter out tiny icons / trackers
+        if (!potentialImg.includes('icon') && !potentialImg.includes('logo') && !potentialImg.includes('avatar') && !potentialImg.includes('1x1')) {
+          ogImage = potentialImg;
+          break;
+        }
+      }
+
+      // 4. Clean Markdown Body Text
+      const cleanedJina = cleanJinaMarkdown(rawJinaData);
+      if (cleanedJina && cleanedJina.trim().length > 100) {
+        return {
+          title: extractedTitle,
+          bodyText: cleanedJina,
+          ogImage,
+          author,
+          publishedTime,
+          extractionMethod: 'jina-ai',
+        };
+      }
+    }
+  } catch (jinaError: any) {
+    console.warn(`[Extractor] Jina AI Primary failed for ${url}: ${jinaError.message}. Switching to Direct HTML fallback...`);
+  }
+
+  // Tier 2 (Fallback): Direct HTML Download & Readability / JSON-LD extraction with strict 4s timeout
   try {
     const response = await axios.get(url, {
-      timeout: 3500,
-      headers: BROWSER_HEADERS,
-      maxRedirects: 5,
-      validateStatus: (status) => status >= 200 && status < 400,
+      timeout: 4000,
+      headers: {
+        'User-Agent': BROWSER_USER_AGENT,
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'bn-BD,bn;q=0.9,en-US;q=0.8,en;q=0.7',
+      },
     });
 
     const html = response.data;
-    if (typeof html === 'string' && html.length > 500 && !html.includes('Just a moment...') && !html.includes('cf-browser-verification')) {
+    if (typeof html === 'string' && html.length > 500) {
       const $ = cheerio.load(html);
 
       // OpenGraph & Meta Tags extraction
@@ -59,7 +104,7 @@ export async function extractArticleContent(url: string, fallbackTitle?: string)
         $('meta[name="publish-date"]').attr('content') ||
         null;
 
-      // Tier 1a: Mozilla Readability
+      // Tier 2a: Mozilla Readability
       try {
         const dom = new JSDOM(html, { url });
         const reader = new Readability(dom.window.document);
@@ -79,10 +124,10 @@ export async function extractArticleContent(url: string, fallbackTitle?: string)
           }
         }
       } catch (readabilityError) {
-        console.warn(`[Extractor] Readability error for ${url}:`, readabilityError);
+        console.warn(`[Extractor] Readability fallback error for ${url}:`, readabilityError);
       }
 
-      // Tier 1b: JSON-LD Schema.org NewsArticle Extraction
+      // Tier 2b: JSON-LD Schema.org NewsArticle Extraction
       try {
         const jsonLdScripts = $('script[type="application/ld+json"]').toArray();
         for (const scriptElem of jsonLdScripts) {
@@ -122,64 +167,11 @@ export async function extractArticleContent(url: string, fallbackTitle?: string)
           }
         }
       } catch (jsonLdError) {
-        console.warn(`[Extractor] JSON-LD error for ${url}:`, jsonLdError);
+        console.warn(`[Extractor] JSON-LD fallback error for ${url}:`, jsonLdError);
       }
     }
   } catch (directHtmlError: any) {
-    console.warn(`[Extractor] Direct fetch blocked/timed out (${directHtmlError.message}). Engaging Jina AI Residential Proxy for ${url}...`);
-  }
-
-  // Tier 2: Jina AI Reader Residential Proxy (Bypasses Cloudflare / Datacenter IP bans)
-  try {
-    const jinaRes = await axios.get(`https://r.jina.ai/${url}`, {
-      timeout: 7000,
-      headers: {
-        'User-Agent': BROWSER_USER_AGENT,
-        'X-No-Cache': 'true',
-        'X-Timeout': '6',
-        'X-With-Generated-Alt': 'true',
-      },
-    });
-
-    const rawJinaData = typeof jinaRes.data === 'string' ? jinaRes.data : '';
-    
-    if (rawJinaData && rawJinaData.trim().length > 80) {
-      // 1. Extract cover image from markdown if available: ![alt](https://...)
-      let extractedImage: string | null = null;
-      const imgMatch = /!\[.*?\]\((https?:\/\/[^\s\)]+)\)/.exec(rawJinaData);
-      if (imgMatch && imgMatch[1]) {
-        // Filter out tracking pixels / tiny icons
-        const foundImg = imgMatch[1];
-        if (!foundImg.includes('favicon') && !foundImg.includes('avatar') && !foundImg.includes('1x1')) {
-          extractedImage = foundImg;
-        }
-      }
-
-      // 2. Extract title if fallbackTitle is generic
-      let extractedTitle = fallbackTitle || '';
-      const titleMatch = /^#\s+(.+)$/m.exec(rawJinaData) || /Title:\s*(.+)/i.exec(rawJinaData);
-      if (titleMatch && titleMatch[1]) {
-        const foundTitle = titleMatch[1].trim();
-        if (foundTitle.length > 5 && (!extractedTitle || extractedTitle.length < 5)) {
-          extractedTitle = foundTitle;
-        }
-      }
-
-      // 3. Clean full text
-      const cleanedJina = cleanJinaMarkdown(rawJinaData);
-      if (cleanedJina && cleanedJina.trim().length > 80) {
-        return {
-          title: extractedTitle,
-          bodyText: cleanedJina,
-          ogImage: extractedImage,
-          author: null,
-          publishedTime: null,
-          extractionMethod: 'jina-ai',
-        };
-      }
-    }
-  } catch (jinaError: any) {
-    console.warn(`[Extractor] Jina AI proxy fallback error for ${url}: ${jinaError.message}`);
+    console.warn(`[Extractor] Direct HTML fallback failed for ${url}: ${directHtmlError.message}`);
   }
 
   // Tier 3: Final Fallback
@@ -192,3 +184,4 @@ export async function extractArticleContent(url: string, fallbackTitle?: string)
     extractionMethod: 'fallback',
   };
 }
+

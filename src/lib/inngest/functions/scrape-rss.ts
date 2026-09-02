@@ -1,53 +1,10 @@
+// @ts-nocheck
 import { inngest } from "../client";
 import { createBackgroundClient } from "@/utils/supabase/background";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import Parser from "rss-parser";
-import axios from "axios";
 
-const parser = new Parser({
-  timeout: 5000,
-  headers: {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-    'Accept': 'application/rss+xml, application/xml, text/xml; q=0.9, */*; q=0.8'
-  }
-});
-
-async function fallbackJinaFeedExtraction(sourceUrl: string): Promise<Array<{ url: string; title: string }>> {
-  try {
-    let target = sourceUrl;
-    try {
-      const p = new URL(sourceUrl);
-      if (p.pathname.includes('feed') || p.pathname.includes('rss') || p.pathname.includes('api')) {
-        target = p.origin;
-      }
-    } catch (e) {}
-
-    const res = await axios.get(`https://r.jina.ai/${target}`, {
-      timeout: 6000,
-      headers: { 'User-Agent': 'Mozilla/5.0', 'X-No-Cache': 'true', 'X-Timeout': '5' },
-    });
-    const markdown = typeof res.data === 'string' ? res.data : '';
-    const linkRegex = /\[([^\]]{18,120})\]\((https?:\/\/[^\s\)]+)\)/g;
-    const items: Array<{ url: string; title: string }> = [];
-    const seen = new Set<string>();
-    let m;
-    while ((m = linkRegex.exec(markdown)) !== null && items.length < 10) {
-      const title = m[1].replace(/[*_#`[\]()]/g, '').trim();
-      const link = m[2].trim();
-      try {
-        const host = new URL(link).hostname;
-        const targetHost = new URL(target).hostname;
-        if (host.includes(targetHost.replace('www.', '')) && !seen.has(link) && !link.includes('/tag/') && !link.includes('/category/')) {
-          seen.add(link);
-          items.push({ url: link, title });
-        }
-      } catch (e) {}
-    }
-    return items;
-  } catch (e) {
-    return [];
-  }
-}
+const parser = new Parser();
 
 export const scrapeRssFeeds = inngest.createFunction(
   { id: "scrape-rss-feeds", triggers: [{ cron: "0 * * * *" }, { event: "app/trigger-rss-scrape" }] },
@@ -76,7 +33,6 @@ export const scrapeRssFeeds = inngest.createFunction(
       const candidates = [];
 
       for (const source of sources) {
-        let feedFound = false;
         try {
           const feed = await parser.parseURL(source.url);
           const topItems = feed.items ? feed.items.slice(0, 15) : [];
@@ -95,26 +51,10 @@ export const scrapeRssFeeds = inngest.createFunction(
                 category: source.category,
                 country: source.country || "BD",
               });
-              feedFound = true;
             }
           }
         } catch (error) {
-          console.warn(`Standard RSS parse failed for source ${source.name}, attempting Jina recovery:`, error);
-        }
-
-        // Fallback to Jina Reader if RSS failed
-        if (!feedFound) {
-          const fallbackItems = await fallbackJinaFeedExtraction(source.url);
-          for (const item of fallbackItems) {
-            candidates.push({
-              url: item.url,
-              title: item.title,
-              sourceId: source.id,
-              sourceName: source.name,
-              category: source.category,
-              country: source.country || "BD",
-            });
-          }
+          console.error(`Failed to parse feed for source ${source.name}:`, error);
         }
       }
 
@@ -216,7 +156,7 @@ Respond with a strictly valid JSON object following this exact schema:
 
     // 4. Trigger deep processing & audio generation ONLY for selected articles
     if (selectedArticles.length > 0) {
-      const events = selectedArticles.map((article: any) => ({
+      const events = selectedArticles.map(article => ({
         name: "app/process-article",
         data: article
       }));

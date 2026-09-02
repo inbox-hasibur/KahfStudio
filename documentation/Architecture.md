@@ -24,13 +24,13 @@ SECTION 3: END-TO-END NEWS PIPELINE DATAFLOW
 [Trigger: Time-based Cron / Admin Manual / Single-URL]
                           |
                           v
-[Feed Scraping & Candidate Discovery (rss-parser)]
+[Candidate Discovery (Smart RSS + Jina AI Reader Discovery)]
                           |
                           v
 [AI Pre-Filter (1st Gemini Pass): Selects TOP candidate headlines & initial importance]
                           |
                           v
-[HTML Extraction & Image Scraping (Mozilla Readability + JSON-LD + Jina AI)]
+[Universal Content Extraction (Tier 1: Jina AI Proxy -> Tier 2: Readability / JSON-LD)]
                           |
                           v
 [Unified Content Processing (2nd Gemini Pass): Generates clean body, summary, score]
@@ -50,21 +50,20 @@ SECTION 3: END-TO-END NEWS PIPELINE DATAFLOW
 
 DETAILED EXECUTION STEPS:
 
-Step 1: Candidate Source Discovery, Deduplication & Datacenter Bypass
+Step 1: Candidate Source Discovery & Deduplication
 - Active scraping sources are loaded from Supabase PostgreSQL (scraping_sources table).
-- rss-parser fetches up to 15 candidate headlines per feed (4s hard timeout).
-- Datacenter / Cloudflare Protection Bypass: If direct RSS access fails or is blocked by anti-bot firewalls on serverless hosting (Vercel/AWS), the system automatically triggers Jina Reader Proxy (`r.jina.ai`) to extract candidate news articles seamlessly.
+- Fast RSS parser (3.5s timeout) or Jina AI Reader Proxy (r.jina.ai) discovers top article links without getting blocked by Cloudflare/Datacenter IP restrictions.
 - URLs are cross-checked against Supabase news_articles to prevent duplicate processing.
 
 Step 2: AI Title & Importance Pre-Filtering (1st Gemini Pass)
 - Raw candidate titles, categories, and sources are batched into a single prompt sent to Gemini (gemini-2.5-flash / gemini-3.6-flash).
 - Gemini evaluates headline significance and selects the TOP candidates (default top 5) with high breaking/importance values.
 
-Step 3: Universal Article HTML Extraction & Cover Image Scraping
-- For selected articles, universal-extractor.ts fetches content using a multi-tiered failover strategy:
-  Tier A: Direct HTML Extraction (Mozilla Readability + JSON-LD) with fast 3.5s timeout.
-  Tier B: Jina AI Reader Residential Proxy (`https://r.jina.ai/<URL>`) with `X-No-Cache` and `X-Timeout: 6`. Bypasses Cloudflare / Akamai WAF and Datacenter IP restrictions on live deployments. Automatically discovers article cover images (`ogImage`), article titles, and clean markdown body.
-  Tier C: Resilient Minimal Fallback to ensure pipeline continuity.
+Step 3: Universal Article Extraction & Image Scraping (Jina-First Architecture)
+- For selected articles, universal-extractor.ts extracts clean text and cover image using a robust resilient hierarchy:
+  Tier 1 (Primary): Jina AI Reader Proxy (`https://r.jina.ai/<URL>`). Uses distributed headless browser nodes to bypass Cloudflare WAF, Akamai, Bot-guards, and Datacenter IP bans on Vercel/Cloud deployments. Returns clean markdown, title, author, and high-res cover image.
+  Tier 2 (Fallback): Direct HTML fetch with Mozilla Readability (DOM text density) and Schema.org JSON-LD parser with strict 4s timeout.
+  Tier 3 (Final Fallback): Fallback title and structured metadata.
 
 Step 4: Unified AI Content & Summary Generation (2nd Gemini Pass)
 - Extracted article text is sent to Gemini in a single unified prompt.

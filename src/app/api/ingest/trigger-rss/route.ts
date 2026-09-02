@@ -26,7 +26,7 @@ function fetchWithTimeout<T>(promise: Promise<T>, timeoutMs: number = 8000, fall
   ]);
 }
 
-// Fallback HTML/Jina Link Extractor when RSS feed is invalid/blocked
+// Jina-First / HTML Link Extractor when RSS feed is invalid or blocked by Cloudflare/Datacenter IP
 async function extractCandidatesFromHtmlOrJina(sourceUrl: string, sourceName: string, category: string): Promise<Array<{ url: string; title: string; sourceName: string; category: string }>> {
   const results: Array<{ url: string; title: string; sourceName: string; category: string }> = [];
   const seenUrls = new Set<string>();
@@ -40,14 +40,42 @@ async function extractCandidatesFromHtmlOrJina(sourceUrl: string, sourceName: st
     }
   } catch (e) {}
 
-  // 1. Try Direct HTML extraction with Cheerio (Fast 3.5s timeout)
+  // 1. Tier 1 (Primary): Jina Reader Proxy (Bypasses Cloudflare & Datacenter IP Blocks)
+  try {
+    const jinaRes = await axios.get(`https://r.jina.ai/${targetUrl}`, {
+      timeout: 6000,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; KahfStudioBot/1.0)',
+        'Accept': 'text/plain, text/markdown, */*',
+      },
+    });
+    const markdown = typeof jinaRes.data === 'string' ? jinaRes.data : '';
+    const linkRegex = /\[([^\]]{18,120})\]\((https?:\/\/[^\s\)]+)\)/g;
+    let match;
+    while ((match = linkRegex.exec(markdown)) !== null && results.length < 12) {
+      const title = match[1].replace(/[*_#`[\]()]/g, '').trim();
+      const link = match[2].trim();
+      try {
+        const host = new URL(link).hostname;
+        const targetHost = new URL(targetUrl).hostname;
+        if (host.includes(targetHost.replace('www.', '')) && !seenUrls.has(link) && !link.includes('/tag/') && !link.includes('/category/')) {
+          seenUrls.add(link);
+          results.push({ url: link, title, sourceName, category });
+        }
+      } catch (e) {}
+    }
+    if (results.length > 0) return results;
+  } catch (jinaErr) {
+    // Continue to Direct HTML fallback
+  }
+
+  // 2. Tier 2 (Fallback): Direct HTML extraction with Cheerio (Strict 3.5s timeout)
   try {
     const res = await axios.get(targetUrl, {
       timeout: 3500,
       headers: BROWSER_HEADERS,
-      validateStatus: (status) => status >= 200 && status < 400,
     });
-    if (typeof res.data === 'string' && res.data.length > 500 && !res.data.includes('cf-browser-verification')) {
+    if (typeof res.data === 'string' && res.data.length > 500) {
       const $ = cheerio.load(res.data);
       $('a').each((_, el) => {
         if (results.length >= 10) return;
@@ -72,35 +100,8 @@ async function extractCandidatesFromHtmlOrJina(sourceUrl: string, sourceName: st
       if (results.length > 0) return results;
     }
   } catch (directErr) {
-    // Continue to Jina fallback
+    // Both failed
   }
-
-  // 2. Try Jina Reader Residential Proxy Fallback (Bypasses Cloudflare on serverless IPs)
-  try {
-    const jinaRes = await axios.get(`https://r.jina.ai/${targetUrl}`, {
-      timeout: 5500,
-      headers: {
-        'User-Agent': BROWSER_HEADERS['User-Agent'],
-        'X-No-Cache': 'true',
-        'X-Timeout': '5',
-      },
-    });
-    const markdown = typeof jinaRes.data === 'string' ? jinaRes.data : '';
-    const linkRegex = /\[([^\]]{18,120})\]\((https?:\/\/[^\s\)]+)\)/g;
-    let match;
-    while ((match = linkRegex.exec(markdown)) !== null && results.length < 10) {
-      const title = match[1].replace(/[*_#`[\]()]/g, '').trim();
-      const link = match[2].trim();
-      try {
-        const host = new URL(link).hostname;
-        const targetHost = new URL(targetUrl).hostname;
-        if (host.includes(targetHost.replace('www.', '')) && !seenUrls.has(link) && !link.includes('/tag/') && !link.includes('/category/')) {
-          seenUrls.add(link);
-          results.push({ url: link, title, sourceName, category });
-        }
-      } catch (e) {}
-    }
-  } catch (jinaErr) {}
 
   return results;
 }
@@ -178,7 +179,7 @@ export async function GET(req: Request) {
         sendLog(`Config: Auto-Approve = ${autoApp ? "ON (published)" : "OFF (draft)"} | Gemini API Keys: ${activeKeys.length}`);
 
         const parser = new Parser({
-          timeout: 4000,
+          timeout: 3500,
           headers: {
             'User-Agent': BROWSER_HEADERS['User-Agent'],
             'Accept': 'application/rss+xml, application/xml, text/xml; q=0.9, */*; q=0.8'
@@ -200,11 +201,11 @@ export async function GET(req: Request) {
           let feedCandidates: Array<{ url: string; title: string; sourceName: string; category: string }> = [];
 
           try {
-            // Attempt standard RSS XML parsing (4s timeout)
+            // Attempt standard RSS XML parsing
             const feed = await fetchWithTimeout(
               parser.parseURL(source.url),
-              4000,
-              `RSS Feed request timed out after 4s`
+              3500,
+              `RSS Feed request timed out after 3.5s`
             );
 
             const topItems = feed.items ? feed.items.slice(0, 15) : [];
