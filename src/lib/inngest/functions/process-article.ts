@@ -52,30 +52,30 @@ export const processArticle = inngest.createFunction(
 
     const activeKeys = (globalKeys && globalKeys.length > 0) ? globalKeys : [process.env.GEMINI_API_KEY!];
 
-    // 3. Single Unified Gemini Processing: Clean + Summary + Importance Score
+    // 3. Single Unified Gemini Processing: Exact Full News + Summary + Importance Score
     const aiResult = await step.run("ai-unified-processing", async () => {
       const prompt = `You are a chief news editor and journalist for a premium multimedia news platform.
-Analyze the following article and return a strictly valid JSON object with no markdown fences around JSON (or with standard json codeblocks).
+Analyze the following article and return a strictly valid JSON object.
 
 Input Title: ${title}
 Source: ${sourceName}
 Country: ${country}
 Category Hint: ${category || "General"}
-Cleaned Article Body:
-${cleanedMarkdown.slice(0, 15000)}
+Raw Article Body:
+${cleanedMarkdown.slice(0, 16000)}
 
-Your response MUST follow this exact JSON schema:
+YOUR RESPONSE MUST STRICTLY FOLLOW THIS JSON SCHEMA:
 {
   "importance_score": <Integer from 1 to 100 representing how critical/breaking/important this news is for a general audience. 85-100: Major national/global breaking news; 65-84: High interest; 45-64: Regular news; 1-44: Minor/Niche>,
-  "clean_headline": "<Clean, engaging Bengali headline>",
-  "clean_content": "<COMPLETE FULL UNABRIDGED BENGALI ARTICLE BODY in clean markdown. DO NOT SHORTEN OR CONDENSE THE STORY; KEEP ALL NARRATIVE PARAGRAPHS>",
-  "ai_summary": "<A SHORT 2-paragraph Bengali summary with 3 key takeaway bullet points at the end>",
+  "clean_headline": "<Engaging, accurate Bengali headline>",
+  "clean_content": "<FULL UNABRIDGED RAW ARTICLE BODY in clean Bengali markdown. CRITICAL: DO NOT SUMMARIZE OR SHORTEN THIS. Keep EVERY single paragraph, quote, and detail from the raw article intact. Only clean up formatting, ads, and navigation noise>",
+  "ai_summary": "<A CONCISE 2-paragraph Bengali summary highlighting key events, followed by exactly 3 bullet points of key takeaways>",
   "detected_category": "<One of: Politics, Economy, Technology, Sports, Entertainment, World, Bangladesh, Lifestyle, General>",
   "detected_country": "${country}"
 }`;
 
       let lastError = null;
-      const modelsToTry = ["gemini-3.6-flash", "gemini-2.5-flash"];
+      const modelsToTry = ["gemini-3.6-flash", "gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-flash-latest"];
 
       for (const modelName of modelsToTry) {
         for (const apiKey of activeKeys) {
@@ -121,9 +121,13 @@ Your response MUST follow this exact JSON schema:
 
     // 5. Save to Supabase (news_articles)
     await step.run("save-to-db", async () => {
+      const finalFullContent = (aiResult.clean_content && aiResult.clean_content.length >= 150)
+        ? aiResult.clean_content
+        : cleanedMarkdown;
+
       const insertPayload: any = {
         headline: aiResult.clean_headline || title,
-        raw_content: aiResult.clean_content || cleanedMarkdown,
+        raw_content: finalFullContent,
         ai_summary: aiResult.ai_summary,
         status: autoApprove ? "published" : "draft",
         original_url: url,

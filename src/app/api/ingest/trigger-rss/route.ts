@@ -365,7 +365,7 @@ Return a valid JSON array of chosen numbers (1-indexed), for example: [1, 3, 5]`
           continue;
         }
 
-        // 5b. Unified Gemini Processing: Summary + Clean Markdown + Importance Score
+        // 5b. Unified Gemini Processing: Exact Full News + Summary + Importance Score
         await sendLog(`  ├─ Running Unified AI News Synthesis with Gemini (Primary: gemini-3.6-flash)...`);
 
         const prompt = `You are a chief news editor and journalist for a premium multimedia news platform.
@@ -375,15 +375,15 @@ Input Title: ${candidate.title}
 Source: ${candidate.sourceName}
 Country: ${candidate.country || "BD"}
 Category Hint: ${candidate.category || "General"}
-Cleaned Article Body:
-${extracted.bodyText.slice(0, 10000)}
+Raw Article Body:
+${extracted.bodyText.slice(0, 16000)}
 
-Your response MUST follow this exact JSON schema:
+YOUR RESPONSE MUST STRICTLY FOLLOW THIS JSON SCHEMA:
 {
   "importance_score": <Integer from 1 to 100>,
-  "clean_headline": "<Clean, engaging Bengali headline>",
-  "clean_content": "<COMPLETE FULL UNABRIDGED BENGALI ARTICLE BODY in clean markdown>",
-  "ai_summary": "<A SHORT 2-paragraph Bengali summary with 3 key takeaway bullet points at the end>",
+  "clean_headline": "<Engaging, accurate Bengali headline>",
+  "clean_content": "<FULL UNABRIDGED RAW ARTICLE BODY in clean Bengali markdown. CRITICAL: DO NOT SUMMARIZE OR SHORTEN THIS. Keep EVERY single paragraph, quote, and detail from the raw article intact. Only clean up formatting, ads, and navigation noise>",
+  "ai_summary": "<A CONCISE 2-paragraph Bengali summary highlighting key events, followed by exactly 3 bullet points of key takeaways>",
   "detected_category": "<One of: Politics, Economy, Technology, Sports, Entertainment, World, Bangladesh, Lifestyle, General>"
 }`;
 
@@ -404,7 +404,7 @@ Your response MUST follow this exact JSON schema:
 
               const res = await fetchWithTimeout(
                 model.generateContent(prompt),
-                8000,
+                12000,
                 "Gemini Content Processing timed out"
               );
 
@@ -429,14 +429,18 @@ Your response MUST follow this exact JSON schema:
           };
         }
 
-        await sendLog(`  ├─ ✅ Content Ready: Headline: "${aiResult.clean_headline.slice(0, 45)}..." (Score: ${aiResult.importance_score || 50}/100)`);
+        const finalFullContent = (aiResult.clean_content && aiResult.clean_content.length >= 150)
+          ? aiResult.clean_content
+          : extracted.bodyText;
+
+        await sendLog(`  ├─ ✅ Content Ready: Headline: "${aiResult.clean_headline.slice(0, 45)}..." (Full Body: ${finalFullContent.length} chars, Summary: ${aiResult.ai_summary?.length || 0} chars)`);
 
         // 5c. Save to Database
         let insertedArticleId: string | null = null;
         const articleCountry = (candidate as any).country || (targetCountry !== "All" ? targetCountry : "BD");
         const insertPayload: any = {
           headline: aiResult.clean_headline || candidate.title,
-          raw_content: aiResult.clean_content || extracted.bodyText,
+          raw_content: finalFullContent,
           ai_summary: aiResult.ai_summary,
           status: autoApp ? "published" : "draft",
           original_url: candidate.url,
