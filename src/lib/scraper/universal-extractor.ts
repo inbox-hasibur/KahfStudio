@@ -1,6 +1,4 @@
 import axios from 'axios';
-import { JSDOM } from 'jsdom';
-import { Readability } from '@mozilla/readability';
 import * as cheerio from 'cheerio';
 import { cleanJinaMarkdown } from './cleaner';
 
@@ -10,16 +8,16 @@ export interface ExtractedArticle {
   ogImage?: string | null;
   author?: string | null;
   publishedTime?: string | null;
-  extractionMethod: 'jina-ai' | 'readability' | 'json-ld' | 'fallback';
+  extractionMethod: 'jina-ai' | 'cheerio' | 'json-ld' | 'fallback';
 }
 
 const BROWSER_USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
 
 /**
- * Universal Content Extraction Pipeline
+ * Universal Content Extraction Pipeline (100% Serverless & Edge Compatible)
  * Tier 1 (Primary): Jina AI Reader Proxy (Headless browser + Clean Markdown, Bypasses Cloudflare & Datacenter IP Blocks)
- * Tier 2 (Fallback): Direct HTML Extraction with Mozilla Readability & JSON-LD (Strict 4s timeout)
+ * Tier 2 (Fallback): Direct HTML Extraction with Cheerio DOM & Schema.org JSON-LD (Strict 4s timeout, 0 native dependencies)
  * Tier 3 (Final Fallback): Fallback Title & Basic Metadata
  */
 export async function extractArticleContent(url: string, fallbackTitle?: string): Promise<ExtractedArticle> {
@@ -80,7 +78,7 @@ export async function extractArticleContent(url: string, fallbackTitle?: string)
     console.warn(`[Extractor] Jina AI Primary failed for ${url}: ${jinaError.message}. Switching to Direct HTML fallback...`);
   }
 
-  // Tier 2 (Fallback): Direct HTML Download & Readability / JSON-LD extraction with strict 4s timeout
+  // Tier 2 (Fallback): Direct HTML Download & Cheerio / JSON-LD extraction with strict 4s timeout
   try {
     const response = await axios.get(url, {
       timeout: 4000,
@@ -104,30 +102,7 @@ export async function extractArticleContent(url: string, fallbackTitle?: string)
         $('meta[name="publish-date"]').attr('content') ||
         null;
 
-      // Tier 2a: Mozilla Readability
-      try {
-        const dom = new JSDOM(html, { url });
-        const reader = new Readability(dom.window.document);
-        const article = reader.parse();
-
-        if (article && article.textContent && article.textContent.trim().length > 150) {
-          const cleanedText = cleanJinaMarkdown(article.textContent);
-          if (cleanedText.length > 100) {
-            return {
-              title: article.title || ogTitle || fallbackTitle || '',
-              bodyText: cleanedText,
-              ogImage,
-              author: article.byline || null,
-              publishedTime: ogPublishedTime,
-              extractionMethod: 'readability',
-            };
-          }
-        }
-      } catch (readabilityError) {
-        console.warn(`[Extractor] Readability fallback error for ${url}:`, readabilityError);
-      }
-
-      // Tier 2b: JSON-LD Schema.org NewsArticle Extraction
+      // Tier 2a: JSON-LD Schema.org NewsArticle Extraction
       try {
         const jsonLdScripts = $('script[type="application/ld+json"]').toArray();
         for (const scriptElem of jsonLdScripts) {
@@ -168,6 +143,34 @@ export async function extractArticleContent(url: string, fallbackTitle?: string)
         }
       } catch (jsonLdError) {
         console.warn(`[Extractor] JSON-LD fallback error for ${url}:`, jsonLdError);
+      }
+
+      // Tier 2b: Cheerio Article Paragraph Extraction
+      try {
+        const paragraphs: string[] = [];
+        $('article p, .story-element-text p, .jw_article_body p, .article-content p, .details-content p, main p, p').each((_, el) => {
+          const pText = $(el).text().trim();
+          if (pText.length > 25 && !pText.includes('কপিরাইট') && !pText.includes('বিজ্ঞাপন') && !pText.includes('সর্বস্বত্ব সংরক্ষিত')) {
+            paragraphs.push(pText);
+          }
+        });
+
+        if (paragraphs.length >= 2) {
+          const combined = paragraphs.join('\n\n');
+          const cleanedText = cleanJinaMarkdown(combined);
+          if (cleanedText.length > 100) {
+            return {
+              title: ogTitle || fallbackTitle || '',
+              bodyText: cleanedText,
+              ogImage,
+              author: $('meta[name="author"]').attr('content') || null,
+              publishedTime: ogPublishedTime,
+              extractionMethod: 'cheerio',
+            };
+          }
+        }
+      } catch (cheerioError) {
+        console.warn(`[Extractor] Cheerio fallback error for ${url}:`, cheerioError);
       }
     }
   } catch (directHtmlError: any) {
