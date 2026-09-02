@@ -292,13 +292,13 @@ ${titlesList}
 Return a valid JSON array of chosen numbers (1-indexed), for example: [1, 3, 5]`;
 
         let selectedIndices: number[] = [];
-        const modelsToTry = ["gemini-3.6-flash", "gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"];
-        const keysToTry = activeKeys.slice(0, 3);
+        const modelsToTry = ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-2.5-flash", "gemini-3.6-flash"];
+        const keysToTry = activeKeys.slice(0, 2);
 
         for (const modelName of modelsToTry) {
-          let modelNotFound = false;
+          if (selectedIndices.length > 0) break;
           for (const apiKey of keysToTry) {
-            if (!apiKey || modelNotFound) continue;
+            if (!apiKey) continue;
             try {
               const genAI = new GoogleGenerativeAI(apiKey);
               const model = genAI.getGenerativeModel({
@@ -308,7 +308,7 @@ Return a valid JSON array of chosen numbers (1-indexed), for example: [1, 3, 5]`
 
               const res = await fetchWithTimeout(
                 model.generateContent(prompt),
-                5000,
+                4000,
                 "Gemini AI Pre-Filter timed out"
               );
 
@@ -317,13 +317,8 @@ Return a valid JSON array of chosen numbers (1-indexed), for example: [1, 3, 5]`
                 selectedIndices = parsed;
                 break;
               }
-            } catch (e: any) {
-              if (e.message?.includes("404") || e.message?.includes("not found")) {
-                modelNotFound = true;
-              }
-            }
+            } catch (e: any) {}
           }
-          if (selectedIndices.length > 0) break;
         }
 
         if (selectedIndices.length > 0) {
@@ -379,13 +374,13 @@ Your response MUST follow this exact JSON schema:
 }`;
 
         let aiResult: any = null;
-        const synthesisModels = ["gemini-3.6-flash", "gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"];
-        const synthesisKeys = activeKeys.slice(0, 3);
+        const synthesisModels = ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-2.5-flash", "gemini-3.6-flash"];
+        const synthesisKeys = activeKeys.slice(0, 2);
 
         for (const modelName of synthesisModels) {
-          let modelNotFound = false;
+          if (aiResult && aiResult.clean_headline) break;
           for (const apiKey of synthesisKeys) {
-            if (!apiKey || modelNotFound) continue;
+            if (!apiKey) continue;
             try {
               const genAI = new GoogleGenerativeAI(apiKey);
               const model = genAI.getGenerativeModel({
@@ -395,27 +390,32 @@ Your response MUST follow this exact JSON schema:
 
               const res = await fetchWithTimeout(
                 model.generateContent(prompt),
-                10000,
+                8000,
                 "Gemini Content Processing timed out"
               );
 
               aiResult = JSON.parse(res.response.text());
-              if (aiResult && aiResult.clean_headline) break;
-            } catch (aiErr: any) {
-              if (aiErr.message?.includes("404") || aiErr.message?.includes("not found")) {
-                modelNotFound = true;
+              if (aiResult && aiResult.clean_headline) {
+                await sendLog(`  ├─ ✅ Gemini AI (${modelName}) Generated Full News & Summary!`);
+                break;
               }
-            }
+            } catch (aiErr: any) {}
           }
-          if (aiResult) break;
         }
 
-        if (!aiResult) {
-          await sendLog(`  └─ ❌ Gemini Synthesis failed. Skipping article.`);
-          continue;
+        // Guaranteed Fallback: Never discard extracted news!
+        if (!aiResult || !aiResult.clean_headline) {
+          await sendLog(`  ├─ ℹ️ Using Clean Extracted Content & Auto-Summary...`);
+          aiResult = {
+            importance_score: 60,
+            clean_headline: candidate.title,
+            clean_content: extracted.bodyText,
+            ai_summary: extracted.bodyText.slice(0, 350) + "...",
+            detected_category: candidate.category || "General",
+          };
         }
 
-        await sendLog(`  ├─ ✅ AI Synthesis Done: Score: ${aiResult.importance_score || 50}/100 | Cat: ${aiResult.detected_category}`);
+        await sendLog(`  ├─ ✅ Content Ready: Headline: "${aiResult.clean_headline.slice(0, 45)}..." (Score: ${aiResult.importance_score || 50}/100)`);
 
         // 5c. Save to Database
         let insertedArticleId: string | null = null;
