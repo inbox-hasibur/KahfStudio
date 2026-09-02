@@ -212,80 +212,87 @@ export default function AdminScrapingPage() {
     setIsTriggeringRss(true);
     const getNowTime = () => new Date().toLocaleTimeString('en-US', { hour12: true });
     
-    const startLogs = [
-      `[${getNowTime()}] [Client Step 1] Initiating connection to scraping pipeline...`,
-      `[${getNowTime()}] [Client Step 2] Sending GET /api/ingest/trigger-rss?limit=${targetCount}&category=${encodeURIComponent(selectedCategory)}...`,
+    const totalTarget = Math.max(1, parseInt(targetCount || "5", 10));
+    const CHUNK_SIZE = 2; // 2 articles per chunk to guarantee ultra-fast 8s execution per batch
+    const totalBatches = Math.ceil(totalTarget / CHUNK_SIZE);
+
+    let allLogs: string[] = [
+      `[${getNowTime()}] 🚀 Initiating Ingestion Pipeline for ${totalTarget} article(s) (${totalBatches} auto-chunk batch(es))...`,
     ];
-    setScrapeLogs(startLogs);
+    setScrapeLogs([...allLogs]);
+    try { localStorage.setItem("kahf_scrape_logs", JSON.stringify(allLogs)); } catch (e) {}
+
     try {
-      localStorage.setItem("kahf_scrape_logs", JSON.stringify(startLogs));
-    } catch (e) {}
-    
-    try {
-      const response = await fetch(`/api/ingest/trigger-rss?limit=${targetCount}&category=${encodeURIComponent(selectedCategory)}`);
-      
-      // Detailed check for non-200 HTTP responses
-      if (!response.ok) {
-        let errBody = "";
-        try {
-          errBody = await response.text();
-        } catch (e) {}
-        const errMsg = `[${getNowTime()}] ❌ [Server HTTP Error ${response.status}]: ${errBody || response.statusText || 'Unknown Server Error'}`;
-        const updated = [...startLogs, errMsg];
-        setScrapeLogs(updated);
-        try { localStorage.setItem("kahf_scrape_logs", JSON.stringify(updated)); } catch (e) {}
-        return;
-      }
-
-      if (!response.body) {
-        throw new Error("Server returned 200 OK but response stream body is empty");
-      }
-
-      let currentLogs = [
-        ...startLogs,
-        `[${getNowTime()}] [Client Step 3] HTTP 200 OK received (Content-Type: ${response.headers.get("content-type") || "unknown"}). Streaming pipeline logs...`,
-      ];
-      setScrapeLogs(currentLogs);
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-      
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
+      for (let batch = 1; batch <= totalBatches; batch++) {
+        const currentBatchLimit = Math.min(CHUNK_SIZE, totalTarget - (batch - 1) * CHUNK_SIZE);
         
-        buffer += decoder.decode(value, { stream: true });
-        const parts = buffer.split("\n\n");
-        buffer = parts.pop() || "";
-        
-        for (const line of parts) {
-          const trimmed = line.trim();
-          if (trimmed.startsWith("data: ")) {
-            try {
-              const data = JSON.parse(trimmed.slice(6));
-              if (data.message) {
-                currentLogs = [...currentLogs, data.message];
-                setScrapeLogs([...currentLogs]);
-                try {
-                  localStorage.setItem("kahf_scrape_logs", JSON.stringify(currentLogs));
-                } catch (e) {}
-              }
-            } catch(e) {}
-          } else if (trimmed && !trimmed.startsWith(":") && !trimmed.startsWith("event:")) {
-            // Raw text fallback from stream
-            currentLogs = [...currentLogs, trimmed];
-            setScrapeLogs([...currentLogs]);
-            try {
-              localStorage.setItem("kahf_scrape_logs", JSON.stringify(currentLogs));
-            } catch (e) {}
+        allLogs = [
+          ...allLogs,
+          `\n[${getNowTime()}] 📦 [Batch ${batch}/${totalBatches}] Processing ${currentBatchLimit} article(s) (Category: "${selectedCategory}")...`,
+        ];
+        setScrapeLogs([...allLogs]);
+        try { localStorage.setItem("kahf_scrape_logs", JSON.stringify(allLogs)); } catch (e) {}
+
+        const response = await fetch(`/api/ingest/trigger-rss?limit=${currentBatchLimit}&category=${encodeURIComponent(selectedCategory)}`);
+
+        if (!response.ok) {
+          let errBody = "";
+          try { errBody = await response.text(); } catch (e) {}
+          const errMsg = `[${getNowTime()}] ❌ [Batch ${batch} HTTP Error ${response.status}]: ${errBody || response.statusText || 'Unknown Server Error'}`;
+          allLogs = [...allLogs, errMsg];
+          setScrapeLogs([...allLogs]);
+          try { localStorage.setItem("kahf_scrape_logs", JSON.stringify(allLogs)); } catch (e) {}
+          break; // Stop loop on fatal HTTP error
+        }
+
+        if (!response.body) {
+          throw new Error("Server returned 200 OK but response stream body is empty");
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const parts = buffer.split("\n\n");
+          buffer = parts.pop() || "";
+
+          for (const line of parts) {
+            const trimmed = line.trim();
+            if (trimmed.startsWith("data: ")) {
+              try {
+                const data = JSON.parse(trimmed.slice(6));
+                if (data.message) {
+                  allLogs = [...allLogs, data.message];
+                  setScrapeLogs([...allLogs]);
+                  try { localStorage.setItem("kahf_scrape_logs", JSON.stringify(allLogs)); } catch (e) {}
+                }
+              } catch (e) {}
+            } else if (trimmed && !trimmed.startsWith(":") && !trimmed.startsWith("event:")) {
+              allLogs = [...allLogs, trimmed];
+              setScrapeLogs([...allLogs]);
+              try { localStorage.setItem("kahf_scrape_logs", JSON.stringify(allLogs)); } catch (e) {}
+            }
           }
         }
+
+        // Brief 400ms pause between batches
+        if (batch < totalBatches) {
+          await new Promise((r) => setTimeout(r, 400));
+        }
       }
+
+      allLogs = [...allLogs, `\n[${getNowTime()}] 🏁 Ingestion Pipeline Finished! All ${totalBatches} batch(es) completed.`];
+      setScrapeLogs([...allLogs]);
+      try { localStorage.setItem("kahf_scrape_logs", JSON.stringify(allLogs)); } catch (e) {}
     } catch (e: any) {
       console.error(e);
       setScrapeLogs((prev) => {
-        const updated = [...prev, `[${getNowTime()}] ❌ [Network / Client Exception]: ${e.message}`];
+        const updated = [...prev, `[${getNowTime()}] ❌ [Pipeline Exception]: ${e.message}`];
         try { localStorage.setItem("kahf_scrape_logs", JSON.stringify(updated)); } catch (err) {}
         return updated;
       });

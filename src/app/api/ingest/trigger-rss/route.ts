@@ -32,7 +32,6 @@ async function extractCandidatesFromHtmlOrJina(sourceUrl: string, sourceName: st
   const results: Array<{ url: string; title: string; sourceName: string; category: string }> = [];
   const seenUrls = new Set<string>();
 
-  // Determine base target URL (if feed url gives 404, try root origin)
   let targetUrl = sourceUrl;
   try {
     const parsed = new URL(sourceUrl);
@@ -41,10 +40,10 @@ async function extractCandidatesFromHtmlOrJina(sourceUrl: string, sourceName: st
     }
   } catch (e) {}
 
-  // 1. Tier 1 (Primary): Jina Reader Proxy (Bypasses Cloudflare & Datacenter IP Blocks)
+  // 1. Tier 1 (Primary): Jina Reader Proxy
   try {
     const jinaRes = await axios.get(`https://r.jina.ai/${targetUrl}`, {
-      timeout: 6000,
+      timeout: 5000,
       headers: {
         'User-Agent': 'Mozilla/5.0 (compatible; KahfStudioBot/1.0)',
         'Accept': 'text/plain, text/markdown, */*',
@@ -66,14 +65,12 @@ async function extractCandidatesFromHtmlOrJina(sourceUrl: string, sourceName: st
       } catch (e) {}
     }
     if (results.length > 0) return results;
-  } catch (jinaErr) {
-    // Continue to Direct HTML fallback
-  }
+  } catch (jinaErr) {}
 
-  // 2. Tier 2 (Fallback): Direct HTML extraction with Cheerio (Strict 3.5s timeout)
+  // 2. Tier 2 (Fallback): Direct HTML extraction with Cheerio (3s timeout)
   try {
     const res = await axios.get(targetUrl, {
-      timeout: 3500,
+      timeout: 3000,
       headers: BROWSER_HEADERS,
     });
     if (typeof res.data === 'string' && res.data.length > 500) {
@@ -100,9 +97,7 @@ async function extractCandidatesFromHtmlOrJina(sourceUrl: string, sourceName: st
       });
       if (results.length > 0) return results;
     }
-  } catch (directErr) {
-    // Both failed
-  }
+  } catch (directErr) {}
 
   return results;
 }
@@ -188,33 +183,24 @@ export async function GET(req: NextRequest) {
       await sendLog(`Config: Auto-Approve = ${autoApp ? "ON (published)" : "OFF (draft)"} | Gemini API Keys: ${activeKeys.length}`);
 
       const parser = new Parser({
-        timeout: 3500,
+        timeout: 3000,
         headers: {
           'User-Agent': BROWSER_HEADERS['User-Agent'],
           'Accept': 'application/rss+xml, application/xml, text/xml; q=0.9, */*; q=0.8'
         }
       });
 
-      const rawCandidates: Array<{
-        url: string;
-        title: string;
-        sourceName: string;
-        category: string;
-      }> = [];
+      await sendLog(`[Discovery] Fetching candidates from ${sources.length} source(s) in parallel...`);
 
-      // 2. Collect candidate items across active sources (Primary: RSS XML -> Fallback: Jina AI Reader Proxy)
-      for (let sIdx = 0; sIdx < sources.length; sIdx++) {
-        const source = sources[sIdx];
-        await sendLog(`[Source ${sIdx + 1}/${sources.length}] Step 1: Trying Primary RSS Feed for "${source.name}" (${source.url})...`);
-
+      // 2. Parallel Source Discovery (Fast parallel fetch ~2-3s total)
+      const sourcePromises = sources.map(async (source) => {
         let feedCandidates: Array<{ url: string; title: string; sourceName: string; category: string }> = [];
 
         try {
-          // Attempt standard RSS XML parsing with 3.5s timeout
           const feed = await fetchWithTimeout(
             parser.parseURL(source.url),
-            3500,
-            `RSS Feed request timed out after 3.5s`
+            3000,
+            `RSS Feed timed out`
           );
 
           const topItems = feed.items ? feed.items.slice(0, 15) : [];
@@ -232,26 +218,27 @@ export async function GET(req: NextRequest) {
               });
             }
           }
-          await sendLog(`  └─ ✅ RSS Feed Succeeded: Found ${feedCandidates.length} candidate articles.`);
+          await sendLog(`  ├─ ✅ [${source.name}] RSS OK: Found ${feedCandidates.length} articles.`);
         } catch (rssErr: any) {
-          await sendLog(`  └─ ⚠️ RSS unavailable (${rssErr.message}). Step 2: Falling back to Jina AI Reader Proxy...`);
           try {
             feedCandidates = await extractCandidatesFromHtmlOrJina(source.url, source.name, source.category || "General");
-            await sendLog(`  └─ ⚡ Jina Reader Proxy Succeeded: Discovered ${feedCandidates.length} candidate articles.`);
+            await sendLog(`  ├─ ⚡ [${source.name}] Jina Proxy OK: Discovered ${feedCandidates.length} articles.`);
           } catch (fallbackErr: any) {
-            await sendLog(`  └─ ❌ Jina fallback skipped: ${fallbackErr.message}`);
+            await sendLog(`  ├─ ⚠️ [${source.name}] Skipped: ${fallbackErr.message}`);
           }
         }
+        return feedCandidates;
+      });
 
-        rawCandidates.push(...feedCandidates);
-      }
+      const resultsArray = await Promise.all(sourcePromises);
+      const rawCandidates = resultsArray.flat();
 
       if (rawCandidates.length === 0) {
         await sendLog("⚠️ No articles found across active sources. Exiting pipeline.");
         return;
       }
 
-      await sendLog(`Total ${rawCandidates.length} candidate(s) discovered. Running Batch Deduplication against Database...`);
+      await sendLog(`✅ Total ${rawCandidates.length} candidate(s) discovered across all sources.`);
 
       // 3. Batch Deduplication (Single DB Query)
       const candidateUrls = Array.from(new Set(rawCandidates.map((c) => c.url)));
@@ -278,36 +265,40 @@ export async function GET(req: NextRequest) {
         newCandidates = rawCandidates;
       }
 
-      await sendLog(`Deduplication complete: ${newCandidates.length} new article(s) to process (${rawCandidates.length - newCandidates.length} already exist in DB).`);
+      await sendLog(`Deduplication complete: ${newCandidates.length} new article(s) to process (${rawCandidates.length - newCandidates.length} already in DB).`);
 
       if (newCandidates.length === 0) {
         await sendLog("All discovered articles already exist in Database. Nothing new to ingest.");
         return;
       }
 
-      // 4. AI Title Batch Pre-Filtering: Send ALL titles to Gemini in 1 prompt & pick top articles
+      // 4. AI Title Batch Pre-Filtering
       let selectedArticles: typeof rawCandidates = [];
 
       if (newCandidates.length <= targetLimit) {
         selectedArticles = newCandidates;
-        await sendLog(`Processing all ${selectedArticles.length} candidates directly (limit: ${targetLimit}).`);
+        await sendLog(`Processing all ${selectedArticles.length} candidate(s) directly.`);
       } else {
-        await sendLog(`Sending ${newCandidates.length} candidate titles to Gemini Evaluator (Pass 1) to select TOP ${targetLimit}...`);
+        await sendLog(`Sending candidate titles to Gemini Evaluator to select TOP ${targetLimit}...`);
 
         const titlesList = newCandidates
+          .slice(0, 25)
           .map((c, i) => `${i + 1}. Title: "${c.title}" | Category: ${c.category} | Source: ${c.sourceName}`)
           .join("\n");
 
-        const prompt = `You are a chief news editor. Evaluate these news candidates and select the TOP ${targetLimit} most important, impactful, and breaking news stories:
+        const prompt = `You are a chief news editor. Evaluate these news candidates and select the TOP ${targetLimit} most important news stories:
 ${titlesList}
 
 Return a valid JSON array of chosen numbers (1-indexed), for example: [1, 3, 5]`;
 
         let selectedIndices: number[] = [];
+        const modelsToTry = ["gemini-3.6-flash", "gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"];
+        const keysToTry = activeKeys.slice(0, 3);
 
-        for (const modelName of ["gemini-2.5-flash", "gemini-3.6-flash"]) {
-          for (const apiKey of activeKeys) {
-            if (!apiKey) continue;
+        for (const modelName of modelsToTry) {
+          let modelNotFound = false;
+          for (const apiKey of keysToTry) {
+            if (!apiKey || modelNotFound) continue;
             try {
               const genAI = new GoogleGenerativeAI(apiKey);
               const model = genAI.getGenerativeModel({
@@ -317,16 +308,20 @@ Return a valid JSON array of chosen numbers (1-indexed), for example: [1, 3, 5]`
 
               const res = await fetchWithTimeout(
                 model.generateContent(prompt),
-                12000,
+                5000,
                 "Gemini AI Pre-Filter timed out"
               );
 
               const parsed = JSON.parse(res.response.text());
-              if (Array.isArray(parsed)) {
+              if (Array.isArray(parsed) && parsed.length > 0) {
                 selectedIndices = parsed;
                 break;
               }
-            } catch (e) {}
+            } catch (e: any) {
+              if (e.message?.includes("404") || e.message?.includes("not found")) {
+                modelNotFound = true;
+              }
+            }
           }
           if (selectedIndices.length > 0) break;
         }
@@ -336,14 +331,14 @@ Return a valid JSON array of chosen numbers (1-indexed), for example: [1, 3, 5]`
             .map((idx) => newCandidates[idx - 1])
             .filter(Boolean)
             .slice(0, targetLimit);
-          await sendLog(`✅ Gemini Evaluator selected ${selectedArticles.length} top priority articles.`);
+          await sendLog(`✅ Gemini Evaluator (${modelsToTry[0]}) selected ${selectedArticles.length} top priority article(s).`);
         } else {
           selectedArticles = newCandidates.slice(0, targetLimit);
-          await sendLog(`Gemini Evaluator skipped (using top ${selectedArticles.length} candidates by default).`);
+          await sendLog(`Proceeding with top ${selectedArticles.length} candidate(s).`);
         }
       }
 
-      // 5. Sequential Ingestion Loop for each selected article
+      // 5. Ingestion Loop for each selected article
       let totalSuccessful = 0;
 
       for (let i = 0; i < selectedArticles.length; i++) {
@@ -351,18 +346,18 @@ Return a valid JSON array of chosen numbers (1-indexed), for example: [1, 3, 5]`
         await sendLog(`\n[Article ${i + 1}/${selectedArticles.length}] Processing: "${candidate.title.slice(0, 50)}..."`);
 
         // 5a. Universal Article Extraction (Jina-First)
-        await sendLog(`  ├─ Extracting content via Jina-First Universal Extractor...`);
+        await sendLog(`  ├─ Extracting content via Jina-First Extractor...`);
         let extracted;
         try {
           extracted = await extractArticleContent(candidate.url, candidate.title);
-          await sendLog(`  ├─ Extracted body (${extracted.bodyText.length} chars) using method: [${extracted.extractionMethod}]`);
+          await sendLog(`  ├─ Extracted body (${extracted.bodyText.length} chars) via [${extracted.extractionMethod}]`);
         } catch (extErr: any) {
           await sendLog(`  └─ ❌ Extraction failed: ${extErr.message}. Skipping article.`);
           continue;
         }
 
         // 5b. Unified Gemini Processing: Summary + Clean Markdown + Importance Score
-        await sendLog(`  ├─ Running Unified AI News Synthesis with Gemini...`);
+        await sendLog(`  ├─ Running Unified AI News Synthesis with Gemini (Primary: gemini-3.6-flash)...`);
 
         const prompt = `You are a chief news editor and journalist for a premium multimedia news platform.
 Analyze the following article and return a strictly valid JSON object.
@@ -372,7 +367,7 @@ Source: ${candidate.sourceName}
 Country: BD
 Category Hint: ${candidate.category || "General"}
 Cleaned Article Body:
-${extracted.bodyText.slice(0, 12000)}
+${extracted.bodyText.slice(0, 10000)}
 
 Your response MUST follow this exact JSON schema:
 {
@@ -384,10 +379,13 @@ Your response MUST follow this exact JSON schema:
 }`;
 
         let aiResult: any = null;
+        const synthesisModels = ["gemini-3.6-flash", "gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"];
+        const synthesisKeys = activeKeys.slice(0, 3);
 
-        for (const modelName of ["gemini-2.5-flash", "gemini-3.6-flash"]) {
-          for (const apiKey of activeKeys) {
-            if (!apiKey) continue;
+        for (const modelName of synthesisModels) {
+          let modelNotFound = false;
+          for (const apiKey of synthesisKeys) {
+            if (!apiKey || modelNotFound) continue;
             try {
               const genAI = new GoogleGenerativeAI(apiKey);
               const model = genAI.getGenerativeModel({
@@ -397,14 +395,16 @@ Your response MUST follow this exact JSON schema:
 
               const res = await fetchWithTimeout(
                 model.generateContent(prompt),
-                20000,
+                10000,
                 "Gemini Content Processing timed out"
               );
 
               aiResult = JSON.parse(res.response.text());
               if (aiResult && aiResult.clean_headline) break;
             } catch (aiErr: any) {
-              await sendLog(`  │  ⚠️ Gemini synthesis error (${modelName}): ${aiErr.message}`);
+              if (aiErr.message?.includes("404") || aiErr.message?.includes("not found")) {
+                modelNotFound = true;
+              }
             }
           }
           if (aiResult) break;
@@ -472,7 +472,7 @@ Your response MUST follow this exact JSON schema:
 
             const wavBuffer = await fetchWithTimeout(
               generateSeamlessGeminiAudio(textToSpeak, "bn", activeKeys),
-              15000,
+              12000,
               "TTS Generation timed out"
             );
 
