@@ -1,145 +1,187 @@
-KahfStudio (Khobor AI & Media) - System Architecture & Technical Specifications
+# KahfStudio (Khobor AI & Media) - System Architecture & Technical Specifications
 
-SECTION 1: SYSTEM OVERVIEW
-KahfStudio is an audio-first, AI-driven news aggregator and media streaming platform tailored for Bangladesh and global audiences. It automates the complete news lifecycle:
-Multi-Trigger Ingestion -> AI Headline & Importance Selection -> HTML/Image Extraction -> Unified AI Summary & Content Generation -> Gemini 3.1 Flash TTS Audio Generation -> Cloudinary CDN Audio Hosting -> Supabase DB Storage -> Smart Ranked Feed Serving -> Daily AI Audio Podcast Generation.
+## 1. System Overview & Core Principles
 
+KahfStudio is an audio-first, AI-driven news aggregation and multimedia broadcasting platform. It automates the end-to-end news lifecycle: from multi-channel discovery and intelligent headline triage, to deep extraction, AI content synthesis, unlimited-duration Bengali Text-to-Speech (TTS), and automated daily audio podcasts.
 
-SECTION 2: INGESTION TRIGGERS & SCRAPING PIPELINE
+```mermaid
+flowchart TD
+    subgraph S1["1. Sources & Triggers Layer"]
+        T1["Scheduled Cron (Hourly / Daily)"]
+        T2["Admin Manual Trigger (/admin/scraping)"]
+        T3["Admin Single URL Direct Ingestion"]
+        SRC_DB[("Supabase: scraping_sources (RSS / Sites)")]
+        SRC_DDG["DuckDuckGo News Search Engine"]
+    end
 
-The scraping and ingestion pipeline can be triggered through three distinct mechanisms:
+    subgraph S2["2. Discovery & Deduplication"]
+        FEED_PARSE["Feed Engine (RSS-Parser + Jina/HTML Fallback)"]
+        DEDUP["Batch Deduplication (Single-Query DB Check)"]
+    end
 
-a. Automated Time-Based Cron (Scheduled)
-   Automated serverless cron jobs (Vercel Cron / Inngest background workers) trigger periodic ingestion every 30-60 minutes (morning & evening schedules).
+    subgraph S3["3. AI Importance Pre-Filtering"]
+        GEMINI_PRE["1st Gemini Pass: Batch Headline Ranking"]
+        DROP_LOW["Discard / Drop Low-Priority News"]
+        TOP_SELECT["Select TOP N High-Impact Stories"]
+    end
 
-b. Admin Manual Trigger
-   Admins can manually trigger full RSS scraping on-demand with custom article limits and category filters via the Admin Panel (/admin/scraping).
+    subgraph S4["4. Deep Extraction & AI Synthesis"]
+        EXTRACTOR["Universal Extractor (Jina AI Reader / Readability)"]
+        GEMINI_SYNTH["2nd Gemini Pass: Full Bengali Story + Summary + Score"]
+    end
 
-c. Direct Single-URL Manual Ingestion
-   Admins or authorized users can paste a single specific news URL (e.g. from BBC Bangla, Prothom Alo, VOA Bangla) into /api/ingest/direct or /admin/scraping for instant targeted processing.
+    subgraph S5["5. Early DB Save Gate"]
+        DB_SAVE[("Supabase: news_articles (Published / Draft)")]
+    end
 
+    subgraph S6["6. Audio TTS & CDN Hosting"]
+        TTS_CHUNK["Sentence Chunking (18-20 Words / Chunk)"]
+        GEMINI_TTS["Gemini 3.1 Flash TTS (Voice: Puck/Aoede)"]
+        PCM_MERGE["PCM Buffer Stitching + WAV Encoding"]
+        CLOUDINARY["Cloudinary CDN (news_audios)"]
+    end
 
-SECTION 3: END-TO-END NEWS PIPELINE DATAFLOW
+    subgraph S7["7. Frontend & Daily Podcast"]
+        NEXT_CLIENT["Next.js 15 Client: Smart Ranked News Feed"]
+        AUDIO_WIDGET["Custom Persistent Audio Player"]
+        PODCAST_GEN["Daily AI Bulletin Podcast Engine"]
+    end
 
-[Trigger: Time-based Cron / Admin Manual / Single-URL]
-                          |
-                          v
-[Candidate Discovery (Smart RSS + Jina AI Reader Discovery)]
-                          |
-                          v
-[AI Pre-Filter (1st Gemini Pass): Selects TOP candidate headlines & initial importance]
-                          |
-                          v
-[Universal Content Extraction (Tier 1: Jina AI Proxy -> Tier 2: Readability / JSON-LD)]
-                          |
-                          v
-[Unified Content Processing (2nd Gemini Pass): Generates clean body, summary, score]
-                          |
-                          v
-[TTS Engine (Gemini 3.1 Flash TTS): Sentence Chunking -> PCM Concatenation -> WAV Header]
-                          |
-                          v
-[Cloudinary Upload: Audio saved to CDN -> Returns HTTPS WAV URL]
-                          |
-                          v
-[Supabase PostgreSQL: Saved to news_articles (Status: published or draft based on Auto-Approve)]
-                          |
-                          v
-[Frontend Next.js App: Fetches text from Supabase, streams audio from Cloudinary]
+    T1 --> SRC_DB & SRC_DDG
+    T2 --> SRC_DB
+    SRC_DB --> FEED_PARSE
+    SRC_DDG --> FEED_PARSE
+    FEED_PARSE --> DEDUP
+    T3 --> EXTRACTOR
 
+    DEDUP --> GEMINI_PRE
+    GEMINI_PRE --> DROP_LOW
+    GEMINI_PRE --> TOP_SELECT
 
-DETAILED EXECUTION STEPS:
+    TOP_SELECT --> EXTRACTOR
+    EXTRACTOR --> GEMINI_SYNTH
+    GEMINI_SYNTH --> DB_SAVE
 
-Step 1: Candidate Source Discovery & Deduplication
-- Active scraping sources are loaded from Supabase PostgreSQL (scraping_sources table).
-- Fast RSS parser (3.5s timeout) or Jina AI Reader Proxy (r.jina.ai) discovers top article links without getting blocked by Cloudflare/Datacenter IP restrictions.
-- URLs are cross-checked against Supabase news_articles to prevent duplicate processing.
+    DB_SAVE --> TTS_CHUNK
+    TTS_CHUNK --> GEMINI_TTS --> PCM_MERGE --> CLOUDINARY
+    CLOUDINARY --> DB_SAVE
 
-Step 2: AI Title & Importance Pre-Filtering (1st Gemini Pass)
-- Raw candidate titles, categories, and sources are batched into a single prompt sent to Gemini (gemini-2.5-flash / gemini-3.6-flash).
-- Gemini evaluates headline significance and selects the TOP candidates (default top 5) with high breaking/importance values.
+    DB_SAVE --> NEXT_CLIENT & PODCAST_GEN
+    CLOUDINARY --> AUDIO_WIDGET
+```
 
-Step 3: Universal Article Extraction & Image Scraping (Jina-First Architecture)
-- For selected articles, universal-extractor.ts extracts clean text and cover image using a robust resilient hierarchy:
-  Tier 1 (Primary): Jina AI Reader Proxy (`https://r.jina.ai/<URL>`). Uses distributed headless browser nodes to bypass Cloudflare WAF, Akamai, Bot-guards, and Datacenter IP bans on Vercel/Cloud deployments. Returns clean markdown, title, author, and high-res cover image.
-  Tier 2 (Fallback): Direct HTML fetch with Mozilla Readability (DOM text density) and Schema.org JSON-LD parser with strict 4s timeout.
-  Tier 3 (Final Fallback): Fallback title and structured metadata.
+---
 
-Step 4: Unified AI Content & Summary Generation (2nd Gemini Pass)
-- Extracted article text is sent to Gemini in a single unified prompt.
-- Gemini produces a structured JSON response containing:
-  a. clean_headline: Concise Bengali title.
-  b. clean_content: Unabridged full Bengali article body in clean markdown.
-  c. ai_summary: Short 2-paragraph Bengali summary with 3 key takeaway bullet points.
-  d. importance_score: AI score rating (1 to 100).
-  e. detected_category: Auto-classified news topic category.
+## 2. Ingestion Sources & Triggers Layer
 
-Step 5: Gemini 3.1 Flash Unlimited TTS Audio Synthesis
-- Text summary is cleaned for speech and passed to gemini-3.1-flash-tts-preview (Voice: Puck for BN, Aoede for EN).
-- Text is split into safe 18-20 word sentence chunks to eliminate API duration limits.
-- 24kHz 16-bit mono PCM binary buffers are concatenated back-to-back (Buffer.concat) and converted to a standard WAV audio buffer.
+The pipeline accepts news from three primary ingestion channels:
 
-Step 6: Cloudinary Hosting & Supabase DB Storage
-- The WAV audio buffer is streamed directly to Cloudinary CDN (news_audios folder).
-- Cloudinary returns a secure HTTPS audio URL (audio_bn_summary).
-- Article metadata, full text, summary, cover image URL, and audio link are saved to Supabase news_articles.
-- Review / Auto-Approve Gate:
-  a. If auto_approve_news == true in system_settings -> Status set to published (live immediately).
-  b. If auto_approve_news == false -> Status set to draft (requires Admin approval in /admin).
+| Trigger / Source Channel | Mechanism | Target Pipeline Flow |
+| :--- | :--- | :--- |
+| **1. Database Configured Sources** | Stored in Supabase `scraping_sources` table (RSS URLs or site listing pages). | Standard Discovery ➔ Deduplication ➔ AI Pre-Filter ➔ Extraction ➔ AI Synthesis. |
+| **2. Search Engine Scraper (DDG)** | Runs scheduled background search queries via `scrape-ddg` for breaking Bangladesh/World topics. | Search Results ➔ Deduplication ➔ Deep Processing. |
+| **3. Admin Direct Single URL** | Admin pastes an individual article URL in `/admin/scraping` or sends to `/api/ingest/direct`. | Bypasses RSS/Search discovery; directly enters **Deep Extraction & AI Synthesis**. |
 
-Step 7: Frontend Serving & Smart Feed Ranking
-- Next.js frontend queries /api/news which fetches articles from Supabase with Smart Ranking (Freshness + AI Importance Score + User Interest Boost).
-- Audio is streamed seamlessly from Cloudinary CDN into the custom AudioPlayer widget.
+### Supported Triggers:
+1. **Automated Scheduled Cron**: Background cron jobs triggered periodically (e.g. hourly news cycles via Inngest or Vercel Cron).
+2. **Admin Real-Time Scrape**: Admin triggers on-demand scraping with custom limit & category parameters via Server-Sent Events (SSE) live streaming (`/api/ingest/trigger-rss`).
+3. **Targeted Single-Article Ingestion**: Instant processing for breaking news URLs.
 
+---
 
-SECTION 4: DAILY AI PODCAST GENERATION PIPELINE
+## 3. Detailed End-to-End Pipeline Execution
 
-The automated daily podcast pipeline compiles weather, traffic, umbrella advice, and top news into a single audio track:
+### Step 1: Source Discovery & Smart Fallback
+- Loads active sources from Supabase `scraping_sources`.
+- **Primary Method:** Fast RSS parsing via `rss-parser` (with a strict 6s timeout).
+- **Smart Jina/HTML Fallback:** If a source has an invalid/broken RSS XML, returns 404, or blocks with 403 (Cloudflare/bot protection), the pipeline automatically switches to **Cheerio HTML** or **Jina AI Reader** (`https://r.jina.ai/<source_url>`) to extract the latest headline links directly from the homepage or category page.
 
-Step 1: Context & Weather Data Fetching
-- Queries OpenWeatherMap API for live temperature, rain conditions, and umbrella advisories (Dhaka, Bangladesh).
+### Step 2: High-Performance Batch Deduplication
+- Instead of performing sequential per-article database queries (N+1 bottleneck), all discovered candidate links are collected into an array.
+- A **single batch query** (`.in("original_url", candidateUrls)`) checks Supabase `news_articles` in ~0.05s.
+- Already existing URLs in the database are filtered out in memory.
 
-Step 2: Top News Aggregation
-- Fetches top 5 most important news articles from Supabase (news_articles table) ordered by importance score and published timestamp.
+### Step 3: AI Importance Pre-Filtering (1st Gemini Pass)
+- **The Problem:** Deep-scraping and running full AI generation + Audio TTS on 100+ raw discovered headlines would consume excessive bandwidth, tokens, and time.
+- **The Solution:** All new candidate headlines (~20-100 titles) are sent to Gemini (`gemini-3.6-flash` / `gemini-2.5-flash`) in a **single, unified prompt**.
+- Gemini evaluates headline urgency, national/global relevance, and breaking significance to select the **TOP N** (default: 5-10) most impactful news items.
+- Non-selected/low-priority headlines are discarded without incurring heavy downstream extraction costs.
 
-Step 3: AI Podcast Script Synthesis
-- Compiles structured script containing:
-  a. Greeting, Current Date, and Time of Day.
-  b. Live Weather Update and Umbrella Advice (e.g. Rain/Extreme Heat warning).
-  c. Sequential summary of top 5 breaking news stories (1st news to 5th news).
-  d. Sign-off and closing advisory.
+### Step 4: Universal Content Extraction (Jina-First Architecture)
+For each selected high-impact article:
+- **Tier 1 (Primary):** Jina AI Reader Proxy (`https://r.jina.ai/<article_url>`). Bypasses WAF, Akamai, and IP blocks on serverless environments; extracts clean Markdown body and high-res OpenGraph/Twitter cover images.
+- **Tier 2 (Fallback):** Direct HTML extraction with Mozilla Readability (DOM text density algorithm) and Schema.org JSON-LD parser.
+- **Tier 3 (Fallback):** Pre-cleaned meta tags and fallback headline.
 
-Step 4: Podcast TTS Audio & Cloudinary Archiving
-- Converts complete podcast script to WAV audio via Gemini 3.1 Flash TTS.
-- Uploads audio track to Cloudinary CDN (podcasts folder).
-- Saves record with audio URL, duration, and script text into Supabase (podcast_archives table, archive_type: daily_bulletin).
+### Step 5: Unified AI News Synthesis & Scoring (2nd Gemini Pass)
+The extracted raw content is passed to Gemini (`gemini-3.6-flash` / `gemini-2.5-flash`) with a structured JSON schema:
+1. `clean_headline`: Engaging, clear Bengali title.
+2. `clean_content`: Unabridged full Bengali article body in clean markdown (preserving narrative depth).
+3. `ai_summary`: Concise 2-paragraph Bengali summary with 3 key takeaway bullet points.
+4. `importance_score`: Integer rating from 1 to 100 representing news priority.
+5. `detected_category`: Automatic category classification (`Politics`, `Economy`, `Technology`, `Sports`, `Entertainment`, `World`, `Bangladesh`, `Lifestyle`, `General`).
 
+### Step 6: Early Database Save Gate (Instant Visibility)
+- As soon as AI synthesis finishes, the article is **immediately inserted into Supabase `news_articles`**:
+  - `status`: Set to `published` if `auto_approve_news == true` (immediately live in app feed).
+  - `status`: Set to `draft` if `auto_approve_news == false` (queued in `/admin/library` for manual review).
+- This guarantees that news is securely stored and available before audio processing starts.
 
-SECTION 5: TECHNOLOGY STACK & COMPONENT RESPONSIBILITIES
+### Step 7: Unlimited-Duration Audio TTS & Cloudinary CDN
+- The clean Bengali summary is sent to the TTS synthesis engine (`generateSeamlessGeminiAudio`):
+  - **Sentence Chunking:** Text is split into safe 18-20 word chunks (~8-12 seconds each). This completely avoids the Gemini TTS ~18-20s duration cutoffs.
+  - **Gemini 3.1 Flash TTS:** Generates 24kHz 16-bit mono PCM audio per chunk (Voice: `Puck` for Bengali, `Aoede` for English).
+  - **Seamless PCM Stitching:** Raw PCM chunks are concatenated back-to-back (`Buffer.concat`) and wrapped with a standard 44-byte WAV RIFF header.
+  - **Cloudinary Upload:** The WAV buffer is streamed to Cloudinary CDN (`news_audios` folder).
+  - **DB Update:** The generated HTTPS audio URL is saved to the article's `audio_bn_summary` column.
+- Audio synthesis is protected with a 15s timeout to ensure pipeline responsiveness.
 
-A. Frontend UI: Next.js 15 (App Router), TypeScript, Tailwind CSS, Shadcn UI, Framer Motion
-- Responsive client interface, smart news feed, AI podcast player & custom audio player
+### Step 8: Client Serving & Smart Feed Ranking
+- The Next.js frontend fetches news via `/api/news` using **Smart Ranking Algorithm**:
+  $$\text{Score} = (\text{Freshness Weight}) + (\text{AI Importance Score} \times 0.5) + (\text{User Category Affinity})$$
+- Audio is streamed seamlessly from Cloudinary CDN into the global persistent `AudioPlayer` widget.
 
-B. Database & Auth: Supabase (PostgreSQL), Supabase Auth
-- News articles store, podcast archives, sources management, user accounts & RLS
+---
 
-C. Ingestion Triggers: Inngest / Vercel Cron / Next.js Serverless Routes
-- Time-based automatic & manual admin/user scraping triggers
+## 4. Daily AI Podcast Generation Pipeline
 
-D. HTML Extractor: Cheerio, Mozilla Readability, Jina AI Reader
-- Article body & OpenGraph cover image extraction
+KahfStudio compiles an automated daily audio bulletin podcast:
 
-E. AI Models: Gemini 3.6 Flash / Gemini 2.5 Flash
-- Pre-filtering top news, content cleaning, summarization, scoring & podcast script assembly
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Cron as Cron / Inngest
+    participant Weather as OpenWeatherMap API
+    participant DB as Supabase DB
+    participant Gemini as Gemini AI
+    participant TTS as Gemini 3.1 Flash TTS
+    participant CDN as Cloudinary CDN
 
-F. TTS Audio Engine: Gemini 3.1 Flash TTS (gemini-3.1-flash-tts-preview)
-- Sentence chunking & 24kHz PCM audio generation for news summaries & daily podcasts
+    Cron->>Weather: Fetch live weather & rain/heat condition (Dhaka)
+    Weather-->>Cron: Temperature, Weather Condition, Umbrella Tips
+    Cron->>DB: Query TOP 5 news ordered by importance_score & date
+    DB-->>Cron: Top 5 breaking stories
+    Cron->>Gemini: Assemble complete podcast script (Greeting + Weather + 5 News Stories + Sign-off)
+    Gemini-->>Cron: Full Bengali podcast script
+    Cron->>TTS: Generate seamless master WAV audio (Chunked PCM Concatenation)
+    TTS-->>Cron: Master WAV buffer
+    Cron->>CDN: Upload audio to Cloudinary (podcasts folder)
+    CDN-->>Cron: HTTPS audio URL
+    Cron->>DB: Insert into podcast_archives (archive_type: daily_bulletin)
+```
 
-G. Audio CDN Storage: Cloudinary
-- Persistent WAV audio hosting for news summaries and daily podcasts
+---
 
-H. Live IPTV Streaming: HLS (hls.js), Custom Video Modal Player
-- Live Bangladeshi news channels streaming
+## 5. Technology Stack & Component Responsibilities
 
-I. Weather API: OpenWeatherMap API
-- Live weather data & umbrella advisory logic
+| Component | Technology | Responsibility |
+| :--- | :--- | :--- |
+| **Frontend UI** | Next.js 15 (App Router), React, Tailwind CSS, Framer Motion | Responsive web app, Smart News Feed, Media Player, Admin Dashboard. |
+| **Database & Auth** | Supabase (PostgreSQL), Supabase Auth | Relational storage (`news_articles`, `scraping_sources`, `podcast_archives`, `system_settings`), RLS security. |
+| **AI Models** | Google Gemini 3.6 Flash / Gemini 2.5 Flash | Title pre-filtering, full article rewriting, summarization, importance scoring, and podcast script synthesis. |
+| **Audio Engine** | Gemini 3.1 Flash TTS (`gemini-3.1-flash-tts-preview`) | High-fidelity Bengali (`Puck`) and English (`Aoede`) 24kHz speech generation. |
+| **Media Hosting** | Cloudinary CDN | Persistent, global edge hosting for news summary audio and daily podcast files. |
+| **Feed & Web Scraper**| `rss-parser`, Cheerio, Mozilla Readability, Jina AI Reader (`r.jina.ai`) | Resilient multi-tier article extraction and WAF bypass. |
+| **Search Scraper** | DuckDuckGo Scraper (`duck-duck-scrape`) | Automated search-based news discovery. |
+| **Weather API** | OpenWeatherMap API | Live weather observations and umbrella advisory system. |
+| **Live IPTV** | HLS.js, Custom Video Player | Streaming live Bangladeshi TV news channels. |
