@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
     );
 
     let query = supabase.from("scraping_sources").select("*").order("created_at", { ascending: false });
-    
+
     if (country && country !== "ALL") {
       query = query.eq("country", country);
     }
@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: Request) {
   try {
     const { action, payload } = await req.json();
-    
+
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!

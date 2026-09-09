@@ -2,11 +2,11 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Database, Play, Square, Link as LinkIcon, Settings, Key, Search, Plus, Trash2, Eye, EyeOff, Maximize2, Minimize2 } from "lucide-react";
+import { Database, Play, Square, Link as LinkIcon, Settings, Key, Search, Plus, Trash2, Eye, EyeOff, Maximize2, Minimize2, Radio, Globe, RefreshCw, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
+import { SlidingToggle } from "@/components/ui/sliding-toggle";
 import { motion } from "framer-motion";
 import { createClient } from "@/utils/supabase/client";
 import { useSession } from "@/lib/auth-client";
@@ -19,34 +19,61 @@ export default function AdminScrapingPage() {
   
   const isLocked = userRole !== "admin" && userTier !== "premium";
 
-  const [isActive, setIsActive] = useState(false);
   const [urlToIngest, setUrlToIngest] = useState("");
   const [ingestCategory, setIngestCategory] = useState("General");
   const [isIngesting, setIsIngesting] = useState(false);
+  const [ingestKeyword, setIngestKeyword] = useState("");
 
+  // Sources Management
   const [sources, setSources] = useState<any[]>([]);
+  const [activeSourceTab, setActiveSourceTab] = useState<"ALL" | "BD" | "GLOBAL">("ALL");
   const [newSourceName, setNewSourceName] = useState("");
   const [newSourceUrl, setNewSourceUrl] = useState("");
   const [newSourceCat, setNewSourceCat] = useState("General");
+  const [newSourceCountry, setNewSourceCountry] = useState<"BD" | "GLOBAL">("BD");
+  const [isSeedingSources, setIsSeedingSources] = useState(false);
 
+  // News Automation - Auto Approve
   const [autoApprove, setAutoApprove] = useState(true);
-  const [scrapFrequency, setScrapFrequency] = useState("Daily");
-  const [weeklyDays, setWeeklyDays] = useState<string[]>([]);
-  const [dailyTimesCount, setDailyTimesCount] = useState("1");
-  const [scrapTimes, setScrapTimes] = useState<string[]>(["00:00"]);
-  const [summarizeAfter, setSummarizeAfter] = useState("60");
-  const [ingestKeyword, setIngestKeyword] = useState("");
-  
+
+  // News Automation - Scraping Schedule (Default 2 times/day: 7:00 AM & 7:00 PM)
   const [isScheduleEnabled, setIsScheduleEnabled] = useState(true);
-  const [isSummarizeEnabled, setIsSummarizeEnabled] = useState(true);
+  const [scrapFrequency, setScrapFrequency] = useState("Daily");
+  const [dailyTimesCount, setDailyTimesCount] = useState("2");
+  const [scrapTimes, setScrapTimes] = useState<string[]>(["07:00", "19:00"]);
+  const [weeklyDays, setWeeklyDays] = useState<string[]>(["Mon", "Wed", "Fri"]);
+
+  // News Automation - AI Podcast Scheduler (Default 2 times/day: 7:10 AM & 7:10 PM)
+  const [isPodcastScheduleEnabled, setIsPodcastScheduleEnabled] = useState(true);
+  const [podcastFrequency, setPodcastFrequency] = useState("Daily");
+  const [podcastDailyTimesCount, setPodcastDailyTimesCount] = useState("2");
+  const [podcastTimes, setPodcastTimes] = useState<string[]>(["07:10", "19:10"]);
+  const [podcastWeeklyDays, setPodcastWeeklyDays] = useState<string[]>(["Mon", "Wed", "Fri"]);
   
   const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  
+  // API Keys
   const [apiKeys, setApiKeys] = useState<string[]>([""]);
-  const [isTriggeringRss, setIsTriggeringRss] = useState(false);
-  const [scrapeLogs, setScrapeLogs] = useState<string[]>([]);
   const [visibleKeys, setVisibleKeys] = useState<Record<number, boolean>>({});
+
+  // Manual Scraping & Podcast Control
+  const [isTriggeringRss, setIsTriggeringRss] = useState(false);
+  const [isGeneratingPodcast, setIsGeneratingPodcast] = useState(false);
+  const [scrapeLogs, setScrapeLogs] = useState<string[]>([]);
   const logsContainerRef = useRef<HTMLDivElement>(null);
   const [isTerminalFullscreen, setIsTerminalFullscreen] = useState(false);
+
+  // Manual Control Filters
+  const [targetCount, setTargetCount] = useState("5");
+  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [selectedCountry, setSelectedCountry] = useState("All");
+
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [isSavingDefaults, setIsSavingDefaults] = useState(false);
+  const [defaultsSavedSuccess, setDefaultsSavedSuccess] = useState(false);
+
+  const CATEGORIES = ["জাতীয়", "রাজনীতি", "অর্থনীতি", "খেলাধুলা", "প্রযুক্তি", "আন্তর্জাতিক", "General"];
 
   // Load last persisted logs on mount
   useEffect(() => {
@@ -72,10 +99,6 @@ export default function AdminScrapingPage() {
     setVisibleKeys(prev => ({ ...prev, [index]: !prev[index] }));
   };
 
-  const supabase = createClient();
-
-  const CATEGORIES = ["জাতীয়", "রাজনীতি", "অর্থনীতি", "খেলাধুলা", "প্রযুক্তি", "আন্তর্জাতিক", "General"];
-
   useEffect(() => {
     fetchData();
   }, []);
@@ -92,9 +115,73 @@ export default function AdminScrapingPage() {
       if (resSettings.ok) {
         const { settings: settingsData } = await resSettings.json();
         if (settingsData) {
+          // Auto Approve
           const autoSetting = settingsData.find((s: any) => s.setting_key === "auto_approve_news");
           if (autoSetting) setAutoApprove(autoSetting.setting_value === "true");
 
+          // Scraping Schedule
+          const scrEn = settingsData.find((s: any) => s.setting_key === "scraping_schedule_enabled");
+          if (scrEn) setIsScheduleEnabled(scrEn.setting_value !== "false");
+
+          const scrFreq = settingsData.find((s: any) => s.setting_key === "scraping_frequency");
+          if (scrFreq?.setting_value) setScrapFrequency(scrFreq.setting_value);
+
+          const scrCount = settingsData.find((s: any) => s.setting_key === "scraping_daily_count");
+          if (scrCount?.setting_value) setDailyTimesCount(scrCount.setting_value);
+
+          const scrTimes = settingsData.find((s: any) => s.setting_key === "scraping_times");
+          if (scrTimes?.setting_value) {
+            try {
+              const parsed = JSON.parse(scrTimes.setting_value);
+              if (Array.isArray(parsed) && parsed.length > 0) setScrapTimes(parsed);
+            } catch (e) {}
+          }
+
+          const scrDays = settingsData.find((s: any) => s.setting_key === "scraping_weekly_days");
+          if (scrDays?.setting_value) {
+            try {
+              const parsed = JSON.parse(scrDays.setting_value);
+              if (Array.isArray(parsed)) setWeeklyDays(parsed);
+            } catch (e) {}
+          }
+
+          // AI Podcast Scheduler
+          const podEn = settingsData.find((s: any) => s.setting_key === "podcast_schedule_enabled");
+          if (podEn) setIsPodcastScheduleEnabled(podEn.setting_value !== "false");
+
+          const podFreq = settingsData.find((s: any) => s.setting_key === "podcast_frequency");
+          if (podFreq?.setting_value) setPodcastFrequency(podFreq.setting_value);
+
+          const podCount = settingsData.find((s: any) => s.setting_key === "podcast_daily_count");
+          if (podCount?.setting_value) setPodcastDailyTimesCount(podCount.setting_value);
+
+          const podTimes = settingsData.find((s: any) => s.setting_key === "podcast_times");
+          if (podTimes?.setting_value) {
+            try {
+              const parsed = JSON.parse(podTimes.setting_value);
+              if (Array.isArray(parsed) && parsed.length > 0) setPodcastTimes(parsed);
+            } catch (e) {}
+          }
+
+          const podDays = settingsData.find((s: any) => s.setting_key === "podcast_weekly_days");
+          if (podDays?.setting_value) {
+            try {
+              const parsed = JSON.parse(podDays.setting_value);
+              if (Array.isArray(parsed)) setPodcastWeeklyDays(parsed);
+            } catch (e) {}
+          }
+
+          // Defaults
+          const catSetting = settingsData.find((s: any) => s.setting_key === "automation_default_category");
+          if (catSetting?.setting_value) setSelectedCategory(catSetting.setting_value);
+
+          const countSetting = settingsData.find((s: any) => s.setting_key === "automation_default_limit");
+          if (countSetting?.setting_value) setTargetCount(countSetting.setting_value);
+
+          const countrySetting = settingsData.find((s: any) => s.setting_key === "automation_default_country");
+          if (countrySetting?.setting_value) setSelectedCountry(countrySetting.setting_value);
+
+          // Gemini API Keys
           const keySetting = settingsData.find((s: any) => s.setting_key === "global_gemini_api_keys");
           if (keySetting) {
             try {
@@ -115,6 +202,63 @@ export default function AdminScrapingPage() {
     }
   };
 
+  const saveSetting = async (key: string, value: string) => {
+    try {
+      await fetch("/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key, value })
+      });
+    } catch (err) {
+      console.error(`Failed to save setting ${key}:`, err);
+    }
+  };
+
+  const handleSaveAutomationDefaults = async () => {
+    setIsSavingDefaults(true);
+    await saveSetting("automation_default_limit", targetCount);
+    await saveSetting("automation_default_category", selectedCategory);
+    await saveSetting("automation_default_country", selectedCountry);
+    setIsSavingDefaults(false);
+    setDefaultsSavedSuccess(true);
+    setTimeout(() => setDefaultsSavedSuccess(false), 2500);
+  };
+
+  const handleSaveSettings = async () => {
+    setIsSavingSettings(true);
+
+    // Save News Automation
+    await saveSetting("auto_approve_news", autoApprove.toString());
+    await saveSetting("scraping_schedule_enabled", isScheduleEnabled.toString());
+    await saveSetting("scraping_frequency", scrapFrequency);
+    await saveSetting("scraping_daily_count", dailyTimesCount);
+    await saveSetting("scraping_times", JSON.stringify(scrapTimes));
+    await saveSetting("scraping_weekly_days", JSON.stringify(weeklyDays));
+
+    // Save AI Podcast Scheduler
+    await saveSetting("podcast_schedule_enabled", isPodcastScheduleEnabled.toString());
+    await saveSetting("podcast_frequency", podcastFrequency);
+    await saveSetting("podcast_daily_count", podcastDailyTimesCount);
+    await saveSetting("podcast_times", JSON.stringify(podcastTimes));
+    await saveSetting("podcast_weekly_days", JSON.stringify(podcastWeeklyDays));
+
+    // Defaults
+    await saveSetting("automation_default_limit", targetCount);
+    await saveSetting("automation_default_category", selectedCategory);
+    await saveSetting("automation_default_country", selectedCountry);
+    
+    // Save API keys
+    const validKeys = apiKeys.filter(k => k.trim() !== "");
+    await saveSetting("global_gemini_api_keys", JSON.stringify(validKeys));
+    if (validKeys.length === 0) setApiKeys([""]);
+    else setApiKeys(validKeys);
+    
+    setIsSavingSettings(false);
+    setSaveSuccess(true);
+    setTimeout(() => setSaveSuccess(false), 2000);
+  };
+
+  // Direct Ingestion
   const handleDirectIngest = async () => {
     if (!urlToIngest) return;
     setIsIngesting(true);
@@ -136,12 +280,21 @@ export default function AdminScrapingPage() {
     setIsIngesting(false);
   };
 
+  // Sources Actions
   const handleAddSource = async () => {
     if (!newSourceName || !newSourceUrl) return;
     const res = await fetch("/api/sources", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "ADD", payload: { name: newSourceName, url: newSourceUrl, category: newSourceCat } })
+      body: JSON.stringify({
+        action: "ADD",
+        payload: {
+          name: newSourceName,
+          url: newSourceUrl,
+          category: newSourceCat,
+          country: newSourceCountry,
+        }
+      })
     });
     if (res.ok) {
       setNewSourceName("");
@@ -169,56 +322,38 @@ export default function AdminScrapingPage() {
   };
   
   const handleLoadDefaultSources = async () => {
+    setIsSeedingSources(true);
+    const countryToSeed = activeSourceTab === "ALL" ? "ALL" : activeSourceTab;
     await fetch("/api/sources", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "SEED", payload: {} })
+      body: JSON.stringify({ action: "SEED", payload: { country: countryToSeed } })
     });
-    fetchData();
+    await fetchData();
+    setIsSeedingSources(false);
   };
 
-  const [isSavingSettings, setIsSavingSettings] = useState(false);
-  const [saveSuccess, setSaveSuccess] = useState(false);
+  // Filtered Sources based on Country Tab
+  const filteredSources = sources.filter((s) => {
+    if (activeSourceTab === "ALL") return true;
+    return (s.country || "BD") === activeSourceTab;
+  });
 
-  const saveSetting = async (key: string, value: string) => {
-    await fetch("/api/settings", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ key, value })
-    });
-  };
+  const bdCount = sources.filter(s => (s.country || "BD") === "BD").length;
+  const globalCount = sources.filter(s => s.country === "GLOBAL").length;
 
-  const handleSaveSettings = async () => {
-    setIsSavingSettings(true);
-    await saveSetting("auto_approve_news", autoApprove.toString());
-    
-    // Save keys as JSON array
-    const validKeys = apiKeys.filter(k => k.trim() !== "");
-    await saveSetting("global_gemini_api_keys", JSON.stringify(validKeys));
-    
-    // Ensure at least one empty input stays if all were deleted/empty
-    if (validKeys.length === 0) setApiKeys([""]);
-    else setApiKeys(validKeys);
-    
-    setIsSavingSettings(false);
-    setSaveSuccess(true);
-    setTimeout(() => setSaveSuccess(false), 2000);
-  };
-
-  const [targetCount, setTargetCount] = useState("5");
-  const [selectedCategory, setSelectedCategory] = useState("All");
-  const [selectedCountry, setSelectedCountry] = useState("All");
-
+  // Manual Scraping Trigger
   const handleTriggerEmergencyScrape = async () => {
     setIsTriggeringRss(true);
     const getNowTime = () => new Date().toLocaleTimeString('en-US', { hour12: true });
     
     const totalTarget = Math.max(1, parseInt(targetCount || "5", 10));
-    const CHUNK_SIZE = 2; // 2 articles per chunk to guarantee ultra-fast 8s execution per batch
+    const CHUNK_SIZE = 2; // 2 articles per chunk for guaranteed fast execution
     const totalBatches = Math.ceil(totalTarget / CHUNK_SIZE);
 
     let allLogs: string[] = [
-      `[${getNowTime()}] 🚀 Initiating Ingestion Pipeline for ${totalTarget} article(s) (${totalBatches} auto-chunk batch(es)) [Country: "${selectedCountry}"]...`,
+      ...scrapeLogs,
+      `\n[${getNowTime()}] 🚀 Initiating Ingestion Pipeline for ${totalTarget} article(s) (${totalBatches} batch(es)) [Country: "${selectedCountry}", Category: "${selectedCategory}"]...`,
     ];
     setScrapeLogs([...allLogs]);
     try { localStorage.setItem("kahf_scrape_logs", JSON.stringify(allLogs)); } catch (e) {}
@@ -229,7 +364,7 @@ export default function AdminScrapingPage() {
         
         allLogs = [
           ...allLogs,
-          `\n[${getNowTime()}] 📦 [Batch ${batch}/${totalBatches}] Processing ${currentBatchLimit} article(s) (Category: "${selectedCategory}", Country: "${selectedCountry}")...`,
+          `\n[${getNowTime()}] 📦 [Batch ${batch}/${totalBatches}] Processing ${currentBatchLimit} article(s)...`,
         ];
         setScrapeLogs([...allLogs]);
         try { localStorage.setItem("kahf_scrape_logs", JSON.stringify(allLogs)); } catch (e) {}
@@ -243,7 +378,7 @@ export default function AdminScrapingPage() {
           allLogs = [...allLogs, errMsg];
           setScrapeLogs([...allLogs]);
           try { localStorage.setItem("kahf_scrape_logs", JSON.stringify(allLogs)); } catch (e) {}
-          break; // Stop loop on fatal HTTP error
+          break;
         }
 
         if (!response.body) {
@@ -281,7 +416,6 @@ export default function AdminScrapingPage() {
           }
         }
 
-        // Brief 400ms pause between batches
         if (batch < totalBatches) {
           await new Promise((r) => setTimeout(r, 400));
         }
@@ -302,7 +436,59 @@ export default function AdminScrapingPage() {
     }
   };
 
+  // Manual AI Podcast Generation Trigger
+  const handleTriggerPodcast = async () => {
+    setIsGeneratingPodcast(true);
+    const getNowTime = () => new Date().toLocaleTimeString('en-US', { hour12: true });
 
+    let logs = [
+      ...scrapeLogs,
+      `\n[${getNowTime()}] 🎙️ [AI Podcast] Initializing on-demand AI Podcast Bulletin generation...`,
+      `[${getNowTime()}] 📡 [Step 1] Fetching top recent published news stories and local weather forecast...`,
+    ];
+    setScrapeLogs(logs);
+    try { localStorage.setItem("kahf_scrape_logs", JSON.stringify(logs)); } catch (e) {}
+
+    try {
+      logs = [
+        ...logs,
+        `[${getNowTime()}] 🧠 [Step 2] Synthesizing comprehensive Bengali news bulletin with Gemini 3.1 Flash...`,
+      ];
+      setScrapeLogs(logs);
+      try { localStorage.setItem("kahf_scrape_logs", JSON.stringify(logs)); } catch (e) {}
+
+      const res = await fetch("/api/podcast/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" }
+      });
+
+      const json = await res.json();
+
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || "Podcast generation failed");
+      }
+
+      const pData = json.data || {};
+      logs = [
+        ...logs,
+        `[${getNowTime()}] 🔊 [Step 3] Seamless Gemini Bengali Audio synthesized successfully!`,
+        `[${getNowTime()}] ☁️ [Step 4] Audio uploaded to Cloudinary: ${pData.audio_url || 'OK'}`,
+        `[${getNowTime()}] 📁 [Step 5] Saved to Podcast Archives: "${pData.title}" (Duration: ~${pData.duration || 0}s, Stories: ${pData.topNewsCount || 0})`,
+        `[${getNowTime()}] 🎉 AI Podcast Bulletin generation complete and ready to broadcast!`,
+      ];
+      setScrapeLogs(logs);
+      try { localStorage.setItem("kahf_scrape_logs", JSON.stringify(logs)); } catch (e) {}
+    } catch (err: any) {
+      logs = [
+        ...logs,
+        `[${getNowTime()}] ❌ [Podcast Generation Error]: ${err.message}`,
+      ];
+      setScrapeLogs(logs);
+      try { localStorage.setItem("kahf_scrape_logs", JSON.stringify(logs)); } catch (e) {}
+    } finally {
+      setIsGeneratingPodcast(false);
+    }
+  };
 
   if (isLocked) {
     return (
@@ -339,12 +525,22 @@ export default function AdminScrapingPage() {
 
       {/* 1. News Automation */}
       <Card className="bg-card/50 backdrop-blur-sm border-border mb-6">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Settings className="w-5 h-5 text-primary" />
-            News Automation
-          </CardTitle>
-          <CardDescription>Configure auto-approval and scheduled tasks.</CardDescription>
+        <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <Settings className="w-5 h-5 text-primary" />
+              News Automation
+            </CardTitle>
+            <CardDescription>Configure auto-approval, automated scraping schedules, and AI podcast generation.</CardDescription>
+          </div>
+          <Button 
+            onClick={handleSaveSettings} 
+            disabled={isSavingSettings} 
+            size="sm" 
+            className={`transition-all font-semibold ${saveSuccess ? "!bg-emerald-600 !text-white" : "bg-primary text-primary-foreground hover:bg-primary/90"}`}
+          >
+            {isSavingSettings ? "Saving..." : saveSuccess ? "✓ Settings Saved" : "Save Automation Settings"}
+          </Button>
         </CardHeader>
         <CardContent>
           <div className="grid md:grid-cols-3 gap-6">
@@ -352,55 +548,50 @@ export default function AdminScrapingPage() {
             {/* Auto Approve */}
             <div className="space-y-3">
               <div className="flex flex-col gap-3">
-                <div 
-                  onClick={() => {
-                    const val = !autoApprove;
+                <SlidingToggle
+                  id="switch-auto-approve"
+                  checked={autoApprove}
+                  onChange={(val: boolean) => {
                     setAutoApprove(val);
                     saveSetting("auto_approve_news", val.toString());
                   }}
-                  className={`relative w-24 h-9 shrink-0 rounded-full p-1 cursor-pointer transition-colors duration-300 ${autoApprove ? "bg-green-500" : "bg-[#0f172a]"}`}
-                >
-                  <motion.div
-                    className="w-11 h-7 bg-white rounded-full shadow-sm flex items-center justify-center"
-                    initial={false}
-                    animate={{ x: autoApprove ? 44 : 0 }}
-                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                  >
-                    <span className={`text-[11px] font-bold leading-none ${autoApprove ? "text-green-600" : "text-[#0f172a]"}`}>
-                      {autoApprove ? "ON" : "OFF"}
-                    </span>
-                  </motion.div>
-                </div>
-                <Label className="text-sm font-semibold">Auto-Approve<br/>Scraped News</Label>
-                <p className="text-[11px] text-muted-foreground leading-snug">Automatically publish scraped news without manual review. This will bypass the pending queue.</p>
+                />
+                <Label htmlFor="switch-auto-approve" className="text-sm font-semibold cursor-pointer">
+                  Auto-Approve<br />Scraped News
+                </Label>
+                <p className="text-[11px] text-muted-foreground leading-snug">
+                  Automatically publish scraped news without manual review. This will bypass the pending queue.
+                </p>
               </div>
             </div>
 
             {/* Scraping Schedule */}
             <div className={`space-y-3 md:border-l border-border md:pl-6 transition-opacity ${isScheduleEnabled ? "opacity-100" : "opacity-50"}`}>
               <div className="flex flex-col gap-3">
-                <div 
-                  onClick={() => setIsScheduleEnabled(!isScheduleEnabled)}
-                  className={`relative w-14 h-7 shrink-0 rounded-full p-1 cursor-pointer transition-colors duration-300 ${isScheduleEnabled ? "bg-green-500" : "bg-[#0f172a]"}`}
-                >
-                  <motion.div
-                    className="w-6 h-5 bg-white rounded-full shadow-sm flex items-center justify-center"
-                    initial={false}
-                    animate={{ x: isScheduleEnabled ? 24 : 0 }}
-                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                  >
-                    <span className={`text-[8px] font-bold leading-none ${isScheduleEnabled ? "text-green-600" : "text-[#0f172a]"}`}>
-                      {isScheduleEnabled ? "ON" : "OFF"}
-                    </span>
-                  </motion.div>
-                </div>
-                <Label className="text-sm font-semibold">Scraping Schedule</Label>
+                <SlidingToggle
+                  id="switch-scraping-schedule"
+                  checked={isScheduleEnabled}
+                  onChange={(val: boolean) => {
+                    setIsScheduleEnabled(val);
+                    saveSetting("scraping_schedule_enabled", val.toString());
+                  }}
+                />
+                <Label htmlFor="switch-scraping-schedule" className="text-sm font-semibold cursor-pointer">
+                  Scraping Schedule
+                </Label>
+                <p className="text-[11px] text-muted-foreground leading-snug">
+                  Automatically scrape Bangladesh & Global sources on configured schedule (Default: 7:00 AM & 7:00 PM).
+                </p>
               </div>
-              <div className="flex flex-wrap gap-2">
+
+              <div className="flex flex-wrap gap-2 pt-1">
                 <select 
                   className="flex h-9 min-w-[100px] flex-1 rounded-md border border-input bg-background px-2 py-1 text-xs shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
                   value={scrapFrequency} 
-                  onChange={e => setScrapFrequency(e.target.value)}
+                  onChange={e => {
+                    setScrapFrequency(e.target.value);
+                    saveSetting("scraping_frequency", e.target.value);
+                  }}
                   disabled={!isScheduleEnabled}
                 >
                   <option value="Daily">Daily</option>
@@ -413,13 +604,18 @@ export default function AdminScrapingPage() {
                     value={dailyTimesCount} 
                     disabled={!isScheduleEnabled}
                     onChange={e => {
-                      setDailyTimesCount(e.target.value);
-                      const count = parseInt(e.target.value);
-                      setScrapTimes(Array(count).fill("00:00").map((_, i) => scrapTimes[i] || "00:00"));
+                      const countVal = e.target.value;
+                      setDailyTimesCount(countVal);
+                      saveSetting("scraping_daily_count", countVal);
+                      const count = parseInt(countVal, 10);
+                      const defaults = ["07:00", "19:00", "13:00"];
+                      const updated = Array(count).fill("07:00").map((_, i) => scrapTimes[i] || defaults[i] || "07:00");
+                      setScrapTimes(updated);
+                      saveSetting("scraping_times", JSON.stringify(updated));
                     }}
                   >
                     <option value="1">1 Time/Day</option>
-                    <option value="2">2 Times/Day</option>
+                    <option value="2">2 Times/Day (7 AM, 7 PM)</option>
                     <option value="3">3 Times/Day</option>
                   </select>
                 )}
@@ -434,7 +630,11 @@ export default function AdminScrapingPage() {
                       variant={weeklyDays.includes(d) ? "default" : "outline"}
                       className="h-7 text-[10px] px-2 rounded-full"
                       disabled={!isScheduleEnabled}
-                      onClick={() => setWeeklyDays(prev => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d])}
+                      onClick={() => {
+                        const updated = weeklyDays.includes(d) ? weeklyDays.filter(x => x !== d) : [...weeklyDays, d];
+                        setWeeklyDays(updated);
+                        saveSetting("scraping_weekly_days", JSON.stringify(updated));
+                      }}
                     >
                       {d}
                     </Button>
@@ -444,14 +644,14 @@ export default function AdminScrapingPage() {
               
               <div className="flex flex-wrap gap-2 mt-2">
                 {scrapTimes.map((t, i) => {
-                  const [h, m] = (t || "00:00").split(":");
-                  const hour = parseInt(h || "0", 10);
+                  const [h, m] = (t || "07:00").split(":");
+                  const hour = parseInt(h || "7", 10);
                   const ampm = hour >= 12 ? "PM" : "AM";
                   const formattedHour = hour % 12 || 12;
                   const displayStr = `${formattedHour}:${(m || "00").padStart(2, "0")} ${ampm}`;
 
                   return (
-                    <div key={i} className="flex items-center gap-1 bg-muted px-2.5 py-1 rounded-xl border border-border">
+                    <div key={i} className="flex items-center gap-1.5 bg-muted px-2.5 py-1 rounded-xl border border-border">
                       <Input 
                         type="time" 
                         className="w-[95px] h-7 text-xs bg-transparent border-0 p-0 focus-visible:ring-0 disabled:opacity-50 font-mono" 
@@ -461,6 +661,7 @@ export default function AdminScrapingPage() {
                           const newT = [...scrapTimes];
                           newT[i] = e.target.value;
                           setScrapTimes(newT);
+                          saveSetting("scraping_times", JSON.stringify(newT));
                         }} 
                       />
                       <span className="text-[10px] font-bold text-primary font-mono">{displayStr}</span>
@@ -470,39 +671,109 @@ export default function AdminScrapingPage() {
               </div>
             </div>
 
-            {/* Summarization Delay */}
-            <div className={`space-y-3 md:border-l border-border md:pl-6 transition-opacity ${isSummarizeEnabled ? "opacity-100" : "opacity-50"}`}>
+            {/* AI Podcast Scheduler */}
+            <div className={`space-y-3 md:border-l border-border md:pl-6 transition-opacity ${isPodcastScheduleEnabled ? "opacity-100" : "opacity-50"}`}>
               <div className="flex flex-col gap-3">
-                <div 
-                  onClick={() => setIsSummarizeEnabled(!isSummarizeEnabled)}
-                  className={`relative w-14 h-7 shrink-0 rounded-full p-1 cursor-pointer transition-colors duration-300 ${isSummarizeEnabled ? "bg-green-500" : "bg-[#0f172a]"}`}
-                >
-                  <motion.div
-                    className="w-6 h-5 bg-white rounded-full shadow-sm flex items-center justify-center"
-                    initial={false}
-                    animate={{ x: isSummarizeEnabled ? 24 : 0 }}
-                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                  >
-                    <span className={`text-[8px] font-bold leading-none ${isSummarizeEnabled ? "text-green-600" : "text-[#0f172a]"}`}>
-                      {isSummarizeEnabled ? "ON" : "OFF"}
-                    </span>
-                  </motion.div>
-                </div>
-                <Label className="text-sm font-semibold">Podcast Summarization</Label>
-                <p className="text-[11px] text-muted-foreground leading-snug">Generate a daily audio summary including news, weather, and traffic.</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <Input 
-                  type="number" 
-                  value={summarizeAfter}
-                  disabled={!isSummarizeEnabled}
-                  onChange={e => {
-                    setSummarizeAfter(e.target.value);
-                    saveSetting("summarize_after_mins", e.target.value);
+                <SlidingToggle
+                  id="switch-podcast-schedule"
+                  checked={isPodcastScheduleEnabled}
+                  onChange={(val: boolean) => {
+                    setIsPodcastScheduleEnabled(val);
+                    saveSetting("podcast_schedule_enabled", val.toString());
                   }}
-                  className="w-[90px] h-9 disabled:opacity-50" 
                 />
-                <span className="text-xs text-muted-foreground">minutes</span>
+                <Label htmlFor="switch-podcast-schedule" className="text-sm font-semibold cursor-pointer">
+                  AI Podcast Scheduler
+                </Label>
+                <p className="text-[11px] text-muted-foreground leading-snug">
+                  Automatically generate audio bulletin from fresh news with a 10m buffer (Default: 7:10 AM & 7:10 PM).
+                </p>
+              </div>
+
+              <div className="flex flex-wrap gap-2 pt-1">
+                <select 
+                  className="flex h-9 min-w-[100px] flex-1 rounded-md border border-input bg-background px-2 py-1 text-xs shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
+                  value={podcastFrequency} 
+                  onChange={e => {
+                    setPodcastFrequency(e.target.value);
+                    saveSetting("podcast_frequency", e.target.value);
+                  }}
+                  disabled={!isPodcastScheduleEnabled}
+                >
+                  <option value="Daily">Daily</option>
+                  <option value="Weekly">Weekly</option>
+                </select>
+                
+                {podcastFrequency === "Daily" && (
+                  <select 
+                    className="flex h-9 min-w-[100px] flex-1 rounded-md border border-input bg-background px-2 py-1 text-xs shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
+                    value={podcastDailyTimesCount} 
+                    disabled={!isPodcastScheduleEnabled}
+                    onChange={e => {
+                      const countVal = e.target.value;
+                      setPodcastDailyTimesCount(countVal);
+                      saveSetting("podcast_daily_count", countVal);
+                      const count = parseInt(countVal, 10);
+                      const defaults = ["07:10", "19:10", "13:10"];
+                      const updated = Array(count).fill("07:10").map((_, i) => podcastTimes[i] || defaults[i] || "07:10");
+                      setPodcastTimes(updated);
+                      saveSetting("podcast_times", JSON.stringify(updated));
+                    }}
+                  >
+                    <option value="1">1 Time/Day</option>
+                    <option value="2">2 Times/Day (7:10 AM, 7:10 PM)</option>
+                    <option value="3">3 Times/Day</option>
+                  </select>
+                )}
+              </div>
+              
+              {podcastFrequency === "Weekly" && (
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {DAYS.map(d => (
+                    <Button 
+                      key={d} 
+                      size="sm" 
+                      variant={podcastWeeklyDays.includes(d) ? "default" : "outline"}
+                      className="h-7 text-[10px] px-2 rounded-full"
+                      disabled={!isPodcastScheduleEnabled}
+                      onClick={() => {
+                        const updated = podcastWeeklyDays.includes(d) ? podcastWeeklyDays.filter(x => x !== d) : [...podcastWeeklyDays, d];
+                        setPodcastWeeklyDays(updated);
+                        saveSetting("podcast_weekly_days", JSON.stringify(updated));
+                      }}
+                    >
+                      {d}
+                    </Button>
+                  ))}
+                </div>
+              )}
+              
+              <div className="flex flex-wrap gap-2 mt-2">
+                {podcastTimes.map((t, i) => {
+                  const [h, m] = (t || "07:10").split(":");
+                  const hour = parseInt(h || "7", 10);
+                  const ampm = hour >= 12 ? "PM" : "AM";
+                  const formattedHour = hour % 12 || 12;
+                  const displayStr = `${formattedHour}:${(m || "10").padStart(2, "0")} ${ampm}`;
+
+                  return (
+                    <div key={i} className="flex items-center gap-1.5 bg-muted px-2.5 py-1 rounded-xl border border-border">
+                      <Input 
+                        type="time" 
+                        className="w-[95px] h-7 text-xs bg-transparent border-0 p-0 focus-visible:ring-0 disabled:opacity-50 font-mono" 
+                        value={t} 
+                        disabled={!isPodcastScheduleEnabled}
+                        onChange={e => {
+                          const newT = [...podcastTimes];
+                          newT[i] = e.target.value;
+                          setPodcastTimes(newT);
+                          saveSetting("podcast_times", JSON.stringify(newT));
+                        }} 
+                      />
+                      <span className="text-[10px] font-bold text-emerald-500 font-mono">{displayStr}</span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
             
@@ -510,7 +781,303 @@ export default function AdminScrapingPage() {
         </CardContent>
       </Card>
 
-      {/* 3. Direct URL Ingestion */}
+      {/* 2. Manual Scraping Control (Renamed from Live Scraping Status) */}
+      <Card className={`bg-card/50 backdrop-blur-sm border-border mb-6 transition-all duration-300 ${isTerminalFullscreen ? "fixed bottom-4 left-4 right-4 top-24 z-50 overflow-hidden flex flex-col bg-black/95 shadow-2xl ring-1 ring-border" : ""}`}>
+        <CardHeader className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 border-b border-border pb-4">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <Play className="w-5 h-5 text-primary" />
+              Manual Scraping Control
+              {(isTriggeringRss || isGeneratingPodcast) && (
+                <span className="ml-2 w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse" />
+              )}
+            </CardTitle>
+            <CardDescription>
+              Manually trigger scraping or generate AI podcasts, and monitor real-time execution logs.
+            </CardDescription>
+          </div>
+          
+          <div className="flex flex-wrap items-center gap-2.5 bg-black/30 p-2 rounded-xl border border-white/5">
+            <div className="flex items-center gap-2 px-1">
+              <Label className="text-xs text-muted-foreground whitespace-nowrap">Target Count:</Label>
+              <Input 
+                type="number" 
+                min="1" max="25" 
+                value={targetCount}
+                onChange={(e) => setTargetCount(e.target.value)}
+                className="w-16 h-8 text-xs bg-black/40 border-white/10 focus-visible:ring-1" 
+              />
+            </div>
+            
+            <div className="flex items-center gap-2 px-1 sm:border-l sm:border-white/10 sm:pl-3">
+              <Label className="text-xs text-muted-foreground whitespace-nowrap">Country:</Label>
+              <select 
+                className="flex h-8 w-32 bg-black/40 rounded-md border border-white/10 text-xs focus-visible:outline-none px-2 text-foreground"
+                value={selectedCountry}
+                onChange={(e) => setSelectedCountry(e.target.value)}
+              >
+                <option value="All">🌐 All Countries</option>
+                <option value="BD">🇧🇩 Bangladesh</option>
+                <option value="GLOBAL">🌍 Global Only</option>
+              </select>
+            </div>
+
+            <div className="flex items-center gap-2 px-1 sm:border-l sm:border-white/10 sm:pl-3">
+              <Label className="text-xs text-muted-foreground whitespace-nowrap">Category:</Label>
+              <select 
+                className="flex h-8 w-28 bg-black/40 rounded-md border border-white/10 text-xs focus-visible:outline-none px-2 text-foreground"
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+              >
+                <option value="All">All Categories</option>
+                {CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+              </select>
+            </div>
+
+            {/* Scrap Now Button */}
+            <Button 
+              size="sm" 
+              onClick={handleTriggerEmergencyScrape} 
+              disabled={isTriggeringRss || isGeneratingPodcast} 
+              className="bg-primary text-primary-foreground hover:bg-primary/90 h-8 ml-1 shadow-sm font-semibold"
+            >
+              <Play className="w-3.5 h-3.5 mr-1" /> 
+              {isTriggeringRss ? "Scraping..." : "Scrap Now"}
+            </Button>
+
+            {/* AI Podcast Summary Button */}
+            <Button 
+              size="sm" 
+              onClick={handleTriggerPodcast} 
+              disabled={isGeneratingPodcast || isTriggeringRss} 
+              className="bg-emerald-600 hover:bg-emerald-700 text-white h-8 shadow-sm font-semibold"
+            >
+              <Radio className="w-3.5 h-3.5 mr-1" />
+              {isGeneratingPodcast ? "Generating Audio..." : "AI Podcast Summary"}
+            </Button>
+
+            <Button 
+              size="sm" 
+              variant="outline" 
+              onClick={handleSaveAutomationDefaults} 
+              disabled={isSavingDefaults} 
+              className={`h-8 text-xs border-white/20 hover:bg-white/10 ${defaultsSavedSuccess ? "text-emerald-400 border-emerald-500/50" : ""}`}
+              title="Save selected Category, Target Count, and Country as scheduler defaults"
+            >
+              {defaultsSavedSuccess ? "✓ Saved" : isSavingDefaults ? "Saving..." : "Save Defaults"}
+            </Button>
+            
+            <Button variant="ghost" size="icon" onClick={() => setIsTerminalFullscreen(!isTerminalFullscreen)} className="h-8 w-8 hidden md:flex hover:bg-white/10">
+              {isTerminalFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className={`p-0 ${isTerminalFullscreen ? "flex-1 overflow-hidden" : ""}`}>
+          <div 
+            ref={logsContainerRef}
+            className={`overflow-y-auto font-mono text-xs text-green-400 space-y-1 p-4 bg-black ${isTerminalFullscreen ? "h-full" : "h-72"}`}
+          >
+            {scrapeLogs.length === 0 && !isTriggeringRss && !isGeneratingPodcast ? (
+              <div className="text-slate-500 italic">No logs yet. Click 'Scrap Now' or 'AI Podcast Summary' to initiate manual execution...</div>
+            ) : (
+              <>
+                {scrapeLogs.map((log, i) => (
+                  <div key={i} className="leading-relaxed">
+                    {log}
+                  </div>
+                ))}
+                {(isTriggeringRss || isGeneratingPodcast) && <div className="animate-pulse text-emerald-400">_</div>}
+              </>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 3. Sources Management with Country Tabs */}
+      <Card className="bg-card/50 backdrop-blur-sm border-border">
+        <CardHeader>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Database className="w-5 h-5 text-primary" />
+                Automated Scraping Sources (RSS / DDG)
+              </CardTitle>
+              <CardDescription>Manage active RSS feeds for Bangladesh & Global background news harvesting.</CardDescription>
+            </div>
+
+            {/* Country Filter Tabs */}
+            <div className="flex items-center gap-1 bg-muted p-1 rounded-xl border border-border">
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveSourceTab("ALL");
+                  setNewSourceCountry("BD");
+                }}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${activeSourceTab === "ALL" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+              >
+                All Sources ({sources.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveSourceTab("BD");
+                  setNewSourceCountry("BD");
+                }}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${activeSourceTab === "BD" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+              >
+                🇧🇩 Bangladesh ({bdCount})
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveSourceTab("GLOBAL");
+                  setNewSourceCountry("GLOBAL");
+                }}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${activeSourceTab === "GLOBAL" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+              >
+                🌐 Global ({globalCount})
+              </button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Add Source Input Bar */}
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-2 items-end bg-muted/40 p-3 rounded-xl border border-border/50">
+            <div className="md:col-span-3 space-y-1">
+              <Label className="text-xs font-medium">Source Name</Label>
+              <Input 
+                placeholder="e.g. BBC News (World)" 
+                value={newSourceName} 
+                onChange={e => setNewSourceName(e.target.value)} 
+                className="h-9 text-xs"
+              />
+            </div>
+            <div className="md:col-span-4 space-y-1">
+              <Label className="text-xs font-medium">Feed URL or RSS link</Label>
+              <Input 
+                placeholder="https://feeds.bbci.co.uk/.../rss.xml" 
+                value={newSourceUrl} 
+                onChange={e => setNewSourceUrl(e.target.value)} 
+                className="h-9 text-xs font-mono"
+              />
+            </div>
+            <div className="md:col-span-2 space-y-1">
+              <Label className="text-xs font-medium">Country</Label>
+              <select 
+                className="flex h-9 w-full rounded-md border border-input bg-background px-2.5 py-1 text-xs"
+                value={newSourceCountry}
+                onChange={(e) => setNewSourceCountry(e.target.value as any)}
+              >
+                <option value="BD">🇧🇩 Bangladesh</option>
+                <option value="GLOBAL">🌐 Global</option>
+              </select>
+            </div>
+            <div className="md:col-span-2 space-y-1">
+              <Label className="text-xs font-medium">Category</Label>
+              <select 
+                className="flex h-9 w-full rounded-md border border-input bg-background px-2.5 py-1 text-xs"
+                value={newSourceCat}
+                onChange={(e) => setNewSourceCat(e.target.value)}
+              >
+                <option value="General">General</option>
+                <option value="World">World</option>
+                {CATEGORIES.filter(c => c !== "General").map(cat => <option key={cat} value={cat}>{cat}</option>)}
+              </select>
+            </div>
+            <div className="md:col-span-1">
+              <Button 
+                onClick={handleAddSource} 
+                disabled={!newSourceName || !newSourceUrl} 
+                className="w-full h-9 bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-semibold"
+              >
+                <Plus className="w-3.5 h-3.5 mr-1" /> Add
+              </Button>
+            </div>
+          </div>
+
+          {/* Sources Table */}
+          <div className="border border-border rounded-xl overflow-hidden shadow-sm">
+            <table className="w-full text-sm">
+              <thead className="bg-[#0f172a] text-white text-left">
+                <tr>
+                  <th className="px-4 py-3 font-medium rounded-tl-xl text-xs">Name</th>
+                  <th className="px-4 py-3 font-medium text-xs">Feed URL</th>
+                  <th className="px-4 py-3 font-medium text-xs">Country</th>
+                  <th className="px-4 py-3 font-medium text-xs">Category</th>
+                  <th className="px-4 py-3 font-medium rounded-tr-xl text-right text-xs">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredSources.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
+                      No sources found for this tab. 
+                      <Button 
+                        variant="link" 
+                        onClick={handleLoadDefaultSources} 
+                        disabled={isSeedingSources}
+                        className="text-primary p-0 h-auto ml-1 font-semibold"
+                      >
+                        {isSeedingSources ? "Loading..." : "Load Verified Defaults"}
+                      </Button>
+                    </td>
+                  </tr>
+                ) : (
+                  filteredSources.map((source) => (
+                    <tr key={source.id} className="border-t border-border hover:bg-muted/30 transition-colors">
+                      <td className="px-4 py-2.5 font-medium">{source.name}</td>
+                      <td className="px-4 py-2.5 font-mono text-xs max-w-[280px] truncate text-muted-foreground" title={source.url}>
+                        {source.url}
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${source.country === "GLOBAL" ? "bg-sky-500/10 text-sky-400 border border-sky-500/20" : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"}`}>
+                          {source.country === "GLOBAL" ? "🌐 Global" : "🇧🇩 BD"}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2.5 text-xs text-muted-foreground">{source.category || "General"}</td>
+                      <td className="px-4 py-2.5 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleToggleSource(source.id, source.is_active)}
+                            className={`px-2 py-0.5 rounded text-[10px] font-bold transition-colors ${source.is_active ? "bg-emerald-500/20 text-emerald-400" : "bg-slate-700 text-slate-400"}`}
+                          >
+                            {source.is_active ? "ACTIVE" : "PAUSED"}
+                          </button>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={() => handleDeleteSource(source.id)} 
+                            className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-500/10"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
+            <span>Showing {filteredSources.length} of {sources.length} total source(s)</span>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleLoadDefaultSources} 
+              disabled={isSeedingSources}
+              className="text-xs h-8 border-border hover:bg-muted"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${isSeedingSources ? "animate-spin" : ""}`} />
+              {isSeedingSources ? "Refreshing..." : "Reset to Verified Defaults"}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 4. Direct URL Ingestion */}
       <Card className="bg-card/50 backdrop-blur-sm border-border mb-6">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -563,185 +1130,20 @@ export default function AdminScrapingPage() {
           </div>
         </CardContent>
         <CardFooter>
-          <Button onClick={handleDirectIngest} disabled={isIngesting || !urlToIngest} className="w-full bg-white text-black hover:bg-slate-200">
+          <Button onClick={handleDirectIngest} disabled={isIngesting || !urlToIngest} className="w-full bg-white text-black hover:bg-slate-200 font-semibold">
             {isIngesting ? "Starting..." : "Start Scraping"}
           </Button>
         </CardFooter>
       </Card>
 
-      {/* Live Scraping Status */}
-      <Card className={`bg-card/50 backdrop-blur-sm border-border mb-6 transition-all duration-300 ${isTerminalFullscreen ? "fixed bottom-4 left-4 right-4 top-24 z-50 overflow-hidden flex flex-col bg-black/95 shadow-2xl ring-1 ring-border" : ""}`}>
-        <CardHeader className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 border-b border-border pb-4">
-          <div>
-            <CardTitle className="flex items-center gap-2">
-              <Play className="w-5 h-5 text-primary" />
-              Live Scraping Status
-              {isTriggeringRss && <span className="ml-2 w-2 h-2 bg-green-500 rounded-full animate-pulse" />}
-            </CardTitle>
-            <CardDescription>Manually trigger scraping and view real-time logs.</CardDescription>
-          </div>
-          
-          <div className="flex flex-wrap items-center gap-3 bg-black/20 p-2 rounded-xl border border-white/5">
-            <div className="flex items-center gap-2 px-1">
-              <Label className="text-xs text-muted-foreground whitespace-nowrap">Target Count:</Label>
-              <Input 
-                type="number" 
-                min="1" max="20" 
-                value={targetCount}
-                onChange={(e) => setTargetCount(e.target.value)}
-                className="w-16 h-8 text-xs bg-black/40 border-white/10 focus-visible:ring-1" 
-              />
-            </div>
-            
-            <div className="flex items-center gap-2 px-1 sm:border-l sm:border-white/10 sm:pl-3">
-              <Label className="text-xs text-muted-foreground whitespace-nowrap">Country:</Label>
-              <select 
-                className="flex h-8 w-28 bg-black/40 rounded-md border border-white/10 text-xs focus-visible:outline-none px-2 text-foreground"
-                value={selectedCountry}
-                onChange={(e) => setSelectedCountry(e.target.value)}
-              >
-                <option value="All">All Countries</option>
-                <option value="BD">🇧🇩 Bangladesh</option>
-                <option value="GLOBAL">🌐 Global</option>
-              </select>
-            </div>
-
-            <div className="flex items-center gap-2 px-1 sm:border-l sm:border-white/10 sm:pl-3">
-              <Label className="text-xs text-muted-foreground whitespace-nowrap">Category:</Label>
-              <select 
-                className="flex h-8 w-28 bg-black/40 rounded-md border border-white/10 text-xs focus-visible:outline-none px-2 text-foreground"
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-              >
-                <option value="All">All Categories</option>
-                {CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-              </select>
-            </div>
-
-            <Button size="sm" onClick={handleTriggerEmergencyScrape} disabled={isTriggeringRss} className="bg-primary text-primary-foreground hover:bg-primary/90 h-8 ml-1">
-              <Play className="w-3.5 h-3.5 mr-1" /> 
-              {isTriggeringRss ? "Scraping..." : "Scrap Now"}
-            </Button>
-            
-            <Button variant="ghost" size="icon" onClick={() => setIsTerminalFullscreen(!isTerminalFullscreen)} className="h-8 w-8 hidden md:flex hover:bg-white/10">
-              {isTerminalFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className={`p-0 ${isTerminalFullscreen ? "flex-1 overflow-hidden" : ""}`}>
-          <div 
-            ref={logsContainerRef}
-            className={`overflow-y-auto font-mono text-xs text-green-400 space-y-1 p-4 bg-black ${isTerminalFullscreen ? "h-full" : "h-72"}`}
-          >
-            {scrapeLogs.length === 0 && !isTriggeringRss ? (
-              <div className="text-slate-500 italic">No logs yet. Click 'Scrap Now' to start...</div>
-            ) : (
-              <>
-                {scrapeLogs.map((log, i) => (
-                  <div key={i}>
-                    <span className="text-slate-500 mr-2">[{new Date().toLocaleTimeString()}]</span>
-                    {log}
-                  </div>
-                ))}
-                {isTriggeringRss && <div className="animate-pulse">_</div>}
-              </>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Sources Management */}
-      <Card className="bg-card/50 backdrop-blur-sm border-border">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <Database className="w-5 h-5 text-primary" />
-                Automated Scraping Sources (RSS / DDG)
-              </CardTitle>
-              <CardDescription>Manage sources for the hourly/daily background cron jobs.</CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="flex gap-2 items-end">
-            <div className="flex-1 space-y-1">
-              <Label className="text-xs">Source Name</Label>
-              <Input placeholder="e.g. Prothom Alo" value={newSourceName} onChange={e => setNewSourceName(e.target.value)} />
-            </div>
-            <div className="flex-[2] space-y-1">
-              <Label className="text-xs">Feed URL or DDG Query</Label>
-              <Input placeholder="https://.../feed" value={newSourceUrl} onChange={e => setNewSourceUrl(e.target.value)} />
-            </div>
-            <div className="flex-1 space-y-1">
-              <Label className="text-xs">Category</Label>
-              <div className="flex gap-2">
-                <select 
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                  value={CATEGORIES.includes(newSourceCat) ? newSourceCat : "Custom"}
-                  onChange={(e) => {
-                    if (e.target.value !== "Custom") setNewSourceCat(e.target.value);
-                    else setNewSourceCat("");
-                  }}
-                >
-                  {CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-                  <option value="Custom">Custom...</option>
-                </select>
-                {!CATEGORIES.includes(newSourceCat) && (
-                  <Input placeholder="Custom" value={newSourceCat} onChange={e => setNewSourceCat(e.target.value)} />
-                )}
-              </div>
-            </div>
-            <Button onClick={handleAddSource} disabled={!newSourceName || !newSourceUrl} className="bg-white text-black hover:bg-slate-200 border border-slate-300">
-              <Plus className="w-4 h-4 mr-1" /> Add
-            </Button>
-          </div>
-
-          <div className="border border-border rounded-xl overflow-hidden">
-            <table className="w-full text-sm">
-              <thead className="bg-[#0f172a] text-white text-left">
-                <tr>
-                  <th className="px-4 py-3 font-medium rounded-tl-xl">Name</th>
-                  <th className="px-4 py-3 font-medium">URL</th>
-                  <th className="px-4 py-3 font-medium rounded-tr-xl">Category</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sources.length === 0 && (
-                  <tr>
-                    <td colSpan={3} className="px-4 py-8 text-center text-muted-foreground">
-                      No sources found. 
-                      <Button variant="link" onClick={handleLoadDefaultSources} className="text-primary p-0 h-auto ml-1">
-                        Load Defaults
-                      </Button>
-                    </td>
-                  </tr>
-                )}
-                {sources.map(source => (
-                  <tr key={source.id} className="border-t border-border">
-                    <td className="px-4 py-2">{source.name}</td>
-                    <td className="px-4 py-2 font-mono text-xs max-w-[200px] truncate" title={source.url}>{source.url}</td>
-                    <td className="px-4 py-2 flex items-center justify-between">
-                      {source.category}
-                      <Button variant="ghost" size="icon" onClick={() => handleDeleteSource(source.id)} className="h-6 w-6 text-red-500 hover:text-red-600">
-                        <Trash2 className="w-3 h-3" />
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
-      {/* 2. Global Settings (Gemini API Keys) */}
+      {/* 5. Global Settings (Gemini API Keys) */}
       <Card className="bg-card/50 backdrop-blur-sm border-border mb-6">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Key className="w-5 h-5 text-primary" />
             Global Gemini API Keys
           </CardTitle>
-          <CardDescription>Configure global API keys for background scraping if user BYOK is not available.</CardDescription>
+          <CardDescription>Configure global API keys for background scraping and podcast generation.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-3 pt-2">
@@ -791,8 +1193,8 @@ export default function AdminScrapingPage() {
             >
               <Plus className="w-4 h-4 mr-1" /> Add Another API Key
             </Button>
-            <Button onClick={handleSaveSettings} disabled={isSavingSettings} size="sm" className={`bg-white text-black hover:bg-slate-200 transition-colors ${saveSuccess ? "!bg-green-500 !text-white" : ""}`}>
-              {isSavingSettings ? "Saving..." : saveSuccess ? "Saved Successfully" : "Save API Keys"}
+            <Button onClick={handleSaveSettings} disabled={isSavingSettings} size="sm" className={`bg-white text-black hover:bg-slate-200 transition-colors ${saveSuccess ? "!bg-emerald-600 !text-white" : ""}`}>
+              {isSavingSettings ? "Saving..." : saveSuccess ? "✓ Saved Successfully" : "Save API Keys"}
             </Button>
           </div>
         </CardContent>

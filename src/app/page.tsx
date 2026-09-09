@@ -99,6 +99,27 @@ export default function Home() {
       setIsLoading(false);
     }, 800);
 
+    // Auto-detect Edition: Bangladesh vs Global based on user timezone / location
+    try {
+      const savedCode = localStorage.getItem("kahf_user_country");
+      if (savedCode) {
+        const found = COUNTRIES.find((c) => c.code === savedCode);
+        if (found) {
+          setSelectedCountry(found);
+        }
+      } else {
+        // Detect timezone
+        const userTz = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+        const isBangladesh = userTz === "Asia/Dhaka" || userTz.toLowerCase().includes("dhaka");
+        if (!isBangladesh && userTz) {
+          // Default international visitors to Global edition
+          setSelectedCountry(COUNTRIES[1]);
+        } else {
+          setSelectedCountry(COUNTRIES[0]);
+        }
+      }
+    } catch (e) {}
+
     const date = new Date().toLocaleDateString("en-US", {
       weekday: "long",
       year: "numeric",
@@ -311,12 +332,12 @@ export default function Home() {
           </div>
 
           {/* ROW 2 ON MOBILE (Right Cluster on Desktop): Upgrade Pill & Location/Region Selector */}
-          <div className="flex items-center justify-between sm:justify-end gap-1.5 sm:gap-2.5 text-[10px] sm:text-xs w-full sm:w-auto">
+          <div className="flex items-center justify-between sm:justify-end gap-1.5 sm:gap-2.5 text-xs sm:text-xs w-full sm:w-auto">
             {/* 1. Upgrade to Premium */}
             {!isPremium && (
               <Link href="/pricing" className="flex-1 sm:flex-initial group">
-                <div className="flex items-center justify-center gap-1 px-2.5 sm:px-3 py-1 sm:py-1.5 bg-gradient-to-r from-emerald-500/15 via-primary/20 to-emerald-500/15 hover:from-primary/30 hover:to-emerald-500/30 text-emerald-400 border border-emerald-500/30 rounded-lg sm:rounded-xl shadow-sm transition-all cursor-pointer">
-                  <Sparkles className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-primary shrink-0" />
+                <div className="flex items-center justify-center gap-1 px-2.5 sm:px-3 py-1.5 sm:py-1.5 bg-gradient-to-r from-emerald-500/15 via-primary/20 to-emerald-500/15 hover:from-primary/30 hover:to-emerald-500/30 text-emerald-400 border border-emerald-500/30 rounded-lg sm:rounded-xl shadow-sm transition-all cursor-pointer">
+                  <Sparkles className="w-3.5 h-3.5 sm:w-3.5 sm:h-3.5 text-primary shrink-0" />
                   <span className="font-bold tracking-tight whitespace-nowrap">
                     Upgrade to Premium
                   </span>
@@ -328,16 +349,16 @@ export default function Home() {
             <div className="flex-1 sm:flex-initial relative">
               <button
                 onClick={() => setIsLocationDropdownOpen(!isLocationDropdownOpen)}
-                className="w-full sm:w-auto flex items-center justify-between sm:justify-start gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 bg-card/90 hover:bg-muted border border-border hover:border-primary/40 rounded-lg sm:rounded-xl font-semibold text-foreground transition-all cursor-pointer shadow-sm"
+                className="w-full sm:w-auto flex items-center justify-between sm:justify-start gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-1.5 bg-card/90 hover:bg-muted border border-border hover:border-primary/40 rounded-lg sm:rounded-xl font-semibold text-foreground transition-all cursor-pointer shadow-sm"
                 title="Change Country / Edition"
               >
                 <div className="flex items-center gap-1 sm:gap-1.5 truncate">
-                  <MapPin className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-primary shrink-0" />
+                  <MapPin className="w-3.5 h-3.5 sm:w-3.5 sm:h-3.5 text-primary shrink-0" />
                   <span className="text-xs">{selectedCountry.flag}</span>
                   <span className="font-bold">{selectedCountry.name}</span>
                 </div>
                 <ChevronDown
-                  className={`w-3 h-3 sm:w-3.5 sm:h-3.5 text-muted-foreground transition-transform duration-200 shrink-0 ml-1 ${isLocationDropdownOpen ? "rotate-180" : ""
+                  className={`w-3.5 h-3.5 sm:w-3.5 sm:h-3.5 text-muted-foreground transition-transform duration-200 shrink-0 ml-1 ${isLocationDropdownOpen ? "rotate-180" : ""
                     }`}
                 />
               </button>
@@ -367,6 +388,7 @@ export default function Home() {
                           key={c.code}
                           onClick={() => {
                             setSelectedCountry(c);
+                            try { localStorage.setItem("kahf_user_country", c.code); } catch (e) {}
                             setIsLocationDropdownOpen(false);
                           }}
                           className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-all ${selectedCountry.code === c.code
@@ -409,24 +431,24 @@ export default function Home() {
             <Link href="/news/daily-summary" className="col-span-8 md:col-span-8 lg:col-span-9 min-w-0 space-y-2.5 sm:space-y-4 group/left block cursor-pointer">
               {/* Top Badge Row: Left Tag Badge & Synced Duration Badge right beside it */}
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 sm:px-3 sm:py-1 bg-primary/15 text-primary text-[10px] sm:text-[11px] font-black uppercase tracking-wider rounded-full border border-primary/25">
-                  <Zap className="w-3 h-3 fill-current" />
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 sm:px-3 sm:py-1 bg-primary/15 text-primary text-xs sm:text-[11px] font-black uppercase tracking-wider rounded-full border border-primary/25">
+                  <Zap className="w-3.5 h-3.5 fill-current" />
                   আজকের এআই সারসংক্ষেপ
                 </span>
 
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 sm:px-3 sm:py-1 bg-muted/90 text-foreground border border-border text-[10px] sm:text-[11px] font-mono font-bold rounded-full shadow-sm whitespace-nowrap shrink-0">
-                  <Clock className="w-3 h-3 text-primary shrink-0" />
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 sm:px-3 sm:py-1 bg-muted/90 text-foreground border border-border text-xs sm:text-[11px] font-mono font-bold rounded-full shadow-sm whitespace-nowrap shrink-0">
+                  <Clock className="w-3.5 h-3.5 text-primary shrink-0" />
                   <span>{podcastDurationStr}</span>
                 </span>
               </div>
 
               {/* Main Headline */}
-              <h1 className="text-sm sm:text-lg md:text-2xl lg:text-[2.25rem] font-sans font-bold text-foreground leading-[1.3] tracking-tight notranslate group-hover/left:text-primary transition-colors">
+              <h1 className="text-base sm:text-lg md:text-2xl lg:text-[2.25rem] font-sans font-bold text-foreground leading-[1.3] tracking-tight notranslate group-hover/left:text-primary transition-colors">
                 আপনার দৈনিক সারসংক্ষেপ: <span className="text-primary">আজকের খবরের সম্পূর্ণ বিশ্লেষণ</span>
               </h1>
 
               {/* Subtitle / Summary Content */}
-              <p className="text-[11px] sm:text-xs md:text-sm text-muted-foreground max-w-2xl leading-relaxed font-sans notranslate line-clamp-2 sm:line-clamp-none">
+              <p className="text-xs sm:text-xs md:text-sm text-muted-foreground max-w-2xl leading-relaxed font-sans notranslate line-clamp-2 sm:line-clamp-none">
                 আজকের শীর্ষ খবরগুলোতে থাকছে জাতীয় রাজনীতি, অর্থনীতি ও প্রযুক্তি খাতের সর্বশেষ আপডেট। এক ক্লিকেই সম্পূর্ণ খবরের অডিও ব্রিফিং শুনে নিন অথবা সারসংক্ষেপ পড়ুন।
               </p>
 
@@ -434,7 +456,7 @@ export default function Home() {
               <div className="flex items-center gap-2 sm:gap-3 pt-1 sm:pt-2">
                 <Button
                   onClick={handlePlayFullAudio}
-                  className="h-8 sm:h-9 md:h-10 px-4 sm:px-5 rounded-xl bg-primary text-primary-foreground font-bold text-xs sm:text-sm gap-1.5 shadow-sm cursor-pointer hover:bg-primary/90 transition-all"
+                  className="h-8.5 sm:h-9 md:h-10 px-4 sm:px-5 rounded-xl bg-primary text-primary-foreground font-bold text-xs sm:text-sm gap-1.5 shadow-sm cursor-pointer hover:bg-primary/90 transition-all"
                 >
                   <Headphones className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
                   <span>শুনুন</span>
@@ -442,7 +464,7 @@ export default function Home() {
 
                 <Button
                   variant="outline"
-                  className="h-8 sm:h-9 md:h-10 px-4 sm:px-5 rounded-xl border-border hover:bg-muted text-foreground font-bold text-xs sm:text-sm gap-1.5 cursor-pointer transition-all"
+                  className="h-8.5 sm:h-9 md:h-10 px-4 sm:px-5 rounded-xl border-border hover:bg-muted text-foreground font-bold text-xs sm:text-sm gap-1.5 cursor-pointer transition-all"
                 >
                   <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
                   <span>পড়ুন</span>

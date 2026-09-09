@@ -52,9 +52,9 @@ export const processArticle = inngest.createFunction(
 
     const activeKeys = (globalKeys && globalKeys.length > 0) ? globalKeys : [process.env.GEMINI_API_KEY!];
 
-    // 3. Single Unified Gemini Processing: Exact Full News + Summary + Importance Score
+    // 3. Single Unified Gemini Processing: Exact Full News + Summary + Importance Score + Halal Check
     const aiResult = await step.run("ai-unified-processing", async () => {
-      const prompt = `You are a chief news editor and journalist for a premium multimedia news platform.
+      const prompt = `You are a chief news editor and journalist for KahfNews, an ethical, family-friendly, and Halal-conscious news platform.
 Analyze the following article and return a strictly valid JSON object.
 
 Input Title: ${title}
@@ -64,8 +64,14 @@ Category Hint: ${category || "General"}
 Raw Article Body:
 ${cleanedMarkdown.slice(0, 16000)}
 
+EDITORIAL POLICY:
+1. Family-Friendly & Halal: Reject vulgar entertainment gossip, sexualized content, revealing attire/bikini stories, or illicit affair scandals. Legitimate crime, anti-corruption, court verdicts, and national events are permitted.
+2. FULL CONTENT PRESERVATION: Under "clean_content", you MUST keep the entire full unabridged article intact. Never shorten or condense it into a summary. Keep every single paragraph, quote, and background detail.
+
 YOUR RESPONSE MUST STRICTLY FOLLOW THIS JSON SCHEMA:
 {
+  "is_halal_and_family_friendly": <Boolean: true if clean, ethical, family-safe; false if it contains vulgar gossip, obscenity, sexualized content, or non-halal promotion>,
+  "rejection_reason": "<If false, short explanation, else empty string>",
   "importance_score": <Integer from 1 to 100 representing how critical/breaking/important this news is for a general audience. 85-100: Major national/global breaking news; 65-84: High interest; 45-64: Regular news; 1-44: Minor/Niche>,
   "clean_headline": "<Engaging, accurate Bengali headline>",
   "clean_content": "<FULL UNABRIDGED RAW ARTICLE BODY in clean Bengali markdown. CRITICAL: DO NOT SUMMARIZE OR SHORTEN THIS. Keep EVERY single paragraph, quote, and detail from the raw article intact. Only clean up formatting, ads, and navigation noise>",
@@ -101,6 +107,12 @@ YOUR RESPONSE MUST STRICTLY FOLLOW THIS JSON SCHEMA:
       throw new Error(`Gemini Unified Processing failed with all keys: ${lastError?.message}`);
     });
 
+    // Check Halal & Family-Friendly Filter
+    if (aiResult && aiResult.is_halal_and_family_friendly === false) {
+      console.log(`[Halal Filter Dropped] ${title}: ${aiResult.rejection_reason || "Non-halal or scandalous content"}`);
+      return { skipped: true, reason: aiResult.rejection_reason || "Halal Filter Rejection" };
+    }
+
     // 4. Generate Pre-rendered Audio TTS (Gemini Seamless Audio)
     const audioUrl = await step.run("generate-summary-audio", async () => {
       try {
@@ -121,7 +133,9 @@ YOUR RESPONSE MUST STRICTLY FOLLOW THIS JSON SCHEMA:
 
     // 5. Save to Supabase (news_articles)
     await step.run("save-to-db", async () => {
-      const finalFullContent = (aiResult.clean_content && aiResult.clean_content.length >= 150)
+      // Full News Body Retention Safeguard:
+      const isGeminiShortened = aiResult.clean_content && cleanedMarkdown.length > 500 && (aiResult.clean_content.length < cleanedMarkdown.length * 0.55);
+      const finalFullContent = (!isGeminiShortened && aiResult.clean_content && aiResult.clean_content.length >= 150)
         ? aiResult.clean_content
         : cleanedMarkdown;
 

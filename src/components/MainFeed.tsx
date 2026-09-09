@@ -86,7 +86,7 @@ export default function MainFeed({ newsItems }: MainFeedProps) {
               <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-primary opacity-50" />
             </div>
           </div>
-          <h2 className="text-sm sm:text-base md:text-xl font-sans font-bold text-foreground tracking-tight">সব খবর</h2>
+          <h2 className="text-base sm:text-lg md:text-xl font-sans font-bold text-foreground tracking-tight">সব খবর</h2>
         </div>
 
         {/* Category Navigation Tabs */}
@@ -97,7 +97,7 @@ export default function MainFeed({ newsItems }: MainFeedProps) {
               <button
                 key={cat.label}
                 onClick={() => setActiveCategory(cat.label)}
-                className={`relative px-3 py-1.5 sm:px-4 sm:py-2 rounded-full transition-all duration-300 whitespace-nowrap text-[11px] sm:text-xs font-semibold select-none ${
+                className={`relative px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-full transition-all duration-300 whitespace-nowrap text-xs sm:text-xs font-semibold select-none ${
                   isActive
                     ? "text-primary-foreground font-bold"
                     : "text-muted-foreground hover:text-foreground hover:bg-muted/50"

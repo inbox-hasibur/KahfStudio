@@ -105,6 +105,8 @@ export function splitTextIntoSafeChunks(text: string, maxWordsPerChunk = 20): st
   return chunks.filter((c) => c.trim().length > 0);
 }
 
+let currentWorkingKeyIndex = 0;
+
 /**
  * Calls Gemini TTS API for a single chunk and returns raw PCM buffer
  */
@@ -114,64 +116,66 @@ async function generateChunkPcm(
   apiKeys: string[]
 ): Promise<Buffer> {
   const models = [
-    'gemini-3.1-flash-tts-preview',
     'gemini-2.5-flash-preview-tts',
-    'gemini-2.5-flash',
-    'gemini-2.5-pro-preview-tts',
   ];
 
   let lastError: any = null;
 
   for (const model of models) {
-    for (let k = 0; k < apiKeys.length; k++) {
-      const apiKey = apiKeys[k];
+    const keysToTry = apiKeys.filter((k) => !!k && k.trim().length > 0);
+    const totalKeys = keysToTry.length;
+
+    for (let attempt = 0; attempt < totalKeys; attempt++) {
+      const k = (currentWorkingKeyIndex + attempt) % totalKeys;
+      const apiKey = keysToTry[k];
       if (!apiKey) continue;
 
-      // Retry up to 2 times on rate limit or network glitch
-      for (let attempt = 0; attempt < 2; attempt++) {
-        try {
-          const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-          const payload = {
-            contents: [{ parts: [{ text: `Say the following ${lang === 'bn' ? 'Bengali' : 'English'} text clearly in speech: ${text}` }] }],
-            generationConfig: {
-              responseModalities: ['AUDIO'],
-              speechConfig: {
-                voiceConfig: {
-                  prebuiltVoiceConfig: {
-                    voiceName: lang === 'bn' ? 'Puck' : 'Aoede',
-                  },
+      try {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+        const payload = {
+          contents: [{ parts: [{ text: `Read aloud the following text transcript exactly as written without any commentary:\n\n${text}` }] }],
+          generationConfig: {
+            responseModalities: ['AUDIO'],
+            speechConfig: {
+              voiceConfig: {
+                prebuiltVoiceConfig: {
+                  voiceName: lang === 'bn' ? 'Puck' : 'Aoede',
                 },
               },
             },
-          };
+          },
+        };
 
-          const res = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
-          });
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 75000);
 
-          const json = await res.json();
-          if (res.ok) {
-            const candidate = json.candidates?.[0];
-            const part = candidate?.content?.parts?.[0];
-            if (part?.inlineData?.data) {
-              return Buffer.from(part.inlineData.data, 'base64');
-            }
-          } else {
-            console.warn(`[TTS] Model ${model} Key #${k} HTTP ${res.status}: ${json?.error?.message}`);
-            lastError = new Error(`Model ${model} Key #${k} Error: ${json?.error?.message || JSON.stringify(json)}`);
-            if (json?.error?.code === 429 || json?.error?.code === 503) {
-              await sleep(400 * (attempt + 1));
-              continue;
-            }
-            break; // Non-retryable error for this key/model, move to next
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+          signal: controller.signal,
+        }).finally(() => clearTimeout(timeoutId));
+
+        const json = await res.json();
+        if (res.ok) {
+          const candidate = json.candidates?.[0];
+          const part = candidate?.content?.parts?.[0];
+          if (part?.inlineData?.data) {
+            currentWorkingKeyIndex = k; // Remember active key for fast subsequent calls
+            return Buffer.from(part.inlineData.data, 'base64');
           }
-        } catch (err: any) {
-          console.warn(`[TTS] Fetch exception for ${model}: ${err.message}`);
-          lastError = err;
-          await sleep(200);
+          currentWorkingKeyIndex = (k + 1) % totalKeys;
+          continue;
+        } else {
+          console.warn(`[TTS] Key #${k} HTTP ${res.status}: ${json?.error?.message}`);
+          lastError = new Error(`Key #${k} Error: ${json?.error?.message || JSON.stringify(json)}`);
+          currentWorkingKeyIndex = (k + 1) % totalKeys;
+          continue;
         }
+      } catch (err: any) {
+        console.warn(`[TTS] Fetch exception: ${err.message}`);
+        lastError = err;
+        currentWorkingKeyIndex = (k + 1) % totalKeys;
       }
     }
   }
@@ -180,7 +184,7 @@ async function generateChunkPcm(
 }
 
 /**
- * Generates seamless audio for text of any length by chunking (18-20 words max per chunk)
+ * Generates seamless audio for text of any length by chunking (if necessary)
  * and stitching PCM buffers together into a single master WAV audio.
  */
 export async function generateSeamlessGeminiAudio(
@@ -195,24 +199,27 @@ export async function generateSeamlessGeminiAudio(
     throw new Error('No valid Gemini API key found for TTS generation.');
   }
 
-  // Split into safe 18-20 word chunks to guarantee each is < 12 seconds
-  const chunks = splitTextIntoSafeChunks(fullText, 20);
+  const wordCount = fullText.split(/\s+/).filter(Boolean).length;
+  
+  // Optimization: If text is short (under 110 words), synthesize in a single ultra-fast call
+  if (wordCount <= 110) {
+    const singlePcm = await generateChunkPcm(fullText, lang, validKeys);
+    return pcmToWav(singlePcm, 24000, 1, 16);
+  }
+
+  // Split into safe 70-word chunks (~15s per chunk), capped at 3 chunks max
+  const chunks = splitTextIntoSafeChunks(fullText, 70).slice(0, 3);
   if (chunks.length === 0) {
     throw new Error('No text to generate audio for.');
   }
 
   const pcmBuffers: Buffer[] = [];
-
   for (let i = 0; i < chunks.length; i++) {
     try {
       const chunkPcm = await generateChunkPcm(chunks[i], lang, validKeys);
       pcmBuffers.push(chunkPcm);
     } catch (err: any) {
       console.warn(`[TTS] Skipping failed chunk (${i + 1}/${chunks.length}):`, err.message);
-    }
-
-    if (i < chunks.length - 1) {
-      await sleep(100); // Micro-delay between requests to avoid burst rate-limits
     }
   }
 
@@ -237,9 +244,10 @@ export async function uploadAudioToCloudinary(
   return new Promise((resolve, reject) => {
     const uploadStream = cloudinary.uploader.upload_stream(
       {
-        resource_type: 'video', // Cloudinary handles audio files under video resource type
+        resource_type: 'auto',
         folder,
         public_id: publicId,
+        format: 'wav',
         overwrite: true,
       },
       (error, result) => {

@@ -19,12 +19,13 @@ const BROWSER_HEADERS = {
 
 // Helper: Wrap a promise with a hard timeout
 function fetchWithTimeout<T>(promise: Promise<T>, timeoutMs: number = 8000, fallbackErrMsg: string = "Operation timed out"): Promise<T> {
-  return Promise.race([
-    promise,
-    new Promise<T>((_, reject) =>
-      setTimeout(() => reject(new Error(fallbackErrMsg)), timeoutMs)
-    )
-  ]);
+  let timer: NodeJS.Timeout;
+  const timeoutPromise = new Promise<T>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(fallbackErrMsg)), timeoutMs);
+  });
+  return Promise.race([promise, timeoutPromise]).finally(() => {
+    clearTimeout(timer);
+  });
 }
 
 interface CandidateItem {
@@ -46,7 +47,7 @@ async function extractCandidatesFromHtmlOrJina(sourceUrl: string, sourceName: st
     if (parsed.pathname.includes('feed') || parsed.pathname.includes('rss') || parsed.pathname.includes('api')) {
       targetUrl = parsed.origin;
     }
-  } catch (e) {}
+  } catch (e) { }
 
   // 1. Tier 1 (Primary): Jina Reader Proxy
   try {
@@ -70,10 +71,10 @@ async function extractCandidatesFromHtmlOrJina(sourceUrl: string, sourceName: st
           seenUrls.add(link);
           results.push({ url: link, title, sourceName, category });
         }
-      } catch (e) {}
+      } catch (e) { }
     }
     if (results.length > 0) return results;
-  } catch (jinaErr) {}
+  } catch (jinaErr) { }
 
   // 2. Tier 2 (Fallback): Direct HTML extraction with Cheerio (3s timeout)
   try {
@@ -100,12 +101,12 @@ async function extractCandidatesFromHtmlOrJina(sourceUrl: string, sourceName: st
               seenUrls.add(fullUrl);
               results.push({ url: fullUrl, title: text, sourceName, category });
             }
-          } catch (e) {}
+          } catch (e) { }
         }
       });
       if (results.length > 0) return results;
     }
-  } catch (directErr) {}
+  } catch (directErr) { }
 
   return results;
 }
@@ -119,7 +120,7 @@ export async function GET(req: NextRequest) {
     const timeStr = new Date().toLocaleTimeString('en-US', { hour12: true });
     try {
       await writer.write(encoder.encode(`data: ${JSON.stringify({ message: `[${timeStr}] ${msg}` })}\n\n`));
-    } catch (e) {}
+    } catch (e) { }
   };
 
   (async () => {
@@ -127,14 +128,9 @@ export async function GET(req: NextRequest) {
       // 1. Send immediate keepalive ping to flush serverless proxy buffer
       try {
         await writer.write(encoder.encode(`: ping\n\n`));
-      } catch (e) {}
+      } catch (e) { }
 
       await sendLog("🚀 Pipeline Connected. Initializing scraping sources...");
-
-      const searchParams = req.nextUrl?.searchParams || new URL(req.url, 'http://localhost').searchParams;
-      const targetLimit = parseInt(searchParams.get('limit') || '5', 10);
-      const targetCategory = searchParams.get('category') || 'All';
-      const targetCountry = searchParams.get('country') || 'All';
 
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
       const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -147,6 +143,42 @@ export async function GET(req: NextRequest) {
       const supabaseHost = supabaseUrl.replace(/^https?:\/\//, '').split('.')[0];
       await sendLog(`[Database Step 1] Connecting to Supabase instance (${supabaseHost})...`);
       const supabase = createClient(supabaseUrl, supabaseKey);
+
+      // Fetch System Settings & Automation Defaults
+      const { data: sysData } = await supabase.from("system_settings").select("setting_key, setting_value");
+      let autoApp = true;
+      let keys: string[] = [];
+      let defaultCategory = "All";
+      let defaultLimit = 5;
+      let defaultCountry = "All";
+
+      if (sysData) {
+        const autoSetting = sysData.find((s) => s.setting_key === "auto_approve_news");
+        const keysSetting = sysData.find((s) => s.setting_key === "global_gemini_api_keys");
+        const defCatSetting = sysData.find((s) => s.setting_key === "automation_default_category");
+        const defLimSetting = sysData.find((s) => s.setting_key === "automation_default_limit");
+        const defCountrySetting = sysData.find((s) => s.setting_key === "automation_default_country");
+
+        if (autoSetting) autoApp = autoSetting.setting_value === "true";
+        if (defCatSetting?.setting_value) defaultCategory = defCatSetting.setting_value;
+        if (defLimSetting?.setting_value) defaultLimit = parseInt(defLimSetting.setting_value, 10) || 5;
+        if (defCountrySetting?.setting_value) defaultCountry = defCountrySetting.setting_value;
+
+        if (keysSetting) {
+          try {
+            const parsed = JSON.parse(keysSetting.setting_value);
+            if (Array.isArray(parsed) && parsed.length > 0) keys = parsed;
+          } catch (e) { }
+        }
+      }
+      const activeKeys = (keys && keys.length > 0) ? keys : (process.env.GEMINI_API_KEY ? [process.env.GEMINI_API_KEY] : []);
+
+      const searchParams = req.nextUrl?.searchParams || new URL(req.url, 'http://localhost').searchParams;
+      const targetLimit = searchParams.has('limit') ? parseInt(searchParams.get('limit')!, 10) : defaultLimit;
+      const targetCategory = searchParams.has('category') ? searchParams.get('category')! : defaultCategory;
+      const targetCountry = searchParams.has('country') ? searchParams.get('country')! : defaultCountry;
+
+      await sendLog(`Config: Auto-Approve = ${autoApp ? "ON (published)" : "OFF (draft)"} | Gemini API Keys: ${activeKeys.length} | Limit: ${targetLimit} | Category: "${targetCategory}"`);
 
       await sendLog(`[Database Step 2] Querying active scraping sources (Category: "${targetCategory}", Country: "${targetCountry}")...`);
       let sourceQuery = supabase
@@ -174,25 +206,6 @@ export async function GET(req: NextRequest) {
       }
 
       await sendLog(`✅ Found ${sources.length} active source(s).`);
-
-      // Fetch System Settings & API keys
-      const { data: sysData } = await supabase.from("system_settings").select("setting_key, setting_value");
-      let autoApp = true;
-      let keys: string[] = [];
-
-      if (sysData) {
-        const autoSetting = sysData.find((s) => s.setting_key === "auto_approve_news");
-        const keysSetting = sysData.find((s) => s.setting_key === "global_gemini_api_keys");
-        if (autoSetting) autoApp = autoSetting.setting_value === "true";
-        if (keysSetting) {
-          try {
-            const parsed = JSON.parse(keysSetting.setting_value);
-            if (Array.isArray(parsed) && parsed.length > 0) keys = parsed;
-          } catch (e) {}
-        }
-      }
-      const activeKeys = (keys && keys.length > 0) ? keys : (process.env.GEMINI_API_KEY ? [process.env.GEMINI_API_KEY] : []);
-      await sendLog(`Config: Auto-Approve = ${autoApp ? "ON (published)" : "OFF (draft)"} | Gemini API Keys: ${activeKeys.length}`);
 
       const parser = new Parser({
         timeout: 3000,
@@ -286,6 +299,23 @@ export async function GET(req: NextRequest) {
         return;
       }
 
+      // If Country is "All", interleave BD and Global candidates so both Bangladeshi and international news are proportionally scraped
+      if (targetCountry === "All") {
+        const bdCandidates = newCandidates.filter((c) => (c.country || "BD") === "BD");
+        const globalCandidates = newCandidates.filter((c) => c.country === "GLOBAL");
+
+        if (bdCandidates.length > 0 && globalCandidates.length > 0) {
+          const balancedList: typeof newCandidates = [];
+          const maxCount = Math.max(bdCandidates.length, globalCandidates.length);
+          for (let i = 0; i < maxCount; i++) {
+            if (i < bdCandidates.length) balancedList.push(bdCandidates[i]);
+            if (i < globalCandidates.length) balancedList.push(globalCandidates[i]);
+          }
+          newCandidates = balancedList;
+          await sendLog(`  ⚖️ Balanced candidate pool: ${bdCandidates.length} BD + ${globalCandidates.length} Global candidates interleaved.`);
+        }
+      }
+
       // 4. AI Title Batch Pre-Filtering
       let selectedArticles: typeof rawCandidates = [];
 
@@ -300,13 +330,19 @@ export async function GET(req: NextRequest) {
           .map((c, i) => `${i + 1}. Title: "${c.title}" | Category: ${c.category} | Source: ${c.sourceName}`)
           .join("\n");
 
-        const prompt = `You are a chief news editor. Evaluate these news candidates and select the TOP ${targetLimit} most important news stories:
+        const prompt = `You are the chief editor of KahfNews, an ethical, family-friendly, and Halal-conscious news platform.
+Evaluate these candidate headlines and select the TOP ${targetLimit} most valuable, impactful stories:
 ${titlesList}
+
+STRICT EDITORIAL & HALAL STANDARDS:
+1. REJECT vulgar entertainment gossip, celebrity intimate/scandalous affairs, obscenity, sexualized content, revealing/vulgar photo stories, or promotion of non-halal/haram activities (gambling, casinos, alcohol, nightlife, explicit immorality).
+2. PERMIT & PRIORITIZE: Real national news, politics, governance, legal trials & crime/justice proceedings (investigations, court verdicts, law enforcement), economy, education, science & technology, healthy sports, and verified global events.
+3. REJECT sensationalized yellow journalism and misleading clickbait.
 
 Return a valid JSON array of chosen numbers (1-indexed), for example: [1, 3, 5]`;
 
         let selectedIndices: number[] = [];
-        const modelsToTry = ["gemini-3.6-flash", "gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-flash-latest"];
+        const modelsToTry = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-2.5-flash-lite"];
         const keysToTry = activeKeys.slice(0, 2);
 
         for (const modelName of modelsToTry) {
@@ -331,7 +367,7 @@ Return a valid JSON array of chosen numbers (1-indexed), for example: [1, 3, 5]`
                 selectedIndices = parsed;
                 break;
               }
-            } catch (e: any) {}
+            } catch (e: any) { }
           }
         }
 
@@ -365,10 +401,10 @@ Return a valid JSON array of chosen numbers (1-indexed), for example: [1, 3, 5]`
           continue;
         }
 
-        // 5b. Unified Gemini Processing: Exact Full News + Summary + Importance Score
-        await sendLog(`  ├─ Running Unified AI News Synthesis with Gemini (Primary: gemini-3.6-flash)...`);
+        // 5b. Unified Gemini Processing: Exact Full News + Summary + Importance Score + Halal Gatekeeper
+        await sendLog(`  ├─ Running Unified AI News Synthesis with Gemini (Primary: gemini-2.5-flash)...`);
 
-        const prompt = `You are a chief news editor and journalist for a premium multimedia news platform.
+        const prompt = `You are a chief news editor and journalist for KahfNews, an ethical, family-friendly, and Halal-conscious news platform.
 Analyze the following article and return a strictly valid JSON object.
 
 Input Title: ${candidate.title}
@@ -378,8 +414,14 @@ Category Hint: ${candidate.category || "General"}
 Raw Article Body:
 ${extracted.bodyText.slice(0, 16000)}
 
+EDITORIAL POLICY:
+1. Family-Friendly & Halal: Reject vulgar entertainment gossip, sexualized content, revealing attire/bikini stories, or illicit affair scandals. Legitimate crime, anti-corruption, court verdicts, and national events are permitted.
+2. FULL CONTENT PRESERVATION: Under "clean_content", you MUST keep the entire full unabridged article intact. Never shorten or condense it into a summary. Keep every single paragraph, quote, and background detail.
+
 YOUR RESPONSE MUST STRICTLY FOLLOW THIS JSON SCHEMA:
 {
+  "is_halal_and_family_friendly": <Boolean: true if clean, ethical, family-safe; false if it contains vulgar gossip, obscenity, sexualized content, or non-halal promotion>,
+  "rejection_reason": "<If false, short explanation, else empty string>",
   "importance_score": <Integer from 1 to 100>,
   "clean_headline": "<Engaging, accurate Bengali headline>",
   "clean_content": "<FULL UNABRIDGED RAW ARTICLE BODY in clean Bengali markdown. CRITICAL: DO NOT SUMMARIZE OR SHORTEN THIS. Keep EVERY single paragraph, quote, and detail from the raw article intact. Only clean up formatting, ads, and navigation noise>",
@@ -388,7 +430,7 @@ YOUR RESPONSE MUST STRICTLY FOLLOW THIS JSON SCHEMA:
 }`;
 
         let aiResult: any = null;
-        const synthesisModels = ["gemini-3.6-flash", "gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-flash-latest"];
+        const synthesisModels = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-2.5-flash-lite"];
         const synthesisKeys = activeKeys.slice(0, 2);
 
         for (const modelName of synthesisModels) {
@@ -413,8 +455,14 @@ YOUR RESPONSE MUST STRICTLY FOLLOW THIS JSON SCHEMA:
                 await sendLog(`  ├─ ✅ Gemini AI (${modelName}) Generated Full News & Summary!`);
                 break;
               }
-            } catch (aiErr: any) {}
+            } catch (aiErr: any) { }
           }
+        }
+
+        // Check Halal & Family-Friendly Filter
+        if (aiResult && aiResult.is_halal_and_family_friendly === false) {
+          await sendLog(`  └─ 🛡️ [Halal Filter] Skipped non-halal / inappropriate story: "${candidate.title.slice(0, 45)}..." (${aiResult.rejection_reason || "Violates ethical guidelines"})`);
+          continue;
         }
 
         // Guaranteed Fallback: Never discard extracted news!
@@ -429,7 +477,11 @@ YOUR RESPONSE MUST STRICTLY FOLLOW THIS JSON SCHEMA:
           };
         }
 
-        const finalFullContent = (aiResult.clean_content && aiResult.clean_content.length >= 150)
+        // Full News Body Retention Safeguard:
+        // If Gemini summarized/shortened clean_content (< 55% of extracted text when extracted text is substantial > 500 chars),
+        // or if clean_content is too short, preserve the full extracted body text!
+        const isGeminiShortened = aiResult?.clean_content && extracted.bodyText.length > 500 && (aiResult.clean_content.length < extracted.bodyText.length * 0.55);
+        const finalFullContent = (!isGeminiShortened && aiResult?.clean_content && aiResult.clean_content.length >= 150)
           ? aiResult.clean_content
           : extracted.bodyText;
 
@@ -517,7 +569,7 @@ YOUR RESPONSE MUST STRICTLY FOLLOW THIS JSON SCHEMA:
     } finally {
       try {
         await writer.close();
-      } catch (e) {}
+      } catch (e) { }
     }
   })();
 
