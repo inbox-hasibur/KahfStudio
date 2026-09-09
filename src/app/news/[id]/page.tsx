@@ -425,14 +425,29 @@ export default function NewsDetailPage() {
           variants={itemVariants}
           className="flex items-center justify-between mb-6 pb-4 border-b border-border"
         >
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs">
-              {newsItem.author?.split(" ").map((n: string) => n[0]).join("") || "K"}
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs">
+                {newsItem.author?.split(" ").map((n: string) => n[0]).join("") || "K"}
+              </div>
+              <div>
+                <p className="text-xs sm:text-sm font-semibold text-foreground">{newsItem.author || "KahfNews"}</p>
+                <p className="text-[11px] text-muted-foreground">{newsItem.source}</p>
+              </div>
             </div>
-            <div>
-              <p className="text-xs sm:text-sm font-semibold text-foreground">{newsItem.author || "KahfNews"}</p>
-              <p className="text-[11px] text-muted-foreground">{newsItem.source}</p>
-            </div>
+
+            {newsItem.originalUrl && (
+              <a
+                href={newsItem.originalUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-muted/60 hover:bg-muted text-foreground border border-border/80 hover:border-primary/40 text-xs font-semibold transition-all shadow-sm group/orig ml-1 sm:ml-2"
+                title={`মূল পত্রিকা (${newsItem.source}) থেকে সম্পূর্ণ খবরটি পড়ুন`}
+              >
+                <span>মূল সংবাদ পড়ুন</span>
+                <ExternalLink className="w-3.5 h-3.5 text-primary group-hover/orig:translate-x-0.5 group-hover/orig:-translate-y-0.5 transition-transform" />
+              </a>
+            )}
           </div>
 
           <div className="flex items-center gap-1">

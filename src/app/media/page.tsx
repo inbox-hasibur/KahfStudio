@@ -136,8 +136,8 @@ const defaultChannels: IPTVChannel[] = [
     id: "c1", 
     name: "Jamuna TV", 
     category: "জাতীয় সংবাদ", 
-    videoId: "4Wpv0HhFU1M",
-    streamUrl: "https://www.youtube.com/embed/4Wpv0HhFU1M?autoplay=0&mute=0&enablejsapi=1&playsinline=1&rel=0&modestbranding=1",
+    videoId: "0Q_IZvp_N5w",
+    streamUrl: "https://www.youtube.com/embed/0Q_IZvp_N5w?autoplay=0&mute=0&enablejsapi=1&playsinline=1&rel=0&modestbranding=1",
     color: "bg-blue-600", 
     text: "text-white",
     source: "24/7 লাইভ এইচডি"
@@ -176,11 +176,11 @@ const defaultChannels: IPTVChannel[] = [
     id: "c5", 
     name: "Ekattor TV", 
     category: "জাতীয়", 
-    videoId: "9L9ymmaPIS0",
-    streamUrl: "https://www.youtube.com/embed/9L9ymmaPIS0?autoplay=0&mute=0&enablejsapi=1&playsinline=1&rel=0&modestbranding=1",
+    videoId: "2lVBzxoof0U",
+    streamUrl: "https://www.youtube.com/embed/2lVBzxoof0U?autoplay=0&mute=0&enablejsapi=1&playsinline=1&rel=0&modestbranding=1",
     color: "bg-green-700", 
     text: "text-white",
-    source: "24/7 লাইভ এইচডি"
+    source: "তাজা সংবাদ"
   },
   { 
     id: "c6", 
@@ -206,8 +206,8 @@ const defaultChannels: IPTVChannel[] = [
     id: "c8", 
     name: "Banglavision", 
     category: "সংবাদ ও খবর", 
-    videoId: "95oEnwrvJRs",
-    streamUrl: "https://www.youtube.com/embed/95oEnwrvJRs?autoplay=0&mute=0&enablejsapi=1&playsinline=1&rel=0&modestbranding=1",
+    videoId: "mCFcsPxkQrY",
+    streamUrl: "https://www.youtube.com/embed/mCFcsPxkQrY?autoplay=0&mute=0&enablejsapi=1&playsinline=1&rel=0&modestbranding=1",
     color: "bg-sky-600", 
     text: "text-white",
     source: "24/7 লাইভ"
@@ -216,11 +216,31 @@ const defaultChannels: IPTVChannel[] = [
     id: "c9", 
     name: "Desh TV", 
     category: "খবর ও রাজনীতি", 
-    videoId: "me25ctmn8H8",
-    streamUrl: "https://www.youtube.com/embed/me25ctmn8H8?autoplay=0&mute=0&enablejsapi=1&playsinline=1&rel=0&modestbranding=1",
+    videoId: "V2oJukYnC40",
+    streamUrl: "https://www.youtube.com/embed/V2oJukYnC40?autoplay=0&mute=0&enablejsapi=1&playsinline=1&rel=0&modestbranding=1",
     color: "bg-teal-700", 
     text: "text-white",
     source: "24/7 লাইভ"
+  },
+  { 
+    id: "c13", 
+    name: "DBC News", 
+    category: "জাতীয় সংবাদ", 
+    videoId: "FsV_tzCDzic",
+    streamUrl: "https://www.youtube.com/embed/FsV_tzCDzic?autoplay=0&mute=0&enablejsapi=1&playsinline=1&rel=0&modestbranding=1",
+    color: "bg-purple-700", 
+    text: "text-white",
+    source: "24/7 লাইভ"
+  },
+  { 
+    id: "c14", 
+    name: "Channel i", 
+    category: "সংবাদ ও ফিচার", 
+    videoId: "UBesSUxhyog",
+    streamUrl: "https://www.youtube.com/embed/UBesSUxhyog?autoplay=0&mute=0&enablejsapi=1&playsinline=1&rel=0&modestbranding=1",
+    color: "bg-emerald-700", 
+    text: "text-white",
+    source: "সংবাদ ও ফিচার"
   },
   { 
     id: "c10", 
@@ -246,95 +266,95 @@ const defaultChannels: IPTVChannel[] = [
     id: "c12", 
     name: "Sky News", 
     category: "আন্তর্জাতিক", 
-    videoId: "YDvsBbKfLPA",
-    streamUrl: "https://www.youtube.com/embed/YDvsBbKfLPA?autoplay=0&mute=0&enablejsapi=1&playsinline=1&rel=0&modestbranding=1",
+    videoId: "xDWQ3LkccY8",
+    streamUrl: "https://www.youtube.com/embed/xDWQ3LkccY8?autoplay=0&mute=0&enablejsapi=1&playsinline=1&rel=0&modestbranding=1",
     color: "bg-rose-700", 
     text: "text-white",
     source: "Global Live HD"
   }
 ];
 
-// 100% Real Video Reports & Content
+// 100% Real Video Reports & Content Synced with Major Channels
 const realNewsVideos: NewsVideo[] = [
   {
     id: "v1",
-    title: "আপনাকে কেন ভালবাসি, ইয়া রাসুলাল্লাহ (সঃ)?",
-    videoId: "5zWTInJqD5k",
-    thumbnail: "https://img.youtube.com/vi/5zWTInJqD5k/hqdefault.jpg",
-    category: "ইসলামিক",
-    duration: "০৮:১৫",
-    source: "Baseera Media",
-    description: "রাসুলুল্লাহ (সাঃ) এর প্রতি ভালোবাসা ও সিরাহ বিষয়ক বিশেষ প্রতিবেদন।"
+    title: "পানামা খালে পানি সরবরাহ নিয়ে বিশেষ প্রতিবেদন",
+    videoId: "EZ81qPzajLI",
+    thumbnail: "https://img.youtube.com/vi/EZ81qPzajLI/hqdefault.jpg",
+    category: "জাতীয়",
+    duration: "০৩:৪৫",
+    source: "Jamuna TV",
+    description: "পানামা খালের রিও ইন্দিও প্রকল্পের মাধ্যমে পানি সরবরাহ উন্নয়ন নিয়ে যমুনা টিভির বিশেষ সংবাদ।"
   },
   {
     id: "v2",
-    title: "অর্থনীতি ও ব্যাংক খাতের সর্বশেষ পরিস্থিতি ও বিশেষ আপডেট",
-    videoId: "qB29pIkJMoQ",
-    thumbnail: "https://img.youtube.com/vi/qB29pIkJMoQ/hqdefault.jpg",
+    title: "৮ মাসে বন্ধের চেয়ে দ্বিগুণ নতুন পোশাক কারখানা চালু",
+    videoId: "xQYPxb5iwi4",
+    thumbnail: "https://img.youtube.com/vi/xQYPxb5iwi4/hqdefault.jpg",
     category: "অর্থনীতি",
-    duration: "০৫:১৫",
+    duration: "০৪:১২",
     source: "Somoy TV",
-    description: "অর্থনৈতিক উন্নয়ন, ব্যাংকিং ব্যবস্থা ও বাজার পরিস্থিতির তাজা খবর।"
+    description: "বিকেএমইএ ও পোশাক শিল্পে নতুন কারখানার অগ্রগতি ও অর্থনৈতিক পরিস্থিতি নিয়ে সময় টিভির রিপোর্ট।"
   },
   {
     id: "v3",
-    title: "আপনাকে কেন ভালবাসি, ইয়া রাসুলাল্লাহ (সঃ)? — পর্ব ২",
-    videoId: "5zWTInJqD5k",
-    thumbnail: "https://img.youtube.com/vi/5zWTInJqD5k/hqdefault.jpg",
-    category: "ইসলামিক",
-    duration: "০৮:১৫",
-    source: "Baseera Media",
-    description: "রাসুলুল্লাহ (সাঃ) এর অনুপম চরিত্র ও উম্মাহর গভীর ভালোবাসা নিয়ে বিশেষ আলোচনা।"
+    title: "ডাকসু নির্বাচনের ১ বছর; প্রতিশ্রুতি পূরণে কতটা সফল ছাত্রনেতারা?",
+    videoId: "cqTCa8NhM-M",
+    thumbnail: "https://img.youtube.com/vi/cqTCa8NhM-M/hqdefault.jpg",
+    category: "রাজনীতি",
+    duration: "০৬:১৮",
+    source: "Channel 24",
+    description: "ডাকসু নির্বাচন ও ছাত্র রাজনীতির সার্বিক চালচিত্র নিয়ে চ্যানেল ২৪-এর বিশেষ অনুসন্ধানী প্রতিবেদন।"
   },
   {
     id: "v4",
-    title: "সিরাহ ১১ - মে'রাজ: এক বিস্ময়কর যাত্রা",
-    videoId: "mDTAjCMb70A",
-    thumbnail: "https://img.youtube.com/vi/mDTAjCMb70A/hqdefault.jpg",
-    category: "সিরাহ",
-    duration: "০৯:৪০",
-    source: "Baseera Media",
-    description: "পবিত্র মে'রাজের ঐতিহাসিক ও বিস্ময়কর সফর নিয়ে বিস্তারিত বিশেষ পর্ব।"
+    title: "গ্যাস-জ্বালানি বৈশ্বিক সংকট, সমাধান একা সম্ভব নয়: জ্বালানি বিশেষজ্ঞ",
+    videoId: "2lVBzxoof0U",
+    thumbnail: "https://img.youtube.com/vi/2lVBzxoof0U/hqdefault.jpg",
+    category: "জাতীয়",
+    duration: "০৫:৩০",
+    source: "Ekattor TV",
+    description: "জ্বালানি ও গ্যাস সংকটের সামগ্রিক প্রেক্ষাপট নিয়ে একাত্তর টিভির বিশেষ কভারেজ।"
   },
   {
     id: "v5",
-    title: "সিরাহ বিশেষ পর্ব — রাসুলুল্লাহ (সাঃ) এর নবুওয়াত ও আহ্বান",
-    videoId: "mDTAjCMb70A",
-    thumbnail: "https://img.youtube.com/vi/mDTAjCMb70A/hqdefault.jpg",
-    category: "সিরাহ",
-    duration: "০৯:৪০",
-    source: "Baseera Media",
-    description: "মক্কী জীবনের সংগ্রাম, ঈমানের দাওয়াত ও ঐতিহাসিক ঘটনা প্রবাহ।"
+    title: "গণমাধ্যম এখন যেকোনো সময়ের চেয়ে অনেক বেশি স্বাধীন",
+    videoId: "tKgcXInssiQ",
+    thumbnail: "https://img.youtube.com/vi/tKgcXInssiQ/hqdefault.jpg",
+    category: "গণমাধ্যম",
+    duration: "০৪:৫০",
+    source: "Independent TV",
+    description: "দেশের গণমাধ্যমের স্বাধীনতা ও সাংবাদিকতা নিয়ে ইনডিপেনডেন্ট টিভির মতামত ও রিপোর্ট।"
   },
   {
     id: "v6",
-    title: "🔴 Makkah Live | মক্কার লাইভ সম্প্রচার",
-    videoId: "5jp4fb7HyoQ",
-    thumbnail: "https://img.youtube.com/vi/5jp4fb7HyoQ/hqdefault.jpg",
-    category: "লাইভ",
-    duration: "লাইভ",
-    source: "Al Islamic Network TV",
-    description: "পবিত্র মসজিদুল হারাম (মক্কা) এর সরাসরি লাইভ সম্প্রচার।"
+    title: "ত্যাগী ও নির্যাতিত নেতাদের স্মরণ ও রাজনৈতিক দৃষ্টিভঙ্গি",
+    videoId: "ffxM3qF50OE",
+    thumbnail: "https://img.youtube.com/vi/ffxM3qF50OE/hqdefault.jpg",
+    category: "রাজনীতি",
+    duration: "০৫:১৫",
+    source: "Desh TV",
+    description: "সমসাময়িক রাজনৈতিক প্রেক্ষাপট ও দেশের পরিস্থিতি নিয়ে দেশ টিভির বিশেষ সংবাদ।"
   },
   {
     id: "v7",
-    title: "স্বাস্থ্য ও পরিবেশ বিষয়ক বিশেষ অনুসন্ধানী রিপোর্ট",
-    videoId: "vPunUbzbhag",
-    thumbnail: "https://img.youtube.com/vi/vPunUbzbhag/hqdefault.jpg",
-    category: "স্বাস্থ্য",
-    duration: "০৪:২৫",
-    source: "RTV News",
-    description: "জনস্বাস্থ্য ও নাগরিক সচেতনতা বিষয়ক বিশেষ কভারেজ।"
+    title: "সমসাময়িক রাজনৈতিক পরিস্থিতি ও দেশের সামগ্রিক প্রেক্ষাপট",
+    videoId: "Nia-x6xY0BI",
+    thumbnail: "https://img.youtube.com/vi/Nia-x6xY0BI/hqdefault.jpg",
+    category: "জাতীয়",
+    duration: "০৪:০৫",
+    source: "DBC News",
+    description: "ডিবিসি নিউজের তাজা সংবাদ ও রাজনৈতিক খবরাখবর।"
   },
   {
     id: "v8",
-    title: "গ্রিন এনার্জি ও বৈজ্ঞানিক অগ্রগতির তাজা খবর",
-    videoId: "yXCMU72z0Ms",
-    thumbnail: "https://img.youtube.com/vi/yXCMU72z0Ms/hqdefault.jpg",
-    category: "বিজ্ঞান",
-    duration: "০৫:০৫",
+    title: "বাংলাভিশন সংবাদ বুলেটিন ও দিনের প্রধান খবর",
+    videoId: "-N8ewR65kas",
+    thumbnail: "https://img.youtube.com/vi/-N8ewR65kas/hqdefault.jpg",
+    category: "বুলেটিন",
+    duration: "০৭:২০",
     source: "Banglavision",
-    description: "সৌরশক্তি, পরিবেশ রক্ষা ও বিজ্ঞান খাতের সাফল্য কভারেজ।"
+    description: "দেশের প্রধান প্রধান খবরের সংকলন নিয়ে বাংলাভিশনের দুপুর ও সন্ধ্যার বুলেটিন।"
   }
 ];
 

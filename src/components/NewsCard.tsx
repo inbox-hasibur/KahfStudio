@@ -2,10 +2,11 @@
 
 import React from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Play, Clock, ArrowUpRight, Bookmark, Share2, Check } from "lucide-react";
+import { Play, Clock, Bookmark, Share2, Check, ExternalLink } from "lucide-react";
 
 interface NewsCardProps {
   news: {
@@ -27,6 +28,12 @@ interface NewsCardProps {
   onToggleSave?: () => void;
 }
 
+// Fallback image helper
+const getPlaceholderImage = (category: string) => {
+  const cat = category?.toLowerCase() || 'news';
+  return `https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=600&auto=format&fit=crop&q=80`;
+};
+
 // Helper to remove raw markdown syntax like **bold** or ## Header
 const cleanMarkdown = (text: string) => {
   if (!text) return "";
@@ -40,7 +47,9 @@ const cleanMarkdown = (text: string) => {
 };
 
 const NewsCard = ({ news, isSaved = false, onToggleSave }: NewsCardProps) => {
+  const router = useRouter();
   const [isCopied, setIsCopied] = React.useState(false);
+  const cardImage = news.imageUrl || (news as any).image_url || getPlaceholderImage(news.category);
 
   const handlePlayAudio = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -57,7 +66,7 @@ const NewsCard = ({ news, isSaved = false, onToggleSave }: NewsCardProps) => {
         title: cleanMarkdown(news.title),
         summary: cleanMarkdown(news.summary),
         raw_content: (news as any).raw_content || (news as any).content || "",
-        imageUrl: news.imageUrl,
+        imageUrl: cardImage,
         source: news.source,
         preferredLang,
         preferredType: "summary",
@@ -74,41 +83,78 @@ const NewsCard = ({ news, isSaved = false, onToggleSave }: NewsCardProps) => {
 
   return (
     <motion.div
-      className="relative group h-full"
+      className="relative group h-full cursor-pointer"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
       whileHover={{ y: -2 }}
+      onClick={() => router.push(`/news/${news.id}`)}
     >
       {/* Animated Gradient Border on Hover */}
       <div className="absolute -inset-[1px] bg-gradient-to-r from-primary/0 via-primary/20 to-primary/0 rounded-[24px] opacity-0 group-hover:opacity-100 transition-all duration-500 blur-sm" />
 
-      <Card className="relative bg-card border-border group-hover:border-primary/20 rounded-2xl sm:rounded-[24px] overflow-hidden flex flex-col justify-between p-3.5 sm:p-4.5 transition-all duration-500 shadow-sm hover:shadow-xl hover:shadow-primary/5 h-full">
-        {/* Content Section */}
-        <div className="flex-1 flex flex-col justify-between min-w-0 py-0.5">
-          {/* Top Row: Category, Source, Time */}
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-1.5 sm:gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-              <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-primary">
+      <Card className="relative bg-card border-border group-hover:border-primary/20 rounded-2xl sm:rounded-[24px] overflow-hidden flex flex-col gap-0 justify-start p-2.5 sm:p-3 transition-all duration-500 shadow-sm hover:shadow-xl hover:shadow-primary/5 h-full">
+        {/* News Thumbnail Image Banner */}
+        {cardImage && (
+          <div className="block relative w-full h-36 sm:h-40 rounded-xl sm:rounded-[18px] overflow-hidden mb-2 bg-muted/40 shrink-0 group/thumb">
+            <img
+              src={cardImage}
+              alt={cleanMarkdown(news.title)}
+              className="w-full h-full object-cover transition-transform duration-500 group-hover/thumb:scale-105"
+              loading="lazy"
+              onError={(e) => {
+                (e.currentTarget.parentElement as HTMLElement).style.display = "none";
+              }}
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover/thumb:opacity-100 transition-opacity duration-300" />
+            <div className="absolute top-2.5 left-2.5 z-10">
+              <span className="px-2.5 py-0.5 rounded-full bg-black/60 backdrop-blur-md text-white border border-white/10 text-[9px] sm:text-[10px] font-bold uppercase tracking-wider shadow-sm">
                 {news.category || "General"}
               </span>
-              <span className="text-border">|</span>
-              <span className="text-[10px] sm:text-[11px] font-medium text-muted-foreground truncate max-w-[100px] sm:max-w-none">
-                {news.source || "KahfNews"}
-              </span>
-            </div>
-            <div className="flex items-center gap-1 text-muted-foreground">
-              <Clock className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-              <span className="text-[10px] sm:text-[11px] font-medium">{news.publishedAt}</span>
             </div>
           </div>
+        )}
 
-          {/* Title - Fixed 2-Line Container Height for 100% Uniform Card Heights */}
-          <div className="min-h-[2.6rem] sm:min-h-[3rem] flex items-center mb-2">
-            <h3 className="text-xs sm:text-sm md:text-base font-bold text-foreground leading-[1.35] tracking-tight line-clamp-2">
+        {/* Content Section */}
+        <div className="flex-1 flex flex-col justify-between min-w-0 pt-0 pb-0">
+          {/* Top Info: Category/Source/Time and Title */}
+          <div>
+            {/* Category, Clickable Source, Time */}
+            <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+                <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse shrink-0" />
+                <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-primary shrink-0">
+                  {news.category || "General"}
+                </span>
+                <span className="text-border shrink-0">|</span>
+                {news.originalUrl ? (
+                  <a
+                    href={news.originalUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="text-[10px] sm:text-[11px] font-medium text-muted-foreground hover:text-primary transition-colors hover:underline truncate max-w-[110px] sm:max-w-none"
+                    title={`মূল উৎস দেখুন (${news.source || "Source"})`}
+                  >
+                    {news.source || "KahfNews"}
+                  </a>
+                ) : (
+                  <span className="text-[10px] sm:text-[11px] font-medium text-muted-foreground truncate max-w-[100px] sm:max-w-none">
+                    {news.source || "KahfNews"}
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-1 text-muted-foreground shrink-0 ml-1">
+                <Clock className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                <span className="text-[10px] sm:text-[11px] font-medium">{news.publishedAt}</span>
+              </div>
+            </div>
+
+            {/* Title Only - No Extra Summary/Details Text */}
+            <h3 className="text-xs sm:text-sm md:text-base font-bold text-foreground leading-snug tracking-tight line-clamp-2 mt-1">
               <Link
                 href={`/news/${news.id}`}
+                onClick={(e) => e.stopPropagation()}
                 className="hover:text-primary transition-colors duration-300"
               >
                 {cleanMarkdown(news.title)}
@@ -116,20 +162,13 @@ const NewsCard = ({ news, isSaved = false, onToggleSave }: NewsCardProps) => {
             </h3>
           </div>
 
-          {/* Summary - Fixed 2-Line Container Height */}
-          <div className="min-h-[2.4rem] sm:min-h-[2.8rem] flex items-start mb-3">
-            <p className="text-muted-foreground text-[11px] sm:text-xs leading-relaxed line-clamp-2 font-sans">
-              {cleanMarkdown(news.summary)}
-            </p>
-          </div>
-
-          {/* Action Bar - Single Clean "Listen Summary" CTA */}
+          {/* Action Bar - Listen Summary CTA & Source Link */}
           <div className="flex items-center justify-between mt-auto pt-2.5 border-t border-border/50">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2">
               <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
                 <Button
                   onClick={handlePlayAudio}
-                  className="h-7 sm:h-8 px-3 sm:px-3.5 bg-primary text-primary-foreground hover:opacity-90 transition-all rounded-full font-bold text-[10px] sm:text-[11px] flex items-center gap-1.5 shadow-sm cursor-pointer"
+                  className="h-7 sm:h-8 px-2.5 sm:px-3.5 bg-primary text-primary-foreground hover:opacity-90 transition-all rounded-full font-bold text-[10px] sm:text-[11px] flex items-center gap-1.5 shadow-sm cursor-pointer"
                   title="Play Gemini 3.1 Flash AI Audio Briefing"
                 >
                   <Play className="w-3 h-3 fill-current" />
@@ -137,18 +176,19 @@ const NewsCard = ({ news, isSaved = false, onToggleSave }: NewsCardProps) => {
                 </Button>
               </motion.div>
 
-              <Link href={`/news/${news.id}`}>
-                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="h-8 w-8 rounded-full border-border hover:bg-muted hover:border-primary/30 transition-all cursor-pointer"
-                    title="Read article"
-                  >
-                    <ArrowUpRight className="w-3.5 h-3.5" />
-                  </Button>
-                </motion.div>
-              </Link>
+              {news.originalUrl && (
+                <a
+                  href={news.originalUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="h-7 sm:h-8 px-2.5 sm:px-3 rounded-full border border-border/80 hover:border-primary/40 bg-muted/40 hover:bg-muted text-muted-foreground hover:text-foreground text-[10px] sm:text-[11px] font-medium inline-flex items-center gap-1.5 transition-all cursor-pointer"
+                  title={`মূল উৎস (${news.source})`}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <span>Source</span>
+                  <ExternalLink className="w-3 h-3 text-primary" />
+                </a>
+              )}
             </div>
 
             {/* Secondary Actions */}
@@ -160,7 +200,10 @@ const NewsCard = ({ news, isSaved = false, onToggleSave }: NewsCardProps) => {
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
                 aria-label="Bookmark"
-                onClick={onToggleSave}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleSave?.();
+                }}
               >
                 <Bookmark className="w-4 h-4" fill={isSaved ? "currentColor" : "none"} />
               </motion.button>
