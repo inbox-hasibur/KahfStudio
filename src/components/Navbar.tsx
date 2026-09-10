@@ -74,11 +74,19 @@ const Navbar = () => {
     if (lang === "EN") {
       document.cookie = `googtrans=/bn/en; path=/`;
       document.cookie = `googtrans=/bn/en; path=/; domain=${window.location.hostname}`;
+      try {
+        localStorage.setItem("kahf-language", "EN");
+        localStorage.setItem("kahf_user_country", "GLOBAL");
+      } catch (e) {}
     } else {
       document.cookie = `googtrans=/bn/bn; path=/`;
       document.cookie = `googtrans=/bn/bn; path=/; domain=${window.location.hostname}`;
       // Also clear it to revert to default
       document.cookie = `googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+      try {
+        localStorage.setItem("kahf-language", "BN");
+        localStorage.setItem("kahf_user_country", "BD");
+      } catch (e) {}
     }
     window.location.reload();
   };
@@ -87,8 +95,10 @@ const Navbar = () => {
   useEffect(() => {
     setMounted(true);
     
-    // Check initial language from cookie
-    if (document.cookie.includes('googtrans=/bn/en')) {
+    // Check initial language from cookie & storage
+    const hasEnCookie = document.cookie.includes('googtrans=/bn/en');
+    const hasEnStorage = typeof window !== 'undefined' && (localStorage.getItem('kahf-language') === 'EN' || localStorage.getItem('kahf_user_country') === 'GLOBAL');
+    if (hasEnCookie || hasEnStorage) {
       setLanguage('EN');
     } else {
       setLanguage('BN');

@@ -342,7 +342,7 @@ STRICT EDITORIAL & HALAL STANDARDS:
 Return a valid JSON array of chosen numbers (1-indexed), for example: [1, 3, 5]`;
 
         let selectedIndices: number[] = [];
-        const modelsToTry = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-2.5-flash-lite"];
+        const modelsToTry = ["gemini-3.6-flash", "gemini-2.5-flash", "gemini-2.5-flash-lite"];
         const keysToTry = activeKeys.slice(0, 2);
 
         for (const modelName of modelsToTry) {
@@ -402,7 +402,7 @@ Return a valid JSON array of chosen numbers (1-indexed), for example: [1, 3, 5]`
         }
 
         // 5b. Unified Gemini Processing: Exact Full News + Summary + Importance Score + Halal Gatekeeper
-        await sendLog(`  ├─ Running Unified AI News Synthesis with Gemini (Primary: gemini-2.5-flash)...`);
+        await sendLog(`  ├─ Running Unified AI News Synthesis with Gemini (Primary: gemini-3.6-flash)...`);
 
         const prompt = `You are a chief news editor and journalist for KahfNews, an ethical, family-friendly, and Halal-conscious news platform.
 Analyze the following article and return a strictly valid JSON object.
@@ -430,7 +430,7 @@ YOUR RESPONSE MUST STRICTLY FOLLOW THIS JSON SCHEMA:
 }`;
 
         let aiResult: any = null;
-        const synthesisModels = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-2.5-flash-lite"];
+        const synthesisModels = ["gemini-3.6-flash", "gemini-2.5-flash", "gemini-2.5-flash-lite"];
         const synthesisKeys = activeKeys.slice(0, 2);
 
         for (const modelName of synthesisModels) {

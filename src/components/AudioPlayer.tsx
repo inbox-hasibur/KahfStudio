@@ -493,7 +493,7 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
             clearTimeout(fallbackTimerRef.current);
             fallbackTimerRef.current = null;
           }
-          startWebSpeech(track, "bn_summary", sessionId);
+          startWebSpeech(track, audioMode, sessionId);
         }
       };
 
@@ -504,12 +504,12 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
         audio.play().catch((err) => {
           if (err.name !== "AbortError") {
             console.warn("Audio play error, falling back to WebSpeech:", err);
-            startWebSpeech(track, "bn_summary", sessionId);
+            startWebSpeech(track, audioMode, sessionId);
           }
         });
       }
     },
-    [stopAllEngines, isMuted, volume, ttsSettings.speed, isPlaying, startWebSpeech]
+    [stopAllEngines, isMuted, volume, ttsSettings.speed, isPlaying, startWebSpeech, audioMode]
   );
 
   // 6. Main Orchestrator: Runs whenever activeTrack or audioMode changes
@@ -538,11 +538,10 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
         ? activeTrack.raw_content || activeTrack.text || `${activeTrack.title}. ${activeTrack.summary || ""}`
         : `${activeTrack.title}. ${activeTrack.summary || ""}`;
 
-    // Fallback to server TTS route (/api/audio/tts) for natural voice if no pre-rendered URL exists
-    const targetAudioUrl = modeAudioUrl || `/api/audio/tts?text=${encodeURIComponent(textToSpeak.slice(0, 800))}`;
-
-    if (!userForcedWebSpeech) {
-      startGeminiAudio(targetAudioUrl, activeTrack, currentSessionId);
+    // If pre-rendered audio exists in DB and user didn't force native speech, play Gemini audio.
+    // If audio is missing in DB for any reason, immediately start Native WebSpeech TTS!
+    if (modeAudioUrl && !userForcedWebSpeech) {
+      startGeminiAudio(modeAudioUrl, activeTrack, currentSessionId);
     } else {
       startWebSpeech(activeTrack, audioMode, currentSessionId);
     }

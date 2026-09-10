@@ -116,7 +116,8 @@ async function generateChunkPcm(
   apiKeys: string[]
 ): Promise<Buffer> {
   const models = [
-    'gemini-2.5-flash-preview-tts',
+    'gemini-3.1-flash-tts-preview', // Main Gemini TTS Voice Model
+    'gemini-2.5-flash-preview-tts', // Robust Fallback Model
   ];
 
   let lastError: any = null;
@@ -167,8 +168,8 @@ async function generateChunkPcm(
           currentWorkingKeyIndex = (k + 1) % totalKeys;
           continue;
         } else {
-          console.warn(`[TTS] Key #${k} HTTP ${res.status}: ${json?.error?.message}`);
-          lastError = new Error(`Key #${k} Error: ${json?.error?.message || JSON.stringify(json)}`);
+          console.warn(`[TTS] Model ${model} Key #${k} HTTP ${res.status}: ${json?.error?.message}`);
+          lastError = new Error(`Model ${model} Key #${k} Error: ${json?.error?.message || JSON.stringify(json)}`);
           currentWorkingKeyIndex = (k + 1) % totalKeys;
           continue;
         }
@@ -184,7 +185,7 @@ async function generateChunkPcm(
 }
 
 /**
- * Generates seamless audio for text of any length by chunking (if necessary)
+ * Generates seamless audio for text of any length by chunking into ~15s segments
  * and stitching PCM buffers together into a single master WAV audio.
  */
 export async function generateSeamlessGeminiAudio(
@@ -201,14 +202,14 @@ export async function generateSeamlessGeminiAudio(
 
   const wordCount = fullText.split(/\s+/).filter(Boolean).length;
   
-  // Optimization: If text is short (under 110 words), synthesize in a single ultra-fast call
-  if (wordCount <= 110) {
+  // Optimization: If text is short (under 40 words / ~15s), synthesize in a single ultra-fast call
+  if (wordCount <= 40) {
     const singlePcm = await generateChunkPcm(fullText, lang, validKeys);
     return pcmToWav(singlePcm, 24000, 1, 16);
   }
 
-  // Split into safe 70-word chunks (~15s per chunk), capped at 3 chunks max
-  const chunks = splitTextIntoSafeChunks(fullText, 70).slice(0, 3);
+  // Split into safe ~15s chunks (~35-40 words per chunk)
+  const chunks = splitTextIntoSafeChunks(fullText, 40);
   if (chunks.length === 0) {
     throw new Error('No text to generate audio for.');
   }
@@ -227,9 +228,9 @@ export async function generateSeamlessGeminiAudio(
     throw new Error('All audio chunks failed during TTS generation.');
   }
 
-  // Concatenate all PCM buffers back-to-back
+  // Concatenate all 15s PCM chunks back-to-back seamlessly
   const totalPcm = Buffer.concat(pcmBuffers);
-  // Convert full combined PCM buffer to standard WAV
+  // Convert full combined PCM buffer to standard 24kHz 16-bit Mono WAV
   return pcmToWav(totalPcm, 24000, 1, 16);
 }
 

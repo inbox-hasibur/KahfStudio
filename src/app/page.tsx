@@ -106,16 +106,35 @@ export default function Home() {
         const found = COUNTRIES.find((c) => c.code === savedCode);
         if (found) {
           setSelectedCountry(found);
+          // Auto-sync translation cookie if user selected Global
+          if (found.code === "GLOBAL" && !document.cookie.includes("googtrans=/bn/en")) {
+            document.cookie = `googtrans=/bn/en; path=/`;
+            document.cookie = `googtrans=/bn/en; path=/; domain=${window.location.hostname}`;
+            localStorage.setItem("kahf-language", "EN");
+            window.location.reload();
+            return;
+          }
         }
       } else {
-        // Detect timezone
+        // Detect timezone (e.g. UK, USA, Europe vs Dhaka)
         const userTz = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
         const isBangladesh = userTz === "Asia/Dhaka" || userTz.toLowerCase().includes("dhaka");
         if (!isBangladesh && userTz) {
-          // Default international visitors to Global edition
+          // International visitor (e.g. UK/US) -> Global Edition + English Language
           setSelectedCountry(COUNTRIES[1]);
+          localStorage.setItem("kahf_user_country", "GLOBAL");
+          localStorage.setItem("kahf-language", "EN");
+          if (!document.cookie.includes("googtrans=/bn/en")) {
+            document.cookie = `googtrans=/bn/en; path=/`;
+            document.cookie = `googtrans=/bn/en; path=/; domain=${window.location.hostname}`;
+            window.location.reload();
+            return;
+          }
         } else {
+          // Bangladeshi visitor -> Bangladesh Edition + Bangla Language
           setSelectedCountry(COUNTRIES[0]);
+          localStorage.setItem("kahf_user_country", "BD");
+          localStorage.setItem("kahf-language", "BN");
         }
       }
     } catch (e) {}
@@ -388,8 +407,21 @@ export default function Home() {
                           key={c.code}
                           onClick={() => {
                             setSelectedCountry(c);
-                            try { localStorage.setItem("kahf_user_country", c.code); } catch (e) {}
+                            try {
+                              localStorage.setItem("kahf_user_country", c.code);
+                              if (c.code === "GLOBAL") {
+                                document.cookie = `googtrans=/bn/en; path=/`;
+                                document.cookie = `googtrans=/bn/en; path=/; domain=${window.location.hostname}`;
+                                localStorage.setItem("kahf-language", "EN");
+                              } else {
+                                document.cookie = `googtrans=/bn/bn; path=/`;
+                                document.cookie = `googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+                                document.cookie = `googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=${window.location.hostname}`;
+                                localStorage.setItem("kahf-language", "BN");
+                              }
+                            } catch (e) {}
                             setIsLocationDropdownOpen(false);
+                            window.location.reload();
                           }}
                           className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-all ${selectedCountry.code === c.code
                             ? "bg-primary text-primary-foreground font-bold shadow-sm"

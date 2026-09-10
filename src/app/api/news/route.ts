@@ -34,9 +34,12 @@ export async function GET(req: NextRequest) {
       query = query.eq('category', category);
     }
 
-    if (country && country !== 'ALL') {
-      // If country is specified, match country
-      query = query.eq('country', country);
+    if (country && country.toUpperCase() !== 'ALL') {
+      if (country.toUpperCase() === 'GLOBAL') {
+        query = query.or('country.eq.GLOBAL,country.neq.BD');
+      } else {
+        query = query.eq('country', country);
+      }
     }
 
     let { data: news, error } = await query;
