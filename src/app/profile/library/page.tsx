@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { FileText, CheckCircle, Trash2, Edit3, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { SlidingToggle } from "@/components/ui/sliding-toggle";
 import { createClient } from "@/utils/supabase/client";
 import { useSession } from "@/lib/auth-client";
 import { Key } from "lucide-react";
@@ -182,23 +183,15 @@ export default function AdminLibraryPage() {
           ))}
         </div>
         
-        <div className="flex flex-col items-end gap-1">
-          <div 
-            onClick={handleToggleAutoApprove}
-            className={`relative w-20 h-8 shrink-0 rounded-full p-1 cursor-pointer transition-colors duration-300 ${autoApprove ? "bg-green-500" : "bg-[#0f172a]"}`}
-          >
-            <motion.div
-              className="w-9 h-6 bg-white rounded-full shadow-sm flex items-center justify-center"
-              initial={false}
-              animate={{ x: autoApprove ? 36 : 0 }}
-              transition={{ type: "spring", stiffness: 500, damping: 30 }}
-            >
-              <span className={`text-[10px] font-bold leading-none ${autoApprove ? "text-green-600" : "text-[#0f172a]"}`}>
-                {autoApprove ? "ON" : "OFF"}
-              </span>
-            </motion.div>
-          </div>
-          <Label className="text-[10px] text-muted-foreground cursor-pointer" onClick={handleToggleAutoApprove}>Auto-Approve Scraped News</Label>
+        <div className="flex items-center gap-2.5 bg-card/60 px-3 py-1.5 rounded-xl border border-border/60">
+          <SlidingToggle
+            id="switch-auto-approve-profile"
+            checked={autoApprove}
+            onChange={handleToggleAutoApprove}
+          />
+          <Label htmlFor="switch-auto-approve-profile" className="text-xs font-semibold cursor-pointer text-muted-foreground hover:text-foreground transition-colors">
+            Auto-Approve Scraped News
+          </Label>
         </div>
       </div>
 
@@ -238,7 +231,7 @@ export default function AdminLibraryPage() {
                       </div>
                       <div className="flex flex-col gap-2 shrink-0">
                         {activeTab === "pending" && (
-                          <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white" onClick={() => handleApprove(article.id)}>
+                          <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90 font-semibold shadow-sm" onClick={() => handleApprove(article.id)}>
                             <CheckCircle className="w-4 h-4 mr-2" /> Approve
                           </Button>
                         )}

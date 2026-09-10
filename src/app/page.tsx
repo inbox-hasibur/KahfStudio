@@ -98,40 +98,9 @@ export default function Home() {
   const [isStickyExpanded, setIsStickyExpanded] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
 
+  const [mounted, setMounted] = useState(false);
   // Country state for location-based news (BD, GLOBAL, UK, SA)
-  const [selectedCountry, setSelectedCountry] = useState(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const savedCode = localStorage.getItem("kahf_user_country");
-        if (savedCode) {
-          const found = COUNTRIES.find((c) => c.code === savedCode);
-          if (found) return found;
-        }
-        const hasArCookie = document.cookie.includes("googtrans=/bn/ar");
-        const hasArLang = localStorage.getItem("kahf-language") === "AR";
-        if (hasArCookie || hasArLang) {
-          return COUNTRIES[3]; // SA
-        }
-        const hasEnCookie = document.cookie.includes("googtrans=/bn/en");
-        const hasEnLang = localStorage.getItem("kahf-language") === "EN";
-        if (hasEnCookie || hasEnLang) {
-          return COUNTRIES[1]; // GLOBAL
-        }
-        const userTz = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
-        if (userTz === "Asia/Riyadh" || userTz.toLowerCase().includes("riyadh") || userTz.toLowerCase().includes("saudi")) {
-          return COUNTRIES[3]; // SA
-        }
-        if (userTz === "Europe/London" || userTz.toLowerCase().includes("london")) {
-          return COUNTRIES[2]; // UK
-        }
-        const isBangladesh = userTz === "Asia/Dhaka" || userTz.toLowerCase().includes("dhaka");
-        if (!isBangladesh && userTz) {
-          return COUNTRIES[1]; // GLOBAL
-        }
-      } catch (e) {}
-    }
-    return COUNTRIES[0];
-  });
+  const [selectedCountry, setSelectedCountry] = useState(COUNTRIES[0]);
   const [isLocationDropdownOpen, setIsLocationDropdownOpen] = useState(false);
   const isArabic = selectedCountry.code === "SA";
   const isGlobal = selectedCountry.code === "GLOBAL" || selectedCountry.code === "UK" || selectedCountry.code === "SA";
@@ -151,6 +120,7 @@ export default function Home() {
     (sessionData?.user as any)?.role === "admin";
 
   useEffect(() => {
+    setMounted(true);
     const timer = setTimeout(() => {
       setIsLoading(false);
     }, 800);
@@ -281,6 +251,7 @@ export default function Home() {
 
   const [podcastAudioUrl, setPodcastAudioUrl] = useState<string | null>(null);
   const [podcastDuration, setPodcastDuration] = useState<number | null>(null);
+  const [podcastStoredScript, setPodcastStoredScript] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadExistingPodcast() {
@@ -290,6 +261,7 @@ export default function Home() {
         if (json.success && json.podcast) {
           if (json.podcast.audio_url) setPodcastAudioUrl(json.podcast.audio_url);
           if (json.podcast.duration) setPodcastDuration(json.podcast.duration);
+          if (json.podcast.script) setPodcastStoredScript(json.podcast.script);
         }
       } catch (e) {}
     }
@@ -302,21 +274,24 @@ export default function Home() {
     ? "আজ বাইরে বের হওয়ার আগে ছাতা সঙ্গে রাখা জরুরি, বৃষ্টির সম্ভাবনা রয়েছে।"
     : "আজ আকাশ পরিষ্কার থাকবে, তবে তীব্র রোদ এড়াতে প্রয়োজনে ছাতা ব্যবহার করতে পারেন।";
 
-  const newsSummaryList = headlines
+  const newsSummaryList = feedItems
     .slice(0, 5)
     .map((h: any, i: number) => {
-      if (isArabic) return `الخبر ${i + 1}: ${h.title}. ${h.summary || ""}`;
-      if (isGlobal) return `Story ${i + 1}: ${h.title}. ${h.summary || ""}`;
-      return `খবর ${i + 1}: ${h.title}. ${h.summary || ""}`;
+      const summaryText = h.summary || h.raw_content?.slice(0, 250) || h.title;
+      if (isArabic) return `الخبر ${i + 1}: ${h.title}. ${summaryText}`;
+      if (isGlobal) return `Story ${i + 1}: ${h.title}. ${summaryText}`;
+      return `সংবাদ ${i + 1}: ${h.title}। ${summaryText}`;
     })
     .filter(Boolean)
     .join(". ");
 
-  const dailyPodcastScript = isArabic
-    ? `أهلاً بكم في بودكاست كهف الإخباري بالذكاء الاصطناعي! اليوم هو ${currentDate || "اليوم"}. حالة الطقس في الرياض: درجة الحرارة حوالي ${temp} مئوية، والجو ${desc}. إليكم أهم الأخبار اليوم: ${newsSummaryList}. شكراً لاستماعكم لبودكاست كهف ونتمنى لكم يوماً رائعاً!`
+  const fallbackPodcastScript = isArabic
+    ? `أهلاً بكم في بودكاست كهف الإخباري بالذكاء الاصطناعي! اليوم هو ${currentDate || "اليوم"}. حالة الطقس في الرياض: درجة الحرارة حوالي ${temp} مئوية، والجو ${desc}. إليكم تفاصيل أهم الأخبار اليوم: ${newsSummaryList || "نوافيكم بآخر المستجدات الإخبارية"}. شكراً لاستماعكم لبودكاست كهف ونتمنى لكم يوماً رائعاً!`
     : isGlobal
-    ? `Welcome to KahfNews Special AI Podcast! Today is ${currentDate || "today"}. Local weather: around ${temp}°C, ${desc}. Here are today's top stories: ${newsSummaryList}. Thank you for listening to KahfNews!`
-    : `শুভ সকাল! আজ ${currentDate || "আজকের দিন"}। কহাফ নিউজের স্পেশাল এআই পডকাস্টে আপনাকে স্বাগতম। আজকের আবহাওয়া: তাপমাত্রা প্রায় ${temp} ডিগ্রি সেলসিয়াস, আবহাওয়া ${desc}। ${umbrellaAdvice} রাস্তাঘাটের যানজট পরিস্থিতি: প্রধান সড়ক ও মোড়গুলোতে সকালের দিকে কিছুটা স্বাভাবিক চাপ থাকতে পারে, সময় হাতে নিয়ে বের হোন। এবার দেখে নেওয়া যাক আজকের প্রধান খবরগুলো: ${newsSummaryList}। কহাফ নিউজের সাথে থাকার জন্য ধন্যবাদ। দিনটি আপনার শুভ হোক!`;
+    ? `Welcome to KahfNews Special AI Podcast! Today is ${currentDate || "today"}. Local weather: around ${temp}°C, ${desc}. Here are today's top stories: ${newsSummaryList || "We are tracking the latest stories across the globe"}. Thank you for listening to KahfNews!`
+    : `শুভ সকাল! আজ ${currentDate || "আজকের দিন"}। কহাফ নিউজের স্পেশাল এআই পডকাস্টে আপনাকে স্বাগতম। আজকের আবহাওয়া: তাপমাত্রা প্রায় ${temp} ডিগ্রি সেলসিয়াস, আবহাওয়া ${desc}। ${umbrellaAdvice} এবার দেখে নেওয়া যাক আজকের প্রধান খবরগুলোর বিস্তারিত: ${newsSummaryList || "তাজা সংবাদের বিস্তারিত আপডেট নিয়ে আসছি"}। কহাফ নিউজের সাথে থাকার জন্য ধন্যবাদ। দিনটি আপনার শুভ হোক!`;
+
+  const dailyPodcastScript = podcastStoredScript || fallbackPodcastScript;
 
   // Calculate dynamic duration in seconds (13 chars/sec for narration)
   const calculatedDurationSec = Math.max(30, Math.round(dailyPodcastScript.replace(/[*_#`[\]()]/g, "").trim().length / 13));
@@ -379,8 +354,12 @@ export default function Home() {
         >
           <Loader2 className="w-10 h-10 text-primary" />
         </motion.div>
-        <p className="text-muted-foreground text-sm">
-          {isArabic ? "جاري تحميل الأخبار المخصصة لك..." : isGlobal ? "Loading your customized news..." : "আপনার কাস্টমাইজড খবর লোড হচ্ছে..."}
+        <p className="text-muted-foreground text-sm" suppressHydrationWarning>
+          {mounted && isArabic
+            ? "جاري تحميل الأخبار المخصصة لك..."
+            : mounted && isGlobal
+            ? "Loading your customized news..."
+            : "আপনার কাস্টমাইজড খবর লোড হচ্ছে..."}
         </p>
       </div>
     );

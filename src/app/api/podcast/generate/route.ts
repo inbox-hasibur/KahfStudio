@@ -196,17 +196,26 @@ export async function POST(req: NextRequest) {
     try {
       const { data, error } = await supabase
         .from('podcast_archives')
-        .insert({ ...insertPayload, country })
+        .insert({ ...insertPayload, country, script: podcastScript })
         .select()
         .single();
       if (!error && data) savedPodcast = data;
     } catch (e) {
-      const { data } = await supabase
-        .from('podcast_archives')
-        .insert(insertPayload)
-        .select()
-        .single();
-      if (data) savedPodcast = data;
+      try {
+        const { data, error } = await supabase
+          .from('podcast_archives')
+          .insert({ ...insertPayload, country })
+          .select()
+          .single();
+        if (!error && data) savedPodcast = data;
+      } catch (e2) {
+        const { data } = await supabase
+          .from('podcast_archives')
+          .insert(insertPayload)
+          .select()
+          .single();
+        if (data) savedPodcast = data;
+      }
     }
 
     return NextResponse.json({

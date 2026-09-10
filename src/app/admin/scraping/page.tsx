@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Database, Play, Square, Link as LinkIcon, Settings, Key, Search, Plus, Trash2, Eye, EyeOff, Maximize2, Minimize2, Radio, Globe, RefreshCw, CheckCircle } from "lucide-react";
+import { Database, Play, Square, Link as LinkIcon, Settings, Key, Search, Plus, Trash2, Eye, EyeOff, Maximize2, Minimize2, Radio, Globe, RefreshCw, CheckCircle, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,6 +11,66 @@ import { motion } from "framer-motion";
 import { createClient } from "@/utils/supabase/client";
 import { useSession } from "@/lib/auth-client";
 import Link from "next/link";
+
+function InfoTooltip({ text, align = "center" }: { text: string; align?: "center" | "right" | "left" }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [isOpen]);
+
+  const popupPositionClass =
+    align === "right"
+      ? "right-0"
+      : align === "left"
+      ? "left-0"
+      : "left-1/2 -translate-x-1/2";
+
+  const arrowPositionClass =
+    align === "right"
+      ? "right-2"
+      : align === "left"
+      ? "left-2"
+      : "left-1/2 -translate-x-1/2";
+
+  return (
+    <div 
+      ref={containerRef}
+      className="relative inline-flex items-center"
+      onMouseEnter={() => setIsOpen(true)}
+      onMouseLeave={() => setIsOpen(false)}
+    >
+      <button
+        type="button"
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setIsOpen((prev) => !prev);
+        }}
+        className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-muted/80 hover:bg-primary/20 text-muted-foreground hover:text-primary text-[10px] cursor-pointer border border-border/70 transition-all focus:outline-none"
+        aria-label="Details"
+      >
+        <Info className="w-2.5 h-2.5" />
+      </button>
+
+      {isOpen && (
+        <div className={`absolute bottom-full mb-2 w-64 p-2.5 bg-popover/95 text-popover-foreground text-[11px] leading-relaxed rounded-lg shadow-xl border border-border z-50 animate-in fade-in-0 zoom-in-95 duration-150 backdrop-blur-md ${popupPositionClass}`}>
+          {text}
+          <div className={`absolute top-full w-0 h-0 border-x-4 border-x-transparent border-t-4 border-t-border ${arrowPositionClass}`} />
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function AdminScrapingPage() {
   const { data: session } = useSession();
@@ -333,16 +393,16 @@ export default function AdminScrapingPage() {
     setIsSeedingSources(false);
   };
 
-  // Filtered Sources based on Country Tab
+  // Filtered Sources based on Country Filter
   const filteredSources = sources.filter((s) => {
     if (activeSourceTab === "ALL") return true;
-    return (s.country || "BD") === activeSourceTab;
+    return (s.country || "BD").toUpperCase() === activeSourceTab;
   });
 
-  const bdCount = sources.filter(s => (s.country || "BD") === "BD").length;
-  const globalCount = sources.filter(s => s.country === "GLOBAL").length;
-  const ukCount = sources.filter(s => s.country === "UK").length;
-  const saCount = sources.filter(s => s.country === "SA").length;
+  const bdCount = sources.filter(s => (s.country || "BD").toUpperCase() === "BD").length;
+  const globalCount = sources.filter(s => (s.country || "").toUpperCase() === "GLOBAL").length;
+  const ukCount = sources.filter(s => (s.country || "").toUpperCase() === "UK").length;
+  const saCount = sources.filter(s => (s.country || "").toUpperCase() === "SA").length;
 
   // Manual Scraping Trigger
   const handleTriggerEmergencyScrape = async () => {
@@ -555,43 +615,49 @@ export default function AdminScrapingPage() {
 
       {/* 1. News Automation */}
       <Card className="bg-card/50 backdrop-blur-sm border-border mb-6">
-        <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <CardTitle className="flex items-center gap-2">
-              <Settings className="w-5 h-5 text-primary" />
-              News Automation
-            </CardTitle>
-            <CardDescription>Configure auto-approval, automated scraping schedules, and AI podcast generation.</CardDescription>
-          </div>
-          <Button 
-            onClick={handleSaveSettings} 
-            disabled={isSavingSettings} 
-            size="sm" 
-            className={`transition-all font-semibold ${saveSuccess ? "!bg-emerald-600 !text-white" : "bg-primary text-primary-foreground hover:bg-primary/90"}`}
-          >
-            {isSavingSettings ? "Saving..." : saveSuccess ? "✓ Settings Saved" : "Save Automation Settings"}
-          </Button>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Settings className="w-5 h-5 text-primary" />
+            News Automation
+          </CardTitle>
+          <CardDescription>Configure auto-approval, automated scraping schedules, and AI podcast generation.</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid md:grid-cols-3 gap-6">
+          <div className="grid md:grid-cols-3 gap-6 items-stretch">
             
-            {/* Auto Approve */}
-            <div className="space-y-3">
-              <div className="flex flex-col gap-3">
-                <SlidingToggle
-                  id="switch-auto-approve"
-                  checked={autoApprove}
-                  onChange={(val: boolean) => {
-                    setAutoApprove(val);
-                    saveSetting("auto_approve_news", val.toString());
-                  }}
-                />
-                <Label htmlFor="switch-auto-approve" className="text-sm font-semibold cursor-pointer">
-                  Auto-Approve<br />Scraped News
-                </Label>
-                <p className="text-[11px] text-muted-foreground leading-snug">
-                  Automatically publish scraped news without manual review. This will bypass the pending queue.
-                </p>
+            {/* Auto Approve (Column 1 - perfectly symmetrical height) */}
+            <div className="flex flex-col justify-between space-y-4">
+              <div className="space-y-3">
+                <div className="flex flex-col gap-3">
+                  <SlidingToggle
+                    id="switch-auto-approve"
+                    checked={autoApprove}
+                    onChange={(val: boolean) => {
+                      setAutoApprove(val);
+                      saveSetting("auto_approve_news", val.toString());
+                    }}
+                  />
+                  <div className="flex items-center gap-1.5">
+                    <Label htmlFor="switch-auto-approve" className="text-sm font-semibold cursor-pointer">
+                      Auto-Approve Scraped News
+                    </Label>
+                    <InfoTooltip text="Automatically publish scraped news without manual review. This bypasses the pending moderation queue." />
+                  </div>
+                  <p className="text-[11px] text-muted-foreground leading-snug">
+                    Automatically publish scraped news without manual review. This will bypass the pending queue.
+                  </p>
+                </div>
+              </div>
+
+              {/* Save Settings Action Button */}
+              <div className="pt-2">
+                <Button 
+                  onClick={handleSaveSettings} 
+                  disabled={isSavingSettings} 
+                  className={`w-full h-9 transition-all font-semibold shadow-sm text-xs ${saveSuccess ? "!bg-emerald-600 !text-white" : "bg-primary text-primary-foreground hover:bg-primary/90"}`}
+                >
+                  {isSavingSettings ? "Saving..." : saveSuccess ? "✓ Settings Saved" : "Save Automation Settings"}
+                </Button>
               </div>
             </div>
 
@@ -606,12 +672,12 @@ export default function AdminScrapingPage() {
                     saveSetting("scraping_schedule_enabled", val.toString());
                   }}
                 />
-                <Label htmlFor="switch-scraping-schedule" className="text-sm font-semibold cursor-pointer">
-                  Scraping Schedule
-                </Label>
-                <p className="text-[11px] text-muted-foreground leading-snug">
-                  Automatically scrape Bangladesh & Global sources on configured schedule (Default: 7:00 AM & 7:00 PM).
-                </p>
+                <div className="flex items-center gap-1.5">
+                  <Label htmlFor="switch-scraping-schedule" className="text-sm font-semibold cursor-pointer">
+                    Scraping Schedule
+                  </Label>
+                  <InfoTooltip text="Automatically scrapes Bangladesh, Global, UK, and Saudi Arabia sources on configured schedule (Default: 7:00 AM & 7:00 PM)." />
+                </div>
               </div>
 
               <div className="flex flex-wrap gap-2 pt-1">
@@ -712,12 +778,12 @@ export default function AdminScrapingPage() {
                     saveSetting("podcast_schedule_enabled", val.toString());
                   }}
                 />
-                <Label htmlFor="switch-podcast-schedule" className="text-sm font-semibold cursor-pointer">
-                  AI Podcast Scheduler
-                </Label>
-                <p className="text-[11px] text-muted-foreground leading-snug">
-                  Automatically generate audio bulletin from fresh news with a 10m buffer (Default: 7:10 AM & 7:10 PM).
-                </p>
+                <div className="flex items-center gap-1.5">
+                  <Label htmlFor="switch-podcast-schedule" className="text-sm font-semibold cursor-pointer">
+                    AI Podcast Scheduler
+                  </Label>
+                  <InfoTooltip align="right" text="Automatically generates audio bulletin from fresh news with a 10m buffer after scheduled scraping completes (Default: 7:10 AM & 7:10 PM)." />
+                </div>
               </div>
 
               <div className="flex flex-wrap gap-2 pt-1">
@@ -813,7 +879,7 @@ export default function AdminScrapingPage() {
 
       {/* 2. Manual Scraping Control (Renamed from Live Scraping Status) */}
       <Card className={`bg-card/50 backdrop-blur-sm border-border mb-6 transition-all duration-300 ${isTerminalFullscreen ? "fixed bottom-4 left-4 right-4 top-24 z-50 overflow-hidden flex flex-col bg-black/95 shadow-2xl ring-1 ring-border" : ""}`}>
-        <CardHeader className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 border-b border-border pb-4">
+        <CardHeader className="space-y-4 border-b border-border pb-4">
           <div>
             <CardTitle className="flex items-center gap-2">
               <Play className="w-5 h-5 text-primary" />
@@ -822,89 +888,113 @@ export default function AdminScrapingPage() {
                 <span className="ml-2 w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse" />
               )}
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="mt-1">
               Manually trigger scraping or generate AI podcasts, and monitor real-time execution logs.
             </CardDescription>
           </div>
           
-          <div className="flex flex-wrap items-center gap-2.5 bg-black/30 p-2 rounded-xl border border-white/5">
-            <div className="flex items-center gap-2 px-1">
-              <Label className="text-xs text-muted-foreground whitespace-nowrap">Target Count:</Label>
-              <Input 
-                type="number" 
-                min="1" max="25" 
-                value={targetCount}
-                onChange={(e) => setTargetCount(e.target.value)}
-                className="w-16 h-8 text-xs bg-black/40 border-white/10 focus-visible:ring-1" 
-              />
-            </div>
-            
-            <div className="flex items-center gap-2 px-1 sm:border-l sm:border-white/10 sm:pl-3">
-              <Label className="text-xs text-muted-foreground whitespace-nowrap">Country:</Label>
-              <select 
-                className="flex h-8 w-36 bg-black/40 rounded-md border border-white/10 text-xs focus-visible:outline-none px-2 text-foreground"
-                value={selectedCountry}
-                onChange={(e) => setSelectedCountry(e.target.value)}
+          <div className="w-full grid grid-cols-1 md:grid-cols-3 gap-3.5 bg-muted/20 dark:bg-black/40 p-3.5 sm:p-4 rounded-xl border border-border/80 dark:border-white/10">
+            {/* 1st Column: Target Count & Save Defaults */}
+            <div className="flex flex-col justify-between gap-3 bg-card/60 dark:bg-white/[0.03] p-3 rounded-lg border border-border/60 dark:border-white/5">
+              <div className="flex items-center justify-between gap-3">
+                <Label htmlFor="manual-target-input" className="text-xs font-semibold text-foreground whitespace-nowrap">
+                  Target Count:
+                </Label>
+                <Input 
+                  id="manual-target-input"
+                  type="number" 
+                  min="1" max="25" 
+                  value={targetCount}
+                  onChange={(e) => setTargetCount(e.target.value)}
+                  className="w-20 h-8 text-xs font-semibold text-center bg-background dark:bg-black/50 border-input dark:border-white/10 focus-visible:ring-1" 
+                />
+              </div>
+              <Button 
+                size="sm" 
+                variant="outline" 
+                onClick={handleSaveAutomationDefaults} 
+                disabled={isSavingDefaults} 
+                className={`h-8 text-xs font-medium w-full transition-all border-border/80 dark:border-white/15 hover:bg-muted dark:hover:bg-white/10 ${defaultsSavedSuccess ? "!text-emerald-500 !border-emerald-500/50 !bg-emerald-500/10" : ""}`}
+                title="Save selected Category, Target Count, and Country as scheduler defaults"
               >
-                <option value="All">🌐 All Countries (1 by 1)</option>
-                <option value="BD">🇧🇩 Bangladesh</option>
-                <option value="GLOBAL">🌍 Global Only</option>
-                <option value="UK">🇬🇧 United Kingdom</option>
-                <option value="SA">🇸🇦 Saudi Arabia</option>
-              </select>
+                {defaultsSavedSuccess ? "✓ Defaults Saved" : isSavingDefaults ? "Saving..." : "Save Defaults"}
+              </Button>
             </div>
 
-            <div className="flex items-center gap-2 px-1 sm:border-l sm:border-white/10 sm:pl-3">
-              <Label className="text-xs text-muted-foreground whitespace-nowrap">Category:</Label>
-              <select 
-                className="flex h-8 w-28 bg-black/40 rounded-md border border-white/10 text-xs focus-visible:outline-none px-2 text-foreground"
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
+            {/* 2nd Column (Middle): Country & Category */}
+            <div className="flex flex-col justify-between gap-3 bg-card/60 dark:bg-white/[0.03] p-3 rounded-lg border border-border/60 dark:border-white/5">
+              <div className="flex items-center justify-between gap-2">
+                <Label htmlFor="manual-country-select" className="text-xs font-semibold text-foreground whitespace-nowrap min-w-[65px]">
+                  Country:
+                </Label>
+                <select 
+                  id="manual-country-select"
+                  className="flex h-8 w-full bg-background dark:bg-black/50 rounded-md border border-input dark:border-white/10 text-xs px-2.5 text-foreground focus-visible:outline-none focus:ring-1 focus:ring-primary cursor-pointer truncate"
+                  value={selectedCountry}
+                  onChange={(e) => setSelectedCountry(e.target.value)}
+                >
+                  <option value="All">🌐 All Countries (1 by 1)</option>
+                  <option value="BD">🇧🇩 Bangladesh</option>
+                  <option value="GLOBAL">🌍 Global Only</option>
+                  <option value="UK">🇬🇧 United Kingdom</option>
+                  <option value="SA">🇸🇦 Saudi Arabia</option>
+                </select>
+              </div>
+
+              <div className="flex items-center justify-between gap-2">
+                <Label htmlFor="manual-category-select" className="text-xs font-semibold text-foreground whitespace-nowrap min-w-[65px]">
+                  Category:
+                </Label>
+                <select 
+                  id="manual-category-select"
+                  className="flex h-8 w-full bg-background dark:bg-black/50 rounded-md border border-input dark:border-white/10 text-xs px-2.5 text-foreground focus-visible:outline-none focus:ring-1 focus:ring-primary cursor-pointer truncate"
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                >
+                  <option value="All">All Categories</option>
+                  {CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                </select>
+              </div>
+            </div>
+
+            {/* 3rd Column (Last): Action Buttons */}
+            <div className="flex flex-col justify-between gap-2.5 bg-card/60 dark:bg-white/[0.03] p-3 rounded-lg border border-border/60 dark:border-white/5">
+              <Button 
+                size="sm" 
+                onClick={handleTriggerEmergencyScrape} 
+                disabled={isTriggeringRss || isGeneratingPodcast} 
+                className="bg-primary text-primary-foreground hover:bg-primary/90 h-8 shadow-sm font-semibold w-full flex items-center justify-center gap-1.5 text-xs transition-transform active:scale-[0.98]"
               >
-                <option value="All">All Categories</option>
-                {CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-              </select>
+                <Play className="w-3.5 h-3.5 fill-current" /> 
+                {isTriggeringRss ? "Scraping..." : "Scrap Now"}
+              </Button>
+
+              <Button 
+                size="sm" 
+                onClick={handleTriggerPodcast} 
+                disabled={isGeneratingPodcast || isTriggeringRss} 
+                className="bg-primary text-primary-foreground hover:bg-primary/90 h-8 shadow-sm font-semibold transition-all w-full flex items-center justify-center gap-1.5 text-xs active:scale-[0.98]"
+              >
+                <Radio className="w-3.5 h-3.5" />
+                {isGeneratingPodcast ? "Generating Audio..." : "AI Podcast Summary"}
+              </Button>
             </div>
-
-            {/* Scrap Now Button */}
-            <Button 
-              size="sm" 
-              onClick={handleTriggerEmergencyScrape} 
-              disabled={isTriggeringRss || isGeneratingPodcast} 
-              className="bg-primary text-primary-foreground hover:bg-primary/90 h-8 ml-1 shadow-sm font-semibold"
-            >
-              <Play className="w-3.5 h-3.5 mr-1" /> 
-              {isTriggeringRss ? "Scraping..." : "Scrap Now"}
-            </Button>
-
-            {/* AI Podcast Summary Button */}
-            <Button 
-              size="sm" 
-              onClick={handleTriggerPodcast} 
-              disabled={isGeneratingPodcast || isTriggeringRss} 
-              className="bg-emerald-600 hover:bg-emerald-700 text-white h-8 shadow-sm font-semibold"
-            >
-              <Radio className="w-3.5 h-3.5 mr-1" />
-              {isGeneratingPodcast ? "Generating Audio..." : "AI Podcast Summary"}
-            </Button>
-
-            <Button 
-              size="sm" 
-              variant="outline" 
-              onClick={handleSaveAutomationDefaults} 
-              disabled={isSavingDefaults} 
-              className={`h-8 text-xs border-white/20 hover:bg-white/10 ${defaultsSavedSuccess ? "text-emerald-400 border-emerald-500/50" : ""}`}
-              title="Save selected Category, Target Count, and Country as scheduler defaults"
-            >
-              {defaultsSavedSuccess ? "✓ Saved" : isSavingDefaults ? "Saving..." : "Save Defaults"}
-            </Button>
-            
-            <Button variant="ghost" size="icon" onClick={() => setIsTerminalFullscreen(!isTerminalFullscreen)} className="h-8 w-8 hidden md:flex hover:bg-white/10">
-              {isTerminalFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-            </Button>
           </div>
         </CardHeader>
-        <CardContent className={`p-0 ${isTerminalFullscreen ? "flex-1 overflow-hidden" : ""}`}>
+        <CardContent className={`p-0 relative ${isTerminalFullscreen ? "flex-1 overflow-hidden" : ""}`}>
+          {/* Maximize Terminal Button at top right of the black log window */}
+          <div className="absolute top-2.5 right-3 z-10">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={() => setIsTerminalFullscreen(!isTerminalFullscreen)} 
+              className="h-7 w-7 bg-white/10 hover:bg-white/20 text-white/80 hover:text-white rounded-md border border-white/10 backdrop-blur-sm shadow-sm transition-all"
+              title={isTerminalFullscreen ? "Exit Fullscreen" : "Maximize Terminal"}
+            >
+              {isTerminalFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+            </Button>
+          </div>
+
           <div 
             ref={logsContainerRef}
             className={`overflow-y-auto font-mono text-xs text-green-400 space-y-1 p-4 bg-black ${isTerminalFullscreen ? "h-full" : "h-72"}`}
@@ -934,61 +1024,27 @@ export default function AdminScrapingPage() {
                 <Database className="w-5 h-5 text-primary" />
                 Automated Scraping Sources (RSS / DDG)
               </CardTitle>
-              <CardDescription>Manage active RSS feeds for Bangladesh & Global background news harvesting.</CardDescription>
+              <CardDescription>Manage active RSS feeds for Bangladesh, Global, UK & Saudi Arabia background news harvesting.</CardDescription>
             </div>
 
-            {/* Country Filter Tabs */}
-            <div className="flex flex-wrap items-center gap-1 bg-muted p-1 rounded-xl border border-border">
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveSourceTab("ALL");
-                  setNewSourceCountry("BD");
+            {/* Country Filter Dropdown */}
+            <div className="flex items-center gap-2">
+              <Label className="text-xs text-muted-foreground whitespace-nowrap">Filter Sources:</Label>
+              <select
+                value={activeSourceTab}
+                onChange={(e) => {
+                  const val = e.target.value as any;
+                  setActiveSourceTab(val);
+                  if (val !== "ALL") setNewSourceCountry(val);
                 }}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${activeSourceTab === "ALL" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                className="h-9 px-3 text-xs bg-muted/60 hover:bg-muted border border-border rounded-xl font-medium focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary shadow-sm transition-colors cursor-pointer text-foreground"
               >
-                All Sources ({sources.length})
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveSourceTab("BD");
-                  setNewSourceCountry("BD");
-                }}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${activeSourceTab === "BD" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
-              >
-                🇧🇩 Bangladesh ({bdCount})
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveSourceTab("GLOBAL");
-                  setNewSourceCountry("GLOBAL");
-                }}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${activeSourceTab === "GLOBAL" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
-              >
-                🌐 Global ({globalCount})
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveSourceTab("UK");
-                  setNewSourceCountry("UK");
-                }}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${activeSourceTab === "UK" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
-              >
-                🇬🇧 UK ({ukCount})
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveSourceTab("SA");
-                  setNewSourceCountry("SA");
-                }}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${activeSourceTab === "SA" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
-              >
-                🇸🇦 Saudi Arabia ({saCount})
-              </button>
+                <option value="ALL">🌐 All Sources ({sources.length})</option>
+                <option value="BD">🇧🇩 Bangladesh ({bdCount})</option>
+                <option value="GLOBAL">🌍 Global ({globalCount})</option>
+                <option value="UK">🇬🇧 United Kingdom ({ukCount})</option>
+                <option value="SA">🇸🇦 Saudi Arabia ({saCount})</option>
+              </select>
             </div>
           </div>
         </CardHeader>
@@ -1052,7 +1108,7 @@ export default function AdminScrapingPage() {
           {/* Sources Table */}
           <div className="border border-border rounded-xl overflow-hidden shadow-sm">
             <table className="w-full text-sm">
-              <thead className="bg-[#0f172a] text-white text-left">
+              <thead className="bg-muted/60 text-muted-foreground text-left border-b border-border">
                 <tr>
                   <th className="px-4 py-3 font-medium rounded-tl-xl text-xs">Name</th>
                   <th className="px-4 py-3 font-medium text-xs">Feed URL</th>

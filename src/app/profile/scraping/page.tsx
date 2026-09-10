@@ -722,7 +722,7 @@ export default function AdminScrapingPage() {
 
           <div className="border border-border rounded-xl overflow-hidden">
             <table className="w-full text-sm">
-              <thead className="bg-[#0f172a] text-white text-left">
+              <thead className="bg-muted/60 text-muted-foreground text-left border-b border-border">
                 <tr>
                   <th className="px-4 py-3 font-medium rounded-tl-xl">Name</th>
                   <th className="px-4 py-3 font-medium">URL</th>

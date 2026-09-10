@@ -47,6 +47,31 @@ export default function NewsDetailPage() {
   const [isStickyExpanded, setIsStickyExpanded] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
 
+  const [siteLang, setSiteLang] = useState<"BN" | "EN" | "AR">("BN");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      if (
+        document.cookie.includes("googtrans=/bn/ar") ||
+        localStorage.getItem("kahf-language") === "AR" ||
+        localStorage.getItem("kahf_user_country") === "SA"
+      ) {
+        setSiteLang("AR");
+      } else if (
+        document.cookie.includes("googtrans=/bn/en") ||
+        localStorage.getItem("kahf-language") === "EN" ||
+        ["GLOBAL", "UK"].includes(localStorage.getItem("kahf_user_country") || "")
+      ) {
+        setSiteLang("EN");
+      } else {
+        setSiteLang("BN");
+      }
+    }
+  }, []);
+
+  const isArabic = siteLang === "AR";
+  const isGlobal = siteLang === "EN" || siteLang === "AR";
+
   const handleShare = async () => {
     try {
       if (typeof window !== "undefined") {
@@ -349,7 +374,9 @@ export default function NewsDetailPage() {
           className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-3.5 sm:mb-4 group"
         >
           <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-          <span className="text-[13px] font-semibold uppercase tracking-wider">Back to Feed</span>
+          <span className="text-[13px] font-semibold uppercase tracking-wider">
+            {isArabic ? "العودة للأخبار" : isGlobal ? "Back to Feed" : "ফিডে ফিরে যান"}
+          </span>
         </Link>
       </motion.div>
 
@@ -374,7 +401,7 @@ export default function NewsDetailPage() {
         {/* Title */}
         <motion.h1
           variants={itemVariants}
-          className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold text-foreground leading-snug tracking-tight mb-3 sm:mb-5 notranslate"
+          className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold text-foreground leading-snug tracking-tight mb-3 sm:mb-5"
         >
           {newsItem.title}
         </motion.h1>
@@ -395,7 +422,7 @@ export default function NewsDetailPage() {
               }`}
             >
               <Sparkles className="w-3 h-3" />
-              Summary
+              {isArabic ? "الملخص" : isGlobal ? "Summary" : "সারসংক্ষেপ"}
             </button>
             <button
               onClick={() => setActiveView("full")}
@@ -404,7 +431,7 @@ export default function NewsDetailPage() {
               }`}
             >
               <AlignLeft className="w-3 h-3" />
-              Full News
+              {isArabic ? "الخبر الكامل" : isGlobal ? "Full News" : "সম্পূর্ণ খবর"}
             </button>
           </div>
 
@@ -415,7 +442,9 @@ export default function NewsDetailPage() {
               onClick={() => handlePlayAudio(activeView)}
             >
               <Play className="w-3 h-3 fill-current" />
-              {activeView === "full" ? "Listen Full News" : "Listen Summary"}
+              {activeView === "full" 
+                ? (isArabic ? "استمع للخبر الكامل" : isGlobal ? "Listen Full News" : "সম্পূর্ণ সংবাদ শুনুন")
+                : (isArabic ? "استمع للموجز" : isGlobal ? "Listen Summary" : "সারসংক্ষেপ শুনুন")}
             </Button>
           </div>
         </motion.div>
@@ -442,9 +471,9 @@ export default function NewsDetailPage() {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-muted/60 hover:bg-muted text-foreground border border-border/80 hover:border-primary/40 text-xs font-semibold transition-all shadow-sm group/orig ml-1 sm:ml-2"
-                title={`মূল পত্রিকা (${newsItem.source}) থেকে সম্পূর্ণ খবরটি পড়ুন`}
+                title={`${newsItem.source}`}
               >
-                <span>মূল সংবাদ পড়ুন</span>
+                <span>{isArabic ? "اقرأ المصدر الأصلي" : isGlobal ? "Read Source" : "মূল সংবাদ পড়ুন"}</span>
                 <ExternalLink className="w-3.5 h-3.5 text-primary group-hover/orig:translate-x-0.5 group-hover/orig:-translate-y-0.5 transition-transform" />
               </a>
             )}
@@ -503,7 +532,7 @@ export default function NewsDetailPage() {
               {paragraphs.map((paragraph: string, index: number) => (
                 <p
                   key={`summary-${index}`}
-                  className="text-xs sm:text-sm md:text-[15px] leading-relaxed text-foreground/85 font-medium notranslate"
+                  className="text-xs sm:text-sm md:text-[15px] leading-relaxed text-foreground/85 font-medium"
                 >
                   {paragraph}
                 </p>
@@ -552,14 +581,16 @@ export default function NewsDetailPage() {
             className="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 bg-card border border-border rounded-xl font-semibold text-xs text-foreground hover:bg-muted hover:border-primary/20 transition-all active:scale-95 shadow-sm"
           >
             <ExternalLink className="w-3.5 h-3.5" />
-            Read Original Article
+            {isArabic ? "اقرأ المقال الأصلي" : isGlobal ? "Read Original Article" : "মূল প্রতিবেদন পড়ুন"}
           </a>
         </motion.div>
 
         {/* Related Stories */}
         {relatedStories.length > 0 && (
           <motion.div variants={itemVariants}>
-            <h3 className="text-sm sm:text-base font-bold text-foreground mb-3">Related Stories</h3>
+            <h3 className="text-sm sm:text-base font-bold text-foreground mb-3">
+              {isArabic ? "أخبار ذات صلة لك" : isGlobal ? "Related Stories for You" : "আপনার জন্য আরো প্রাসঙ্গিক সংবাদ"}
+            </h3>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               {relatedStories.map((story) => (
                 <Link key={story.id} href={`/news/${story.id}`}>

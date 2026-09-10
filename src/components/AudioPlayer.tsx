@@ -363,19 +363,22 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
       setCurrentTime(initialTime);
       setProgress(resumeFromChunk / chunks.length);
 
-      // Find appropriate voice
+      // Find high-quality natural voice with preference for Natural/Neural/Online/Google voices
       const currentVoices = window.speechSynthesis.getVoices();
+      const targetLangPrefix = isArabic ? "ar" : isEnglish ? "en" : "bn";
+      const langVoices = currentVoices.filter((v) => v.lang.toLowerCase().startsWith(targetLangPrefix));
+
+      const wantMale = ttsSettings.voiceGender === "male";
+      const isVoiceNatural = (name: string) => /natural|online|neural|google|premium|pro/i.test(name);
+      const isVoiceMale = (name: string) => /male|guy|david|george|christopher|mark|james|ryan/i.test(name) && !/female/i.test(name);
+      const isVoiceFemale = (name: string) => /female|aria|jenny|zira|samantha|victoria|susan|emma|ayesha/i.test(name);
+
       const matchedVoice =
-        currentVoices.find((v) =>
-          isArabic
-            ? v.lang.toLowerCase().startsWith("ar")
-            : isEnglish
-            ? v.lang.toLowerCase().startsWith("en")
-            : v.lang.toLowerCase().startsWith("bn")
-        ) ||
-        (isArabic || isEnglish
-          ? null
-          : currentVoices.find((v) => v.lang.toLowerCase().startsWith("hi") || v.default));
+        langVoices.find((v) => isVoiceNatural(v.name) && (wantMale ? isVoiceMale(v.name) : isVoiceFemale(v.name))) ||
+        langVoices.find((v) => isVoiceNatural(v.name)) ||
+        langVoices.find((v) => (wantMale ? isVoiceMale(v.name) : isVoiceFemale(v.name))) ||
+        langVoices[0] ||
+        (!isArabic && !isEnglish ? currentVoices.find((v) => v.lang.toLowerCase().startsWith("hi") || v.default) : null);
 
       const speakChunk = (chunkIdx: number) => {
         if (sessionCounterRef.current !== sessionId) return;
@@ -385,11 +388,7 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
           setCurrentTime(totalEstimatedDuration);
           setProgress(1);
           if (sessionCounterRef.current === sessionId) {
-            if (track.id === "daily-podcast" || track.isPodcast) {
-              setIsPlaying(false);
-            } else {
-              handleNext();
-            }
+            setIsPlaying(false);
           }
           return;
         }
@@ -492,12 +491,8 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
 
       audio.onended = () => {
         if (sessionCounterRef.current === sessionId) {
-          if (track.id === "daily-podcast" || track.isPodcast) {
-            setIsPlaying(false);
-            setProgress(1);
-          } else {
-            handleNext();
-          }
+          setIsPlaying(false);
+          setProgress(1);
         }
       };
 
@@ -595,7 +590,20 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
     }
   }, [isPlaying, activeEngine]);
 
-  const togglePlay = () => setIsPlaying(!isPlaying);
+  const togglePlay = () => {
+    if (!isPlaying && progress >= 0.99) {
+      setCurrentTime(0);
+      setProgress(0);
+      currentChunkIndexRef.current = 0;
+      if (audioRef.current) {
+        audioRef.current.currentTime = 0;
+      }
+      if (activeTrack) {
+        setPlayTrigger(Date.now());
+      }
+    }
+    setIsPlaying(!isPlaying);
+  };
 
   const handleNext = useCallback(() => {
     setPlaylist((currentPlaylist) => {

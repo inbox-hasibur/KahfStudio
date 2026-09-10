@@ -93,13 +93,21 @@ export async function POST(req: Request) {
       ];
 
       const saSources = [
-        { name: "Arab News (SA)", url: "https://www.arabnews.com/rss.xml", category: "Middle East", country: "SA", is_active: true },
-        { name: "Saudi Gazette", url: "https://saudigazette.com.sa/rss/saudi-arabia", category: "Middle East", country: "SA", is_active: true },
-        { name: "Al Arabiya English (SA)", url: "https://english.alarabiya.net/feed/rss2/english/news", category: "Middle East", country: "SA", is_active: true },
-        { name: "Asharq Al-Awsat (ENG)", url: "https://english.aawsat.com/rss.xml", category: "Middle East", country: "SA", is_active: true },
-        { name: "Saudi Press Agency (SPA)", url: "https://www.spa.gov.sa/rss.xml", category: "Govt / National", country: "SA", is_active: true },
-        { name: "Al Riyadh Daily", url: "http://alriyadhdaily.com/rss", category: "Middle East", country: "SA", is_active: true }
+        { name: "Arab News (SA)", url: "https://www.arabnews.com/rss.xml", category: "General", country: "SA", is_active: true },
+        { name: "Saudi Gazette", url: "https://saudigazette.com.sa/rss/saudi-arabia", category: "General", country: "SA", is_active: true },
+        { name: "Al Arabiya English (SA)", url: "https://english.alarabiya.net/feed/rss2/english/news", category: "General", country: "SA", is_active: true },
+        { name: "Asharq Al-Awsat (ENG)", url: "https://english.aawsat.com/rss.xml", category: "General", country: "SA", is_active: true },
+        { name: "Saudi Press Agency (SPA)", url: "https://www.spa.gov.sa/rss.xml", category: "General", country: "SA", is_active: true },
+        { name: "Al Riyadh Daily", url: "http://alriyadhdaily.com/rss", category: "General", country: "SA", is_active: true }
       ];
+
+      // Automatically normalize any non-standard categories to General
+      try {
+        await supabase
+          .from("scraping_sources")
+          .update({ category: "General" })
+          .in("category", ["Middle East", "Govt / National"]);
+      } catch (e) {}
 
       if (country === "BD") {
         defaults = bdSources;
@@ -129,6 +137,9 @@ export async function POST(req: Request) {
             const { country, ...rest } = src;
             await supabase.from("scraping_sources").insert(rest);
           }
+        } else {
+          // Keep existing source updated with normalized category
+          await supabase.from("scraping_sources").update({ category: src.category, country: src.country }).eq("id", existing.id);
         }
       }
     } else {

@@ -404,28 +404,37 @@ Return a valid JSON array of chosen numbers (1-indexed), for example: [1, 3, 5]`
         // 5b. Unified Gemini Processing: Exact Full News + Summary + Importance Score + Halal Gatekeeper
         await sendLog(`  ├─ Running Unified AI News Synthesis with Gemini (Primary: gemini-3.6-flash)...`);
 
+        const candidateCountry = (candidate.country || targetCountry || "BD").toUpperCase();
+        const targetLang = candidateCountry === "SA" 
+          ? "Arabic" 
+          : (candidateCountry === "GLOBAL" || candidateCountry === "UK") 
+          ? "English" 
+          : "Bengali";
+
         const prompt = `You are a chief news editor and journalist for KahfNews, an ethical, family-friendly, and Halal-conscious news platform.
-Analyze the following article and return a strictly valid JSON object.
+Analyze the following article and return a strictly valid JSON object in ${targetLang}.
 
 Input Title: ${candidate.title}
 Source: ${candidate.sourceName}
-Country: ${candidate.country || "BD"}
+Country: ${candidateCountry}
+Target Language: ${targetLang}
 Category Hint: ${candidate.category || "General"}
 Raw Article Body:
 ${extracted.bodyText.slice(0, 16000)}
 
 EDITORIAL POLICY:
-1. Family-Friendly & Halal: Reject vulgar entertainment gossip, sexualized content, revealing attire/bikini stories, or illicit affair scandals. Legitimate crime, anti-corruption, court verdicts, and national events are permitted.
-2. FULL CONTENT PRESERVATION: Under "clean_content", you MUST keep the entire full unabridged article intact. Never shorten or condense it into a summary. Keep every single paragraph, quote, and background detail.
+1. Target Language: Write the "clean_headline", "clean_content", and "ai_summary" strictly in ${targetLang}.
+2. Family-Friendly & Halal: Reject vulgar entertainment gossip, sexualized content, revealing attire/bikini stories, or illicit affair scandals. Legitimate crime, anti-corruption, court verdicts, and national events are permitted.
+3. FULL CONTENT PRESERVATION: Under "clean_content", you MUST keep the entire full unabridged article intact in ${targetLang}. Never shorten or condense it into a summary. Keep every single paragraph, quote, and background detail.
 
 YOUR RESPONSE MUST STRICTLY FOLLOW THIS JSON SCHEMA:
 {
   "is_halal_and_family_friendly": <Boolean: true if clean, ethical, family-safe; false if it contains vulgar gossip, obscenity, sexualized content, or non-halal promotion>,
   "rejection_reason": "<If false, short explanation, else empty string>",
   "importance_score": <Integer from 1 to 100>,
-  "clean_headline": "<Engaging, accurate Bengali headline>",
-  "clean_content": "<FULL UNABRIDGED RAW ARTICLE BODY in clean Bengali markdown. CRITICAL: DO NOT SUMMARIZE OR SHORTEN THIS. Keep EVERY single paragraph, quote, and detail from the raw article intact. Only clean up formatting, ads, and navigation noise>",
-  "ai_summary": "<A CONCISE 2-paragraph Bengali summary highlighting key events, followed by exactly 3 bullet points of key takeaways>",
+  "clean_headline": "<Engaging, accurate ${targetLang} headline>",
+  "clean_content": "<FULL UNABRIDGED RAW ARTICLE BODY in clean ${targetLang} markdown. CRITICAL: DO NOT SUMMARIZE OR SHORTEN THIS. Keep EVERY single paragraph, quote, and detail from the raw article intact. Only clean up formatting, ads, and navigation noise>",
+  "ai_summary": "<A CONCISE 2-paragraph ${targetLang} summary highlighting key events, followed by exactly 3 bullet points of key takeaways>",
   "detected_category": "<One of: Politics, Economy, Technology, Sports, Entertainment, World, Bangladesh, Lifestyle, General>"
 }`;
 
