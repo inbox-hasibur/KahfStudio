@@ -542,8 +542,10 @@ YOUR RESPONSE MUST STRICTLY FOLLOW THIS JSON SCHEMA:
               .trim();
 
             const wavBuffer = await fetchWithTimeout(
-              generateSeamlessGeminiAudio(textToSpeak, "bn", activeKeys),
-              12000,
+              generateSeamlessGeminiAudio(textToSpeak, "bn", activeKeys, async (msg) => {
+                await sendLog(`  │  ${msg}`);
+              }),
+              75000,
               "TTS Generation timed out"
             );
 

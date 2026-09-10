@@ -22,6 +22,7 @@ export function useNews(options: UseNewsOptions | string = {}) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let ignore = false;
     setLoading(true);
     const params = new URLSearchParams();
     if (category && category !== 'All') params.set('category', category);
@@ -33,18 +34,26 @@ export function useNews(options: UseNewsOptions | string = {}) {
     fetch(`/api/news?${params.toString()}`)
       .then((res) => res.json())
       .then((data) => {
-        if (data.success) {
-          setNews(data.data || []);
-        } else {
-          setNews([]);
+        if (!ignore) {
+          if (data.success) {
+            setNews(data.data || []);
+          } else {
+            setNews([]);
+          }
+          setLoading(false);
         }
-        setLoading(false);
       })
       .catch((err) => {
-        console.error('Error fetching news:', err);
-        setError(err.message);
-        setLoading(false);
+        if (!ignore) {
+          console.error('Error fetching news:', err);
+          setError(err.message);
+          setLoading(false);
+        }
       });
+
+    return () => {
+      ignore = true;
+    };
   }, [category, country, sort, JSON.stringify(interests), limit]);
 
   return { news, loading, error };

@@ -36,7 +36,9 @@ export async function GET(req: NextRequest) {
 
     if (country && country.toUpperCase() !== 'ALL') {
       if (country.toUpperCase() === 'GLOBAL') {
-        query = query.or('country.eq.GLOBAL,country.neq.BD');
+        query = query.eq('country', 'GLOBAL');
+      } else if (country.toUpperCase() === 'BD') {
+        query = query.or('country.eq.BD,country.is.null');
       } else {
         query = query.eq('country', country);
       }

@@ -437,13 +437,13 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
 
       let hasStarted = false;
 
-      // 2-Second Fallback Timer: If audio cannot load/play within 2s, switch to WebSpeech
+      // 5-Second Fallback Timer: If audio cannot load/play within 5s, switch to WebSpeech
       fallbackTimerRef.current = setTimeout(() => {
         if (sessionCounterRef.current === sessionId && !hasStarted) {
-          console.warn("Gemini audio timed out after 2s, falling back to WebSpeech");
-          startWebSpeech(track, "bn_summary", sessionId);
+          console.warn("Gemini audio timed out after 5s, falling back to WebSpeech");
+          startWebSpeech(track, audioMode, sessionId);
         }
-      }, 2000);
+      }, 5000);
 
       audio.onloadedmetadata = () => {
         if (sessionCounterRef.current === sessionId) {

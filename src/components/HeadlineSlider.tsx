@@ -7,6 +7,7 @@ import { Flame, TrendingUp } from "lucide-react";
 
 interface HeadlineSliderProps {
   headlines: any[];
+  isGlobal?: boolean;
 }
 
 const containerVariants = {
@@ -20,7 +21,7 @@ const containerVariants = {
   },
 };
 
-const HeadlineSlider = ({ headlines }: HeadlineSliderProps) => {
+const HeadlineSlider = ({ headlines, isGlobal = false }: HeadlineSliderProps) => {
   const sliderRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -59,7 +60,9 @@ const HeadlineSlider = ({ headlines }: HeadlineSliderProps) => {
       >
         <div className="flex items-center gap-2 sm:gap-2.5">
           <Flame className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
-          <h2 className="text-sm sm:text-base md:text-xl font-sans font-bold text-foreground tracking-tight">শীর্ষ খবর</h2>
+          <h2 className="text-sm sm:text-base md:text-xl font-sans font-bold text-foreground tracking-tight">
+            {isGlobal ? "Top News" : "শীর্ষ খবর"}
+          </h2>
         </div>
       </motion.div>
       

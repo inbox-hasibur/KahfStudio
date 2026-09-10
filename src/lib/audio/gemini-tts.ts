@@ -113,7 +113,8 @@ let currentWorkingKeyIndex = 0;
 async function generateChunkPcm(
   text: string,
   lang: 'bn' | 'en',
-  apiKeys: string[]
+  apiKeys: string[],
+  onLog?: (msg: string) => Promise<void> | void
 ): Promise<Buffer> {
   const models = [
     'gemini-3.1-flash-tts-preview', // Main Gemini TTS Voice Model
@@ -147,8 +148,9 @@ async function generateChunkPcm(
           },
         };
 
+        // 14-second fast per-key timeout: if this key hangs or rate limits, rotate immediately to next key
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 75000);
+        const timeoutId = setTimeout(() => controller.abort(), 14000);
 
         const res = await fetch(url, {
           method: 'POST',
@@ -168,13 +170,20 @@ async function generateChunkPcm(
           currentWorkingKeyIndex = (k + 1) % totalKeys;
           continue;
         } else {
-          console.warn(`[TTS] Model ${model} Key #${k} HTTP ${res.status}: ${json?.error?.message}`);
-          lastError = new Error(`Model ${model} Key #${k} Error: ${json?.error?.message || JSON.stringify(json)}`);
+          const errMsg = json?.error?.message || `HTTP ${res.status}`;
+          console.warn(`[TTS] Model ${model} Key #${k + 1}/${totalKeys} HTTP ${res.status}: ${errMsg}`);
+          if (onLog) {
+            await onLog(`⚠️ Key #${k + 1} (${model}) ${res.status === 429 ? 'Rate Limited (429)' : 'Error'}. Rotating key...`);
+          }
+          lastError = new Error(`Model ${model} Key #${k + 1} Error: ${errMsg}`);
           currentWorkingKeyIndex = (k + 1) % totalKeys;
           continue;
         }
       } catch (err: any) {
-        console.warn(`[TTS] Fetch exception: ${err.message}`);
+        console.warn(`[TTS] Key #${k + 1}/${totalKeys} fetch exception: ${err.message}`);
+        if (onLog) {
+          await onLog(`⚠️ Key #${k + 1} timed out / exception (${err.message}). Rotating key...`);
+        }
         lastError = err;
         currentWorkingKeyIndex = (k + 1) % totalKeys;
       }
@@ -191,7 +200,8 @@ async function generateChunkPcm(
 export async function generateSeamlessGeminiAudio(
   fullText: string,
   lang: 'bn' | 'en' = 'bn',
-  apiKeys: string[] = []
+  apiKeys: string[] = [],
+  onLog?: (msg: string) => Promise<void> | void
 ): Promise<Buffer> {
   const keys = apiKeys.length > 0 ? apiKeys : [process.env.GEMINI_API_KEY || ''];
   const validKeys = keys.filter((k) => !!k && k.trim() !== '');
@@ -204,7 +214,7 @@ export async function generateSeamlessGeminiAudio(
   
   // Optimization: If text is short (under 40 words / ~15s), synthesize in a single ultra-fast call
   if (wordCount <= 40) {
-    const singlePcm = await generateChunkPcm(fullText, lang, validKeys);
+    const singlePcm = await generateChunkPcm(fullText, lang, validKeys, onLog);
     return pcmToWav(singlePcm, 24000, 1, 16);
   }
 
@@ -217,7 +227,7 @@ export async function generateSeamlessGeminiAudio(
   const pcmBuffers: Buffer[] = [];
   for (let i = 0; i < chunks.length; i++) {
     try {
-      const chunkPcm = await generateChunkPcm(chunks[i], lang, validKeys);
+      const chunkPcm = await generateChunkPcm(chunks[i], lang, validKeys, onLog);
       pcmBuffers.push(chunkPcm);
     } catch (err: any) {
       console.warn(`[TTS] Skipping failed chunk (${i + 1}/${chunks.length}):`, err.message);

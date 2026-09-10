@@ -7,6 +7,7 @@ import { Sparkles, Compass } from "lucide-react";
 
 interface MainFeedProps {
   newsItems: any[];
+  isGlobal?: boolean;
 }
 
 const CATEGORIES = [
@@ -14,7 +15,7 @@ const CATEGORIES = [
   { label: "বাংলাদেশ", en: "Bangladesh", keywords: ["বাংলাদেশ", "ঢাকা", "চট্টগ্রাম", "রাজশাহী", "ঘাট", "সেতু", "জাতীয়", "bangladesh"] },
   { label: "রাজনীতি", en: "Politics", keywords: ["রাজনীতি", "প্রধানমন্ত্রী", "হাসিনা", "আওয়ামী", "বিএনপি", "পুলিশ", "আরাফাত", "politics"] },
   { label: "অর্থনীতি", en: "Economy", keywords: ["ব্যাংক", "চাকরি", "অর্থনীতি", "টাকা", "ডলার", "বাণিজ্য", "economy", "bank"] },
-  { label: "আন্তর্জাতিক", en: "International", keywords: ["আন্তর্জাতিক", "ভারত", "হাইকমিশনার", "বিশ্ব", "যুক্তরাষ্ট্র", "international"] },
+  { label: "আন্তর্জাতিক", en: "International", keywords: ["আন্তর্জাতিক", "ভারত", "হাইকমিশনার", "বিশ্ব", "যুক্তরাষ্ট্র", "international", "world", "global"] },
   { label: "খেলাধুলা", en: "Sports", keywords: ["খেলা", "ক্রিকেট", "ফুটবল", "বাফুফে", "কোচ", "রো", "sports", "cricket"] },
   { label: "শিক্ষা", en: "Education", keywords: ["এসএসসি", "বোর্ড", "পাস", "ফল", "পরীক্ষা", "শিক্ষা", "education", "result"] },
   { label: "বিনোদন", en: "Entertainment", keywords: ["শাবনূর", "সালমান", "সিনেমা", "চলচ্চিত্র", "বিনোদন", "তারকা", "entertainment", "movie"] },
@@ -43,7 +44,7 @@ const itemVariants = {
   },
 };
 
-export default function MainFeed({ newsItems }: MainFeedProps) {
+export default function MainFeed({ newsItems, isGlobal = false }: MainFeedProps) {
   const [activeCategory, setActiveCategory] = useState("সর্বশেষ");
 
   // Smart Category Filtering
@@ -56,7 +57,11 @@ export default function MainFeed({ newsItems }: MainFeedProps) {
     const matched = newsItems.filter((item) => {
       // 1. Direct category match
       const itemCat = (item.category || "").toLowerCase();
-      if (itemCat === catObj.label.toLowerCase() || itemCat === catObj.en.toLowerCase()) {
+      if (
+        itemCat === catObj.label.toLowerCase() ||
+        itemCat === catObj.en.toLowerCase() ||
+        (catObj.en === "International" && (itemCat === "world" || itemCat === "global"))
+      ) {
         return true;
       }
       // 2. Keyword match in title or summary
@@ -86,7 +91,9 @@ export default function MainFeed({ newsItems }: MainFeedProps) {
               <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-primary opacity-50" />
             </div>
           </div>
-          <h2 className="text-base sm:text-lg md:text-xl font-sans font-bold text-foreground tracking-tight">সব খবর</h2>
+          <h2 className="text-base sm:text-lg md:text-xl font-sans font-bold text-foreground tracking-tight">
+            {isGlobal ? "All News" : "সব খবর"}
+          </h2>
         </div>
 
         {/* Category Navigation Tabs */}
@@ -110,7 +117,7 @@ export default function MainFeed({ newsItems }: MainFeedProps) {
                     transition={{ type: "spring", stiffness: 380, damping: 30 }}
                   />
                 )}
-                <span className="relative z-10">{cat.label}</span>
+                <span className="relative z-10">{isGlobal ? cat.en : cat.label}</span>
               </button>
             );
           })}
@@ -140,7 +147,7 @@ export default function MainFeed({ newsItems }: MainFeedProps) {
             >
               <Compass className="w-8 h-8 mx-auto text-muted-foreground/60 mb-2" />
               <p className="text-muted-foreground font-medium text-sm">
-                এই ক্যাটাগরিতে খবর পাওয়া যায়নি।
+                {isGlobal ? "No articles found in this category." : "এই ক্যাটাগরিতে খবর পাওয়া যায়নি।"}
               </p>
             </motion.div>
           )}
