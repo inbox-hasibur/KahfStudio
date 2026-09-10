@@ -38,11 +38,33 @@ const COUNTRIES = [
     code: "BD",
     name: "বাংলাদেশ",
     flag: "🇧🇩",
+    defaultLang: "BN",
+    city: "Dhaka",
+    countryCode: "BD",
   },
   {
     code: "GLOBAL",
     name: "আন্তর্জাতিক (Global)",
     flag: "🌐",
+    defaultLang: "EN",
+    city: "London",
+    countryCode: "GB",
+  },
+  {
+    code: "UK",
+    name: "যুক্তরাজ্য (UK)",
+    flag: "🇬🇧",
+    defaultLang: "EN",
+    city: "London",
+    countryCode: "GB",
+  },
+  {
+    code: "SA",
+    name: "المملكة العربية السعودية (SA)",
+    flag: "🇸🇦",
+    defaultLang: "AR",
+    city: "Riyadh",
+    countryCode: "SA",
   },
 ];
 
@@ -76,7 +98,7 @@ export default function Home() {
   const [isStickyExpanded, setIsStickyExpanded] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
 
-  // Country state for location-based news (Bangladesh vs Global)
+  // Country state for location-based news (BD, GLOBAL, UK, SA)
   const [selectedCountry, setSelectedCountry] = useState(() => {
     if (typeof window !== "undefined") {
       try {
@@ -85,12 +107,23 @@ export default function Home() {
           const found = COUNTRIES.find((c) => c.code === savedCode);
           if (found) return found;
         }
+        const hasArCookie = document.cookie.includes("googtrans=/bn/ar");
+        const hasArLang = localStorage.getItem("kahf-language") === "AR";
+        if (hasArCookie || hasArLang) {
+          return COUNTRIES[3]; // SA
+        }
         const hasEnCookie = document.cookie.includes("googtrans=/bn/en");
         const hasEnLang = localStorage.getItem("kahf-language") === "EN";
         if (hasEnCookie || hasEnLang) {
           return COUNTRIES[1]; // GLOBAL
         }
         const userTz = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+        if (userTz === "Asia/Riyadh" || userTz.toLowerCase().includes("riyadh") || userTz.toLowerCase().includes("saudi")) {
+          return COUNTRIES[3]; // SA
+        }
+        if (userTz === "Europe/London" || userTz.toLowerCase().includes("london")) {
+          return COUNTRIES[2]; // UK
+        }
         const isBangladesh = userTz === "Asia/Dhaka" || userTz.toLowerCase().includes("dhaka");
         if (!isBangladesh && userTz) {
           return COUNTRIES[1]; // GLOBAL
@@ -100,15 +133,16 @@ export default function Home() {
     return COUNTRIES[0];
   });
   const [isLocationDropdownOpen, setIsLocationDropdownOpen] = useState(false);
-  const isGlobal = selectedCountry.code === "GLOBAL";
+  const isArabic = selectedCountry.code === "SA";
+  const isGlobal = selectedCountry.code === "GLOBAL" || selectedCountry.code === "UK" || selectedCountry.code === "SA";
 
   const { news, loading: newsLoading } = useNews({
     country: selectedCountry.code,
     sort: 'smart',
   });
   const { weather } = useWeather(
-    selectedCountry.code === 'BD' ? 'Dhaka' : 'London',
-    selectedCountry.code === 'BD' ? 'BD' : 'GB'
+    selectedCountry.code === 'BD' ? 'Dhaka' : selectedCountry.code === 'SA' ? 'Riyadh' : 'London',
+    selectedCountry.code === 'BD' ? 'BD' : selectedCountry.code === 'SA' ? 'SA' : 'GB'
   );
   const { data: sessionData } = useSession();
 
@@ -121,7 +155,7 @@ export default function Home() {
       setIsLoading(false);
     }, 800);
 
-    // Auto-detect Edition: Bangladesh vs Global based on user timezone / location
+    // Auto-detect Edition & Language based on location / timezone
     try {
       const savedCode = localStorage.getItem("kahf_user_country");
       if (savedCode) {
@@ -130,26 +164,38 @@ export default function Home() {
           setSelectedCountry(found);
         }
       } else {
-        // Detect timezone (e.g. UK, USA, Europe vs Dhaka)
         const userTz = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+        const isRiyadh = userTz === "Asia/Riyadh" || userTz.toLowerCase().includes("riyadh") || userTz.toLowerCase().includes("saudi");
+        const isLondon = userTz === "Europe/London" || userTz.toLowerCase().includes("london");
         const isBangladesh = userTz === "Asia/Dhaka" || userTz.toLowerCase().includes("dhaka");
-        if (!isBangladesh && userTz) {
-          // International visitor (e.g. UK/US) -> Global Edition + English Language
-          if (selectedCountry.code !== "GLOBAL") {
-            setSelectedCountry(COUNTRIES[1]);
+
+        if (isRiyadh) {
+          if (selectedCountry.code !== "SA") setSelectedCountry(COUNTRIES[3]);
+          localStorage.setItem("kahf_user_country", "SA");
+          if (localStorage.getItem("kahf_manual_lang") !== "true") {
+            localStorage.setItem("kahf-language", "AR");
+            document.cookie = `googtrans=/bn/ar; path=/`;
           }
+        } else if (isLondon) {
+          if (selectedCountry.code !== "UK") setSelectedCountry(COUNTRIES[2]);
+          localStorage.setItem("kahf_user_country", "UK");
+          if (localStorage.getItem("kahf_manual_lang") !== "true") {
+            localStorage.setItem("kahf-language", "EN");
+            document.cookie = `googtrans=/bn/en; path=/`;
+          }
+        } else if (!isBangladesh && userTz) {
+          if (selectedCountry.code !== "GLOBAL") setSelectedCountry(COUNTRIES[1]);
           localStorage.setItem("kahf_user_country", "GLOBAL");
-          localStorage.setItem("kahf-language", "EN");
-          if (!document.cookie.includes("googtrans=/bn/en")) {
+          if (localStorage.getItem("kahf_manual_lang") !== "true") {
+            localStorage.setItem("kahf-language", "EN");
             document.cookie = `googtrans=/bn/en; path=/`;
           }
         } else {
-          // Bangladeshi visitor -> Bangladesh Edition + Bangla Language
-          if (selectedCountry.code !== "BD") {
-            setSelectedCountry(COUNTRIES[0]);
-          }
+          if (selectedCountry.code !== "BD") setSelectedCountry(COUNTRIES[0]);
           localStorage.setItem("kahf_user_country", "BD");
-          localStorage.setItem("kahf-language", "BN");
+          if (localStorage.getItem("kahf_manual_lang") !== "true") {
+            localStorage.setItem("kahf-language", "BN");
+          }
         }
       }
     } catch (e) {}
@@ -239,7 +285,7 @@ export default function Home() {
   useEffect(() => {
     async function loadExistingPodcast() {
       try {
-        const res = await fetch('/api/podcast/generate');
+        const res = await fetch(`/api/podcast/generate?country=${selectedCountry.code}`);
         const json = await res.json();
         if (json.success && json.podcast) {
           if (json.podcast.audio_url) setPodcastAudioUrl(json.podcast.audio_url);
@@ -248,22 +294,28 @@ export default function Home() {
       } catch (e) {}
     }
     loadExistingPodcast();
-  }, []);
+  }, [selectedCountry.code]);
 
-  const temp = weather?.temp || 29;
-  const desc = weather?.description || "পরিষ্কার আকাশ";
+  const temp = weather?.temp || (selectedCountry.code === 'SA' ? 34 : selectedCountry.code === 'BD' ? 29 : 18);
+  const desc = weather?.description || (isArabic ? "سماء صافية" : isGlobal ? "Clear sky" : "পরিষ্কার আকাশ");
   const umbrellaAdvice = (desc.includes("rain") || desc.includes("cloud") || desc.includes("বৃষ্টি"))
     ? "আজ বাইরে বের হওয়ার আগে ছাতা সঙ্গে রাখা জরুরি, বৃষ্টির সম্ভাবনা রয়েছে।"
     : "আজ আকাশ পরিষ্কার থাকবে, তবে তীব্র রোদ এড়াতে প্রয়োজনে ছাতা ব্যবহার করতে পারেন।";
 
   const newsSummaryList = headlines
     .slice(0, 5)
-    .map((h: any, i: number) => isGlobal ? `Story ${i + 1}: ${h.title}. ${h.summary || ""}` : `খবর ${i + 1}: ${h.title}. ${h.summary || ""}`)
+    .map((h: any, i: number) => {
+      if (isArabic) return `الخبر ${i + 1}: ${h.title}. ${h.summary || ""}`;
+      if (isGlobal) return `Story ${i + 1}: ${h.title}. ${h.summary || ""}`;
+      return `খবর ${i + 1}: ${h.title}. ${h.summary || ""}`;
+    })
     .filter(Boolean)
     .join(". ");
 
-  const dailyPodcastScript = isGlobal
-    ? `Welcome to KahfNews Special AI Podcast! Today is ${currentDate || "today"}. Here are today's top global stories: ${newsSummaryList}. Thank you for listening to KahfNews!`
+  const dailyPodcastScript = isArabic
+    ? `أهلاً بكم في بودكاست كهف الإخباري بالذكاء الاصطناعي! اليوم هو ${currentDate || "اليوم"}. حالة الطقس في الرياض: درجة الحرارة حوالي ${temp} مئوية، والجو ${desc}. إليكم أهم الأخبار اليوم: ${newsSummaryList}. شكراً لاستماعكم لبودكاست كهف ونتمنى لكم يوماً رائعاً!`
+    : isGlobal
+    ? `Welcome to KahfNews Special AI Podcast! Today is ${currentDate || "today"}. Local weather: around ${temp}°C, ${desc}. Here are today's top stories: ${newsSummaryList}. Thank you for listening to KahfNews!`
     : `শুভ সকাল! আজ ${currentDate || "আজকের দিন"}। কহাফ নিউজের স্পেশাল এআই পডকাস্টে আপনাকে স্বাগতম। আজকের আবহাওয়া: তাপমাত্রা প্রায় ${temp} ডিগ্রি সেলসিয়াস, আবহাওয়া ${desc}। ${umbrellaAdvice} রাস্তাঘাটের যানজট পরিস্থিতি: প্রধান সড়ক ও মোড়গুলোতে সকালের দিকে কিছুটা স্বাভাবিক চাপ থাকতে পারে, সময় হাতে নিয়ে বের হোন। এবার দেখে নেওয়া যাক আজকের প্রধান খবরগুলো: ${newsSummaryList}। কহাফ নিউজের সাথে থাকার জন্য ধন্যবাদ। দিনটি আপনার শুভ হোক!`;
 
   // Calculate dynamic duration in seconds (13 chars/sec for narration)
@@ -286,22 +338,32 @@ export default function Home() {
     }
     
     const firstHeadline = headlines[0];
-    const podcastAudio = podcastAudioUrl || `/api/audio/tts?text=${encodeURIComponent(dailyPodcastScript.slice(0, 800))}&lang=${isGlobal ? "en" : "bn"}`;
+    const preferredLang = isArabic ? "AR" : isGlobal ? "EN" : "BN";
+    const audioLangParam = isArabic ? "ar" : isGlobal ? "en" : "bn";
+    const podcastAudio = podcastAudioUrl || `/api/audio/tts?text=${encodeURIComponent(dailyPodcastScript.slice(0, 800))}&lang=${audioLangParam}`;
+
+    const podcastTitle = isArabic
+      ? `بودكاست كهف اليومي - ${currentDate}`
+      : isGlobal
+      ? `Today's AI Podcast - ${currentDate}`
+      : `আজকের এআই পডকাস্ট - ${currentDate}`;
 
     const event = new CustomEvent('play-audio', {
       detail: {
         id: "daily-podcast",
-        title: isGlobal ? `Today's AI Podcast - ${currentDate}` : `আজকের এআই পডকাস্ট - ${currentDate}`,
+        title: podcastTitle,
         summary: dailyPodcastScript,
         imageUrl: firstHeadline?.imageUrl,
         source: "KahfNews AI Podcast",
-        preferredLang: isGlobal ? "EN" : "BN",
+        preferredLang: preferredLang,
         preferredType: "summary",
         audioUrls: {
-          bn_summary: isGlobal ? undefined : podcastAudio,
-          bn_full: isGlobal ? undefined : (firstHeadline?.audio_bn_full || podcastAudio),
-          en_summary: isGlobal ? podcastAudio : firstHeadline?.audio_en_summary,
-          en_full: isGlobal ? podcastAudio : firstHeadline?.audio_en_full,
+          bn_summary: !isGlobal ? podcastAudio : undefined,
+          bn_full: !isGlobal ? (firstHeadline?.audio_bn_full || podcastAudio) : undefined,
+          en_summary: (!isArabic && isGlobal) ? podcastAudio : firstHeadline?.audio_en_summary,
+          en_full: (!isArabic && isGlobal) ? podcastAudio : firstHeadline?.audio_en_full,
+          ar_summary: isArabic ? podcastAudio : undefined,
+          ar_full: isArabic ? podcastAudio : undefined,
         }
       }
     });
@@ -318,7 +380,7 @@ export default function Home() {
           <Loader2 className="w-10 h-10 text-primary" />
         </motion.div>
         <p className="text-muted-foreground text-sm">
-          {isGlobal ? "Loading your customized news..." : "আপনার কাস্টমাইজড খবর লোড হচ্ছে..."}
+          {isArabic ? "جاري تحميل الأخبار المخصصة لك..." : isGlobal ? "Loading your customized news..." : "আপনার কাস্টমাইজড খবর লোড হচ্ছে..."}
         </p>
       </div>
     );
@@ -361,10 +423,10 @@ export default function Home() {
             <div className="flex-1 sm:flex-initial flex items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 bg-card/80 border border-border rounded-lg sm:rounded-xl shadow-sm">
               <CloudSun className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary shrink-0" />
               <span className="font-bold text-foreground whitespace-nowrap">
-                {weather?.temp || 29}°C
+                {weather?.temp || (selectedCountry.code === 'SA' ? 34 : selectedCountry.code === 'BD' ? 29 : 18)}°C
               </span>
               <span className="text-[10px] text-muted-foreground capitalize hidden sm:inline truncate max-w-[80px]">
-                {weather?.description || "Clear"}
+                {weather?.description || (isArabic ? "Clear" : isGlobal ? "Clear" : "Clear")}
               </span>
             </div>
           </div>
@@ -383,7 +445,7 @@ export default function Home() {
               </Link>
             )}
 
-            {/* 2. Country Selector Widget (Bangladesh vs Global) */}
+            {/* 2. Country Selector Widget (BD, GLOBAL, UK, SA) */}
             <div className="flex-1 sm:flex-initial relative">
               <button
                 onClick={() => setIsLocationDropdownOpen(!isLocationDropdownOpen)}
@@ -413,7 +475,7 @@ export default function Home() {
                     <div className="flex items-center justify-between pb-2 border-b border-border">
                       <div className="flex items-center gap-1.5 text-xs font-bold text-foreground">
                         <Globe className="w-3.5 h-3.5 text-primary" />
-                        <span>সংস্করণ / দেশ নির্বাচন</span>
+                        <span>{isArabic ? "اختر الدولة / النسخة" : isGlobal ? "Select Country / Edition" : "সংস্করণ / দেশ নির্বাচন"}</span>
                       </div>
                       <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/20 text-primary font-bold">
                         Edition
@@ -428,7 +490,11 @@ export default function Home() {
                             setSelectedCountry(c);
                             try {
                               localStorage.setItem("kahf_user_country", c.code);
-                              if (c.code === "GLOBAL") {
+                              if (c.code === "SA") {
+                                document.cookie = `googtrans=/bn/ar; path=/`;
+                                document.cookie = `googtrans=/bn/ar; path=/; domain=${window.location.hostname}`;
+                                localStorage.setItem("kahf-language", "AR");
+                              } else if (c.code === "GLOBAL" || c.code === "UK") {
                                 document.cookie = `googtrans=/bn/en; path=/`;
                                 document.cookie = `googtrans=/bn/en; path=/; domain=${window.location.hostname}`;
                                 localStorage.setItem("kahf-language", "EN");
@@ -473,18 +539,18 @@ export default function Home() {
       {/* 3. Merged Super Hero Card (Card Theme BG + Big Play Button ALWAYS on Right in Same Row) */}
       <motion.section variants={itemVariants} className="mb-3 sm:mb-4">
         <div className="relative bg-card border border-border p-4 sm:p-6 md:p-8 lg:p-10 rounded-2xl sm:rounded-3xl md:rounded-[32px] overflow-hidden shadow-sm hover:shadow-md hover:border-primary/30 transition-all duration-300 group">
-          {/* Top Center Ambient Round Glow Orb (Exact requested Mindful Pause Card Style) */}
+          {/* Top Center Ambient Round Glow Orb */}
           <div className="absolute -top-20 left-1/2 -translate-x-1/2 w-96 sm:w-[500px] h-40 bg-primary/10 dark:bg-primary/25 rounded-full blur-3xl group-hover:bg-primary/20 dark:group-hover:bg-primary/40 transition-all duration-700 pointer-events-none" />
 
-          {/* 2-Column Responsive Proportional Layout (Left Content 67-75% / Right Action 25-33%) */}
+          {/* 2-Column Responsive Proportional Layout */}
           <div className="relative grid grid-cols-12 items-center gap-3 sm:gap-6 lg:gap-8">
-            {/* Left Content Column (Redirects to /news/daily-summary for read) */}
+            {/* Left Content Column */}
             <Link href="/news/daily-summary" className="col-span-8 md:col-span-8 lg:col-span-9 min-w-0 space-y-2.5 sm:space-y-4 group/left block cursor-pointer">
-              {/* Top Badge Row: Left Tag Badge & Synced Duration Badge right beside it */}
+              {/* Top Badge Row */}
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="inline-flex items-center gap-1 px-2.5 py-0.5 sm:px-3 sm:py-1 bg-primary/15 text-primary text-xs sm:text-[11px] font-black uppercase tracking-wider rounded-full border border-primary/25">
                   <Zap className="w-3.5 h-3.5 fill-current" />
-                  {isGlobal ? "TODAY'S AI SUMMARY" : "আজকের এআই সারসংক্ষেপ"}
+                  {isArabic ? "ملخص الذكاء الاصطناعي اليوم" : isGlobal ? "TODAY'S AI SUMMARY" : "আজকের এআই সারসংক্ষেপ"}
                 </span>
 
                 <span className="inline-flex items-center gap-1 px-2.5 py-0.5 sm:px-3 sm:py-1 bg-muted/90 text-foreground border border-border text-xs sm:text-[11px] font-mono font-bold rounded-full shadow-sm whitespace-nowrap shrink-0">
@@ -495,7 +561,9 @@ export default function Home() {
 
               {/* Main Headline */}
               <h1 className="text-base sm:text-lg md:text-2xl lg:text-[2.25rem] font-sans font-bold text-foreground leading-[1.3] tracking-tight group-hover/left:text-primary transition-colors">
-                {isGlobal ? (
+                {isArabic ? (
+                  <>موجزك اليومي: <span className="text-primary">تحليل شامل لأخبار اليوم</span></>
+                ) : isGlobal ? (
                   <>Your Daily Briefing: <span className="text-primary">Full Analysis of Today&apos;s News</span></>
                 ) : (
                   <>আপনার দৈনিক সারসংক্ষেপ: <span className="text-primary">আজকের খবরের সম্পূর্ণ বিশ্লেষণ</span></>
@@ -504,19 +572,21 @@ export default function Home() {
 
               {/* Subtitle / Summary Content */}
               <p className="text-xs sm:text-xs md:text-sm text-muted-foreground max-w-2xl leading-relaxed font-sans line-clamp-2 sm:line-clamp-none">
-                {isGlobal
+                {isArabic
+                  ? "تتضمن أهم أخبار اليوم آخر المستجدات في السياسة والاقتصاد والتكنولوجيا. استمع إلى الموجز الصوتي الكامل أو اقرأ الملخص بنقرة واحدة."
+                  : isGlobal
                   ? "Today's top stories feature the latest updates in politics, economy, and technology. Listen to the full audio briefing or read the summary in one click."
                   : "আজকের শীর্ষ খবরগুলোতে থাকছে জাতীয় রাজনীতি, অর্থনীতি ও প্রযুক্তি খাতের সর্বশেষ আপডেট। এক ক্লিকেই সম্পূর্ণ খবরের অডিও ব্রিফিং শুনে নিন অথবা সারসংক্ষেপ পড়ুন।"}
               </p>
 
-              {/* Action Buttons ("Listen" & "Read") directly after text */}
+              {/* Action Buttons ("Listen" & "Read") */}
               <div className="flex items-center gap-2 sm:gap-3 pt-1 sm:pt-2">
                 <Button
                   onClick={handlePlayFullAudio}
                   className="h-8.5 sm:h-9 md:h-10 px-4 sm:px-5 rounded-xl bg-primary text-primary-foreground font-bold text-xs sm:text-sm gap-1.5 shadow-sm cursor-pointer hover:bg-primary/90 transition-all"
                 >
                   <Headphones className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
-                  <span>{isGlobal ? "Listen" : "শুনুন"}</span>
+                  <span>{isArabic ? "استمع" : isGlobal ? "Listen" : "শুনুন"}</span>
                 </Button>
 
                 <Button
@@ -524,12 +594,12 @@ export default function Home() {
                   className="h-8.5 sm:h-9 md:h-10 px-4 sm:px-5 rounded-xl border-border hover:bg-muted text-foreground font-bold text-xs sm:text-sm gap-1.5 cursor-pointer transition-all"
                 >
                   <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
-                  <span>{isGlobal ? "Read" : "পড়ুন"}</span>
+                  <span>{isArabic ? "اقرأ" : isGlobal ? "Read" : "পড়ুন"}</span>
                 </Button>
               </div>
             </Link>
 
-            {/* Right Dedicated Action Column: Centered Play Button (Triggers Audio for Busy Users) */}
+            {/* Right Action: Centered Play Button */}
             <div className="col-span-4 md:col-span-4 lg:col-span-3 flex items-center justify-center my-auto">
               <button
                 onClick={handlePlayFullAudio}
@@ -574,7 +644,7 @@ export default function Home() {
 
       {/* 4. Featured Headlines Section */}
       <motion.section variants={itemVariants} className="mb-3.5 sm:mb-5">
-        <HeadlineSlider headlines={headlines} isGlobal={isGlobal} />
+        <HeadlineSlider headlines={headlines} isGlobal={isGlobal} isArabic={isArabic} />
       </motion.section>
 
       {/* 4.5 Personalized AI News Section for Premium Users */}
@@ -587,13 +657,13 @@ export default function Home() {
               </div>
               <div>
                 <h2 className="text-base sm:text-lg md:text-xl font-sans font-bold text-foreground flex items-center gap-2">
-                  {isGlobal ? "News customized for you" : "আপনার জন্য কাস্টমাইজড খবর"}
+                  {isArabic ? "أخبار مخصصة لك" : isGlobal ? "News customized for you" : "আপনার জন্য কাস্টমাইজড খবর"}
                   <span className="px-2.5 py-0.5 rounded-full bg-primary/15 text-primary text-[10px] font-bold border border-primary/25">
                     PERSONALIZED
                   </span>
                 </h2>
                 <p className="text-[11px] sm:text-xs text-muted-foreground">
-                  {isGlobal ? "AI-curated news based on your preferences and tastes" : "আপনার পছন্দ ও রুচির ওপর ভিত্তি করে এআই দিয়ে বাছাইকৃত খবর"}
+                  {isArabic ? "أخبار مختارة بالذكاء الاصطناعي بناءً على اهتماماتك وتفضيلاتك" : isGlobal ? "AI-curated news based on your preferences and tastes" : "আপনার পছন্দ ও রুচির ওপর ভিত্তি করে এআই দিয়ে বাছাইকৃত খবর"}
                 </p>
               </div>
             </div>
@@ -609,7 +679,7 @@ export default function Home() {
 
       {/* 5. Main News Feed Section */}
       <motion.section variants={itemVariants}>
-        <MainFeed newsItems={feedItems} isGlobal={isGlobal} />
+        <MainFeed newsItems={feedItems} isGlobal={isGlobal} isArabic={isArabic} />
       </motion.section>
 
       {/* Floating Audio Player Component */}

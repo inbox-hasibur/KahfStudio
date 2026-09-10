@@ -70,22 +70,33 @@ const Navbar = () => {
     setLanguage(lang);
     setIsLangDropdownOpen(false);
     
-    // Set Google Translate cookie (translating from Bengali)
-    if (lang === "EN") {
+    // Set Google Translate cookie (translating from Bengali base)
+    if (lang === "AR") {
+      document.cookie = `googtrans=/bn/ar; path=/`;
+      document.cookie = `googtrans=/bn/ar; path=/; domain=${window.location.hostname}`;
+      try {
+        localStorage.setItem("kahf-language", "AR");
+        localStorage.setItem("kahf_user_country", "SA");
+        localStorage.setItem("kahf_manual_lang", "true");
+      } catch (e) {}
+    } else if (lang === "EN") {
       document.cookie = `googtrans=/bn/en; path=/`;
       document.cookie = `googtrans=/bn/en; path=/; domain=${window.location.hostname}`;
       try {
         localStorage.setItem("kahf-language", "EN");
         localStorage.setItem("kahf_user_country", "GLOBAL");
+        localStorage.setItem("kahf_manual_lang", "true");
       } catch (e) {}
     } else {
       document.cookie = `googtrans=/bn/bn; path=/`;
       document.cookie = `googtrans=/bn/bn; path=/; domain=${window.location.hostname}`;
       // Also clear it to revert to default
       document.cookie = `googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+      document.cookie = `googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=${window.location.hostname}`;
       try {
         localStorage.setItem("kahf-language", "BN");
         localStorage.setItem("kahf_user_country", "BD");
+        localStorage.setItem("kahf_manual_lang", "true");
       } catch (e) {}
     }
     window.location.reload();
@@ -96,9 +107,14 @@ const Navbar = () => {
     setMounted(true);
     
     // Check initial language from cookie & storage
+    const hasArCookie = document.cookie.includes('googtrans=/bn/ar');
+    const hasArStorage = typeof window !== 'undefined' && (localStorage.getItem('kahf-language') === 'AR' || localStorage.getItem('kahf_user_country') === 'SA');
     const hasEnCookie = document.cookie.includes('googtrans=/bn/en');
-    const hasEnStorage = typeof window !== 'undefined' && (localStorage.getItem('kahf-language') === 'EN' || localStorage.getItem('kahf_user_country') === 'GLOBAL');
-    if (hasEnCookie || hasEnStorage) {
+    const hasEnStorage = typeof window !== 'undefined' && (localStorage.getItem('kahf-language') === 'EN' || ['GLOBAL', 'UK'].includes(localStorage.getItem('kahf_user_country') || ''));
+    
+    if (hasArCookie || hasArStorage) {
+      setLanguage('AR');
+    } else if (hasEnCookie || hasEnStorage) {
       setLanguage('EN');
     } else {
       setLanguage('BN');
@@ -203,19 +219,25 @@ const Navbar = () => {
                       initial={{ opacity: 0, y: 5 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: 5 }}
-                      className="absolute right-0 mt-2 w-24 bg-card border border-border rounded-xl shadow-lg overflow-hidden flex flex-col z-50 py-1"
+                      className="absolute right-0 mt-2 w-32 bg-card border border-border rounded-xl shadow-lg overflow-hidden flex flex-col z-50 py-1"
                     >
                       <button
                         onClick={() => handleLanguageChange("BN")}
-                        className={`text-left px-4 py-2 text-[12px] font-bold hover:bg-muted transition-colors ${language === "BN" ? "text-primary" : "text-muted-foreground"}`}
+                        className={`text-left px-3.5 py-2 text-[12px] font-bold hover:bg-muted transition-colors ${language === "BN" ? "text-primary" : "text-muted-foreground"}`}
                       >
-                        বাংলা (BN)
+                        🇧🇩 বাংলা (BN)
                       </button>
                       <button
                         onClick={() => handleLanguageChange("EN")}
-                        className={`text-left px-4 py-2 text-[12px] font-bold hover:bg-muted transition-colors ${language === "EN" ? "text-primary" : "text-muted-foreground"}`}
+                        className={`text-left px-3.5 py-2 text-[12px] font-bold hover:bg-muted transition-colors ${language === "EN" ? "text-primary" : "text-muted-foreground"}`}
                       >
-                        English (EN)
+                        🌐 English (EN)
+                      </button>
+                      <button
+                        onClick={() => handleLanguageChange("AR")}
+                        className={`text-left px-3.5 py-2 text-[12px] font-bold hover:bg-muted transition-colors ${language === "AR" ? "text-primary" : "text-muted-foreground"}`}
+                      >
+                        🇸🇦 العربية (AR)
                       </button>
                     </motion.div>
                   )}

@@ -26,6 +26,8 @@ export interface AudioUrls {
   bn_full?: string;
   en_summary?: string;
   en_full?: string;
+  ar_summary?: string;
+  ar_full?: string;
 }
 
 export interface AudioTrack {
@@ -46,7 +48,7 @@ interface AudioPlayerProps {
   newsItems?: any[];
 }
 
-export type AudioMode = "bn_summary" | "en_summary" | "bn_full" | "en_full";
+export type AudioMode = "bn_summary" | "en_summary" | "ar_summary" | "bn_full" | "en_full" | "ar_full";
 
 // Helper to strip markdown and noise for natural speech
 function cleanTextForSpeech(text: string): string {
@@ -104,11 +106,19 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
   const isSpeakingRef = useRef(false);
 
   // Helper for language detection
-  const getSiteLanguage = useCallback((): "EN" | "BN" => {
+  const getSiteLanguage = useCallback((): "EN" | "BN" | "AR" => {
     if (typeof window === "undefined") return "BN";
     if (
+      document.cookie.includes("googtrans=/bn/ar") ||
+      localStorage.getItem("kahf-language") === "AR" ||
+      localStorage.getItem("kahf_user_country") === "SA"
+    ) {
+      return "AR";
+    }
+    if (
       document.cookie.includes("googtrans=/bn/en") ||
-      localStorage.getItem("kahf-language") === "EN"
+      localStorage.getItem("kahf-language") === "EN" ||
+      ["GLOBAL", "UK"].includes(localStorage.getItem("kahf_user_country") || "")
     ) {
       return "EN";
     }
@@ -132,6 +142,8 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
           bn_full: item.audio_bn_full || item.audioUrls?.bn_full,
           en_summary: item.audio_en_summary || item.audioUrls?.en_summary,
           en_full: item.audio_en_full || item.audioUrls?.en_full,
+          ar_summary: item.audio_ar_summary || item.audioUrls?.ar_summary,
+          ar_full: item.audio_ar_full || item.audioUrls?.ar_full,
         },
       }));
       setPlaylist(formatted);
@@ -213,9 +225,9 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
 
       let targetMode: AudioMode = "bn_summary";
       if (wantFull) {
-        targetMode = pref === "EN" ? "en_full" : "bn_full";
+        targetMode = pref === "AR" ? "ar_full" : pref === "EN" ? "en_full" : "bn_full";
       } else {
-        targetMode = pref === "EN" ? "en_summary" : "bn_summary";
+        targetMode = pref === "AR" ? "ar_summary" : pref === "EN" ? "en_summary" : "bn_summary";
       }
       setAudioMode(targetMode);
 
@@ -319,8 +331,9 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
 
       // Sentence chunking to safely bypass browser 15s freeze
       const isEnglish = mode.includes("en");
+      const isArabic = mode.includes("ar");
       const sentences = cleanText
-        .split(/(?<=[।?!.\n;])/g)
+        .split(/(?<=[।?!.\n;؟،؛])/g)
         .map((s) => s.trim())
         .filter(Boolean);
 
@@ -340,8 +353,8 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
       speechChunksRef.current = chunks;
       currentChunkIndexRef.current = resumeFromChunk;
 
-      // Realistic speech duration calculation (Bangla ~13 chars/sec, English ~15 chars/sec)
-      const charsPerSec = isEnglish ? 15 : 13;
+      // Realistic speech duration calculation (Bangla ~13 chars/sec, Arabic ~14 chars/sec, English ~15 chars/sec)
+      const charsPerSec = isArabic ? 14 : isEnglish ? 15 : 13;
       const speed = ttsSettings.speed || 1.0;
       const totalEstimatedDuration = Math.max(6, Math.round(cleanText.length / (charsPerSec * speed)));
 
@@ -354,11 +367,13 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
       const currentVoices = window.speechSynthesis.getVoices();
       const matchedVoice =
         currentVoices.find((v) =>
-          isEnglish
+          isArabic
+            ? v.lang.toLowerCase().startsWith("ar")
+            : isEnglish
             ? v.lang.toLowerCase().startsWith("en")
             : v.lang.toLowerCase().startsWith("bn")
         ) ||
-        (isEnglish
+        (isArabic || isEnglish
           ? null
           : currentVoices.find((v) => v.lang.toLowerCase().startsWith("hi") || v.default));
 
@@ -531,7 +546,11 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
         ? activeTrack.audioUrls?.bn_full
         : audioMode === "en_summary"
         ? activeTrack.audioUrls?.en_summary
-        : activeTrack.audioUrls?.en_full;
+        : audioMode === "en_full"
+        ? activeTrack.audioUrls?.en_full
+        : audioMode === "ar_summary"
+        ? (activeTrack.audioUrls?.ar_summary || activeTrack.audioUrls?.bn_summary || activeTrack.audioUrls?.en_summary)
+        : (activeTrack.audioUrls?.ar_full || activeTrack.audioUrls?.bn_full || activeTrack.audioUrls?.en_full);
 
     const textToSpeak =
       audioMode.includes("full")
@@ -742,7 +761,23 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
             {/* Audio Dropdown Options - Clean 2 Options based on Active Language Mode */}
             <div className="flex items-center gap-1.5 sm:gap-2 bg-muted/50 border border-border rounded-xl p-1 sm:p-1.5 mb-3">
               <FileAudio className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary shrink-0 ml-1" />
-              {audioMode.startsWith("en") || getSiteLanguage() === "EN" ? (
+              {audioMode.startsWith("ar") || getSiteLanguage() === "AR" ? (
+                <select
+                  value={audioMode.startsWith("ar") ? audioMode : "ar_summary"}
+                  onChange={(e) => {
+                    setAudioMode(e.target.value as AudioMode);
+                    setIsPlaying(true);
+                  }}
+                  className="w-full text-[11px] sm:text-xs font-semibold bg-transparent text-foreground focus:outline-none cursor-pointer truncate"
+                >
+                  <option value="ar_summary" className="bg-card text-foreground">
+                    ملخص الأخبار (Arabic Summary)
+                  </option>
+                  <option value="ar_full" className="bg-card text-foreground">
+                    الخبر بالكامل (Arabic Full News)
+                  </option>
+                </select>
+              ) : audioMode.startsWith("en") || getSiteLanguage() === "EN" ? (
                 <select
                   value={audioMode.startsWith("en") ? audioMode : "en_summary"}
                   onChange={(e) => {

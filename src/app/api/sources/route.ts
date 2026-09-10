@@ -60,38 +60,75 @@ export async function POST(req: Request) {
       const { error } = await supabase.from("scraping_sources").update({ is_active }).eq("id", id);
       if (error) throw error;
     } else if (action === "SEED") {
-      const country = payload?.country || "BD";
-      let defaults = [];
+      const country = payload?.country || "ALL";
+      let defaults: any[] = [];
+
+      const bdSources = [
+        { name: "Prothom Alo (RSS)", url: "https://www.prothomalo.com/feed", category: "General", country: "BD", is_active: true },
+        { name: "BBC Bangla", url: "https://feeds.bbci.co.uk/bengali/rss.xml", category: "General", country: "BD", is_active: true },
+        { name: "VOA Bangla", url: "https://www.voabangla.com/api/z--r-rymqv", category: "General", country: "BD", is_active: true },
+        { name: "Daily Star", url: "https://www.thedailystar.net/frontpage/rss.xml", category: "General", country: "BD", is_active: true },
+        { name: "Dhaka Tribune", url: "https://www.dhakatribune.com/feed", category: "General", country: "BD", is_active: true },
+        { name: "Bdnews24 Bangla", url: "https://bangla.bdnews24.com/?widgetName=rssfeed&widgetId=1150&getXmlFeed=true", category: "General", country: "BD", is_active: true },
+        { name: "Kaler Kantho", url: "https://www.kalerkantho.com/rss.xml", category: "General", country: "BD", is_active: true }
+      ];
+
+      const globalSources = [
+        { name: "BBC News (World)", url: "https://feeds.bbci.co.uk/news/world/rss.xml", category: "World", country: "GLOBAL", is_active: true },
+        { name: "Al Jazeera English", url: "https://www.aljazeera.com/xml/rss/all.xml", category: "World", country: "GLOBAL", is_active: true },
+        { name: "Reuters (World News)", url: "https://reutersagency.com", category: "World", country: "GLOBAL", is_active: true },
+        { name: "CNN (World)", url: "http://rss.cnn.com/rss/edition_world.rss", category: "World", country: "GLOBAL", is_active: true },
+        { name: "The New York Times (World)", url: "https://rss.nytimes.com/services/xml/rss/nyt/World.xml", category: "World", country: "GLOBAL", is_active: true },
+        { name: "Deutsche Welle (DW World)", url: "https://rss.dw.com/rdf/rss-en-world", category: "World", country: "GLOBAL", is_active: true },
+        { name: "NPR News (World)", url: "https://feeds.npr.org/1004/rss.xml", category: "World", country: "GLOBAL", is_active: true }
+      ];
+
+      const ukSources = [
+        { name: "BBC News (UK)", url: "https://feeds.bbci.co.uk/news/uk/rss.xml", category: "World", country: "UK", is_active: true },
+        { name: "The Guardian (UK)", url: "https://www.theguardian.com/uk/rss", category: "World", country: "UK", is_active: true },
+        { name: "Sky News (UK)", url: "https://feeds.skynews.com/feeds/rss/uk.xml", category: "World", country: "UK", is_active: true },
+        { name: "MailOnline (Daily Mail)", url: "https://www.dailymail.co.uk/news/index.rss", category: "General", country: "UK", is_active: true },
+        { name: "The Sun (UK)", url: "https://www.thesun.co.uk/news/feed/", category: "General", country: "UK", is_active: true },
+        { name: "The Telegraph (UK)", url: "https://www.telegraph.co.uk/news/rss.xml", category: "World", country: "UK", is_active: true }
+      ];
+
+      const saSources = [
+        { name: "Arab News (SA)", url: "https://www.arabnews.com/rss.xml", category: "Middle East", country: "SA", is_active: true },
+        { name: "Saudi Gazette", url: "https://saudigazette.com.sa/rss/saudi-arabia", category: "Middle East", country: "SA", is_active: true },
+        { name: "Al Arabiya English (SA)", url: "https://english.alarabiya.net/feed/rss2/english/news", category: "Middle East", country: "SA", is_active: true },
+        { name: "Asharq Al-Awsat (ENG)", url: "https://english.aawsat.com/rss.xml", category: "Middle East", country: "SA", is_active: true },
+        { name: "Saudi Press Agency (SPA)", url: "https://www.spa.gov.sa/rss.xml", category: "Govt / National", country: "SA", is_active: true },
+        { name: "Al Riyadh Daily", url: "http://alriyadhdaily.com/rss", category: "Middle East", country: "SA", is_active: true }
+      ];
 
       if (country === "BD") {
-        defaults = [
-          { name: "Prothom Alo (RSS)", url: "https://www.prothomalo.com/feed", category: "General", country: "BD", is_active: true },
-          { name: "BBC Bangla", url: "https://feeds.bbci.co.uk/bengali/rss.xml", category: "General", country: "BD", is_active: true },
-          { name: "VOA Bangla", url: "https://www.voabangla.com/api/z--r-rymqv", category: "General", country: "BD", is_active: true },
-          { name: "Daily Star", url: "https://www.thedailystar.net/frontpage/rss.xml", category: "General", country: "BD", is_active: true },
-          { name: "Dhaka Tribune", url: "https://www.dhakatribune.com/feed", category: "General", country: "BD", is_active: true },
-          { name: "Bdnews24 Bangla", url: "https://bangla.bdnews24.com/?widgetName=rssfeed&widgetId=1150&getXmlFeed=true", category: "General", country: "BD", is_active: true },
-          { name: "Kaler Kantho", url: "https://www.kalerkantho.com/rss.xml", category: "General", country: "BD", is_active: true }
-        ];
+        defaults = bdSources;
+      } else if (country === "GLOBAL") {
+        defaults = globalSources;
+      } else if (country === "UK") {
+        defaults = ukSources;
+      } else if (country === "SA") {
+        defaults = saSources;
       } else {
-        // Global defaults requested by user
-        defaults = [
-          { name: "BBC News (World)", url: "http://bbci.co.uk", category: "World", country: "GLOBAL", is_active: true },
-          { name: "Al Jazeera English", url: "https://aljazeera.com", category: "World", country: "GLOBAL", is_active: true },
-          { name: "Reuters (World News)", url: "https://reutersagency.com", category: "World", country: "GLOBAL", is_active: true },
-          { name: "CNN (Top Stories)", url: "http://cnn.com", category: "World", country: "GLOBAL", is_active: true },
-          { name: "The New York Times (World)", url: "https://nytimes.com", category: "World", country: "GLOBAL", is_active: true },
-          { name: "Associated Press (AP News)", url: "https://apnews.com", category: "World", country: "GLOBAL", is_active: true },
-          { name: "Deutsche Welle (DW World)", url: "https://dw.com", category: "World", country: "GLOBAL", is_active: true }
-        ];
+        // ALL countries
+        defaults = [...bdSources, ...globalSources, ...ukSources, ...saSources];
       }
 
       for (const src of defaults) {
-        try {
-          await supabase.from("scraping_sources").insert(src);
-        } catch (e) {
-          const { country, ...rest } = src;
-          await supabase.from("scraping_sources").insert(rest);
+        // Check if URL already exists
+        const { data: existing } = await supabase
+          .from("scraping_sources")
+          .select("id")
+          .eq("url", src.url)
+          .maybeSingle();
+
+        if (!existing) {
+          try {
+            await supabase.from("scraping_sources").insert(src);
+          } catch (e) {
+            const { country, ...rest } = src;
+            await supabase.from("scraping_sources").insert(rest);
+          }
         }
       }
     } else {

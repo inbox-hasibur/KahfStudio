@@ -26,11 +26,11 @@ export default function AdminScrapingPage() {
 
   // Sources Management
   const [sources, setSources] = useState<any[]>([]);
-  const [activeSourceTab, setActiveSourceTab] = useState<"ALL" | "BD" | "GLOBAL">("ALL");
+  const [activeSourceTab, setActiveSourceTab] = useState<"ALL" | "BD" | "GLOBAL" | "UK" | "SA">("ALL");
   const [newSourceName, setNewSourceName] = useState("");
   const [newSourceUrl, setNewSourceUrl] = useState("");
   const [newSourceCat, setNewSourceCat] = useState("General");
-  const [newSourceCountry, setNewSourceCountry] = useState<"BD" | "GLOBAL">("BD");
+  const [newSourceCountry, setNewSourceCountry] = useState<"BD" | "GLOBAL" | "UK" | "SA">("BD");
   const [isSeedingSources, setIsSeedingSources] = useState(false);
 
   // News Automation - Auto Approve
@@ -341,6 +341,8 @@ export default function AdminScrapingPage() {
 
   const bdCount = sources.filter(s => (s.country || "BD") === "BD").length;
   const globalCount = sources.filter(s => s.country === "GLOBAL").length;
+  const ukCount = sources.filter(s => s.country === "UK").length;
+  const saCount = sources.filter(s => s.country === "SA").length;
 
   // Manual Scraping Trigger
   const handleTriggerEmergencyScrape = async () => {
@@ -436,54 +438,82 @@ export default function AdminScrapingPage() {
     }
   };
 
-  // Manual AI Podcast Generation Trigger
+  // Manual AI Podcast Generation Trigger (Supports Global, BD, UK, SA or All 1-by-1)
   const handleTriggerPodcast = async () => {
     setIsGeneratingPodcast(true);
     const getNowTime = () => new Date().toLocaleTimeString('en-US', { hour12: true });
 
+    const countriesToGen = selectedCountry === "All"
+      ? ["BD", "GLOBAL", "UK", "SA"]
+      : [selectedCountry];
+
     let logs = [
       ...scrapeLogs,
-      `\n[${getNowTime()}] 🎙️ [AI Podcast] Initializing on-demand AI Podcast Bulletin generation...`,
-      `[${getNowTime()}] 📡 [Step 1] Fetching top recent published news stories and local weather forecast...`,
+      `\n[${getNowTime()}] 🎙️ [AI Podcast] Initiating podcast generation for ${countriesToGen.length} target(s): [${countriesToGen.join(", ")}]...`,
     ];
     setScrapeLogs(logs);
     try { localStorage.setItem("kahf_scrape_logs", JSON.stringify(logs)); } catch (e) {}
 
     try {
-      logs = [
-        ...logs,
-        `[${getNowTime()}] 🧠 [Step 2] Synthesizing comprehensive Bengali news bulletin with Gemini 3.1 Flash...`,
-      ];
-      setScrapeLogs(logs);
-      try { localStorage.setItem("kahf_scrape_logs", JSON.stringify(logs)); } catch (e) {}
+      for (let i = 0; i < countriesToGen.length; i++) {
+        const countryCode = countriesToGen[i];
+        const countryDesc = countryCode === "BD"
+          ? "🇧🇩 Bangladesh (Bengali)"
+          : countryCode === "GLOBAL"
+          ? "🌐 Global (English)"
+          : countryCode === "UK"
+          ? "🇬🇧 United Kingdom (English)"
+          : "🇸🇦 Saudi Arabia (Arabic)";
 
-      const res = await fetch("/api/podcast/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" }
-      });
+        logs = [
+          ...logs,
+          `\n[${getNowTime()}] 🎙️ [Country ${i + 1}/${countriesToGen.length}]: Synthesizing bulletin for ${countryDesc}...`,
+          `[${getNowTime()}] 📡 [Step 1] Fetching top published news & local weather forecast for ${countryCode}...`,
+          `[${getNowTime()}] 🧠 [Step 2] Synthesizing comprehensive AI script with Gemini 3.6 Flash...`,
+        ];
+        setScrapeLogs([...logs]);
+        try { localStorage.setItem("kahf_scrape_logs", JSON.stringify(logs)); } catch (e) {}
 
-      const json = await res.json();
+        const res = await fetch("/api/podcast/generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ country: countryCode }),
+        });
 
-      if (!res.ok || !json.success) {
-        throw new Error(json.error || "Podcast generation failed");
+        const json = await res.json();
+
+        if (!res.ok || !json.success) {
+          throw new Error(json.error || `Podcast generation failed for ${countryCode}`);
+        }
+
+        const pData = json.data || {};
+        logs = [
+          ...logs,
+          `[${getNowTime()}] 🔊 [Step 3] Seamless Gemini TTS Audio synthesized successfully!`,
+          `[${getNowTime()}] ☁️ [Step 4] Audio uploaded to Cloudinary: ${pData.audio_url || 'OK'}`,
+          `[${getNowTime()}] 📁 [Step 5] Saved to Podcast Archives: "${pData.title}" (Duration: ~${pData.duration || 0}s, Stories: ${pData.topNewsCount || 0})`,
+          `[${getNowTime()}] ✅ Finished bulletin for ${countryCode}!`,
+        ];
+        setScrapeLogs([...logs]);
+        try { localStorage.setItem("kahf_scrape_logs", JSON.stringify(logs)); } catch (e) {}
+
+        if (i < countriesToGen.length - 1) {
+          await new Promise((r) => setTimeout(r, 600));
+        }
       }
 
-      const pData = json.data || {};
       logs = [
         ...logs,
-        `[${getNowTime()}] 🔊 [Step 3] Seamless Gemini Bengali Audio synthesized successfully!`,
-        `[${getNowTime()}] ☁️ [Step 4] Audio uploaded to Cloudinary: ${pData.audio_url || 'OK'}`,
-        `[${getNowTime()}] 📁 [Step 5] Saved to Podcast Archives: "${pData.title}" (Duration: ~${pData.duration || 0}s, Stories: ${pData.topNewsCount || 0})`,
-        `[${getNowTime()}] 🎉 AI Podcast Bulletin generation complete and ready to broadcast!`,
+        `\n[${getNowTime()}] 🎉 AI Podcast Bulletin pipeline finished! All target podcasts are ready to broadcast.`,
       ];
-      setScrapeLogs(logs);
+      setScrapeLogs([...logs]);
       try { localStorage.setItem("kahf_scrape_logs", JSON.stringify(logs)); } catch (e) {}
     } catch (err: any) {
       logs = [
         ...logs,
         `[${getNowTime()}] ❌ [Podcast Generation Error]: ${err.message}`,
       ];
-      setScrapeLogs(logs);
+      setScrapeLogs([...logs]);
       try { localStorage.setItem("kahf_scrape_logs", JSON.stringify(logs)); } catch (e) {}
     } finally {
       setIsGeneratingPodcast(false);
@@ -812,13 +842,15 @@ export default function AdminScrapingPage() {
             <div className="flex items-center gap-2 px-1 sm:border-l sm:border-white/10 sm:pl-3">
               <Label className="text-xs text-muted-foreground whitespace-nowrap">Country:</Label>
               <select 
-                className="flex h-8 w-32 bg-black/40 rounded-md border border-white/10 text-xs focus-visible:outline-none px-2 text-foreground"
+                className="flex h-8 w-36 bg-black/40 rounded-md border border-white/10 text-xs focus-visible:outline-none px-2 text-foreground"
                 value={selectedCountry}
                 onChange={(e) => setSelectedCountry(e.target.value)}
               >
-                <option value="All">🌐 All Countries</option>
+                <option value="All">🌐 All Countries (1 by 1)</option>
                 <option value="BD">🇧🇩 Bangladesh</option>
                 <option value="GLOBAL">🌍 Global Only</option>
+                <option value="UK">🇬🇧 United Kingdom</option>
+                <option value="SA">🇸🇦 Saudi Arabia</option>
               </select>
             </div>
 
@@ -906,7 +938,7 @@ export default function AdminScrapingPage() {
             </div>
 
             {/* Country Filter Tabs */}
-            <div className="flex items-center gap-1 bg-muted p-1 rounded-xl border border-border">
+            <div className="flex flex-wrap items-center gap-1 bg-muted p-1 rounded-xl border border-border">
               <button
                 type="button"
                 onClick={() => {
@@ -936,6 +968,26 @@ export default function AdminScrapingPage() {
                 className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${activeSourceTab === "GLOBAL" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
               >
                 🌐 Global ({globalCount})
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveSourceTab("UK");
+                  setNewSourceCountry("UK");
+                }}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${activeSourceTab === "UK" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+              >
+                🇬🇧 UK ({ukCount})
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveSourceTab("SA");
+                  setNewSourceCountry("SA");
+                }}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${activeSourceTab === "SA" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+              >
+                🇸🇦 Saudi Arabia ({saCount})
               </button>
             </div>
           </div>
@@ -970,6 +1022,8 @@ export default function AdminScrapingPage() {
               >
                 <option value="BD">🇧🇩 Bangladesh</option>
                 <option value="GLOBAL">🌐 Global</option>
+                <option value="UK">🇬🇧 UK</option>
+                <option value="SA">🇸🇦 Saudi Arabia</option>
               </select>
             </div>
             <div className="md:col-span-2 space-y-1">
@@ -1030,8 +1084,16 @@ export default function AdminScrapingPage() {
                         {source.url}
                       </td>
                       <td className="px-4 py-2.5">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${source.country === "GLOBAL" ? "bg-sky-500/10 text-sky-400 border border-sky-500/20" : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"}`}>
-                          {source.country === "GLOBAL" ? "🌐 Global" : "🇧🇩 BD"}
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${
+                          source.country === "GLOBAL" 
+                            ? "bg-sky-500/10 text-sky-400 border border-sky-500/20" 
+                            : source.country === "UK"
+                            ? "bg-indigo-500/10 text-indigo-400 border border-indigo-500/20"
+                            : source.country === "SA"
+                            ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                            : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                        }`}>
+                          {source.country === "GLOBAL" ? "🌐 Global" : source.country === "UK" ? "🇬🇧 UK" : source.country === "SA" ? "🇸🇦 SA" : "🇧🇩 BD"}
                         </span>
                       </td>
                       <td className="px-4 py-2.5 text-xs text-muted-foreground">{source.category || "General"}</td>

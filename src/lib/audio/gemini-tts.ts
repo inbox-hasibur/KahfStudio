@@ -47,8 +47,8 @@ export function splitTextIntoSafeChunks(text: string, maxWordsPerChunk = 20): st
   // 1. Strip markdown noise and extra punctuation
   const clean = cleanTextForSpeech(text);
 
-  // 2. Split by sentence terminators: Bengali (।), Question (?), Exclamation (!), Period (.), or Newline (\n)
-  const rawSentences = clean.split(/(?<=[।?!.\n])\s+/);
+  // 2. Split by sentence terminators: Bengali (।), Question (?), Arabic question (؟), Exclamation (!), Period (.), or Newline (\n)
+  const rawSentences = clean.split(/(?<=[।?!.\n؟])\s+/);
   const chunks: string[] = [];
   let currentChunk = '';
 
@@ -67,7 +67,7 @@ export function splitTextIntoSafeChunks(text: string, maxWordsPerChunk = 20): st
       }
       // If a single sentence exceeds maxWordsPerChunk, split on commas or sub-clauses
       if (sentenceWords > maxWordsPerChunk) {
-        const clauses = trimmed.split(/(?<=[,;])\s+/);
+        const clauses = trimmed.split(/(?<=[,;،؛])\s+/);
         let clauseChunk = '';
 
         for (const clause of clauses) {
@@ -112,7 +112,7 @@ let currentWorkingKeyIndex = 0;
  */
 async function generateChunkPcm(
   text: string,
-  lang: 'bn' | 'en',
+  lang: 'bn' | 'en' | 'ar',
   apiKeys: string[],
   onLog?: (msg: string) => Promise<void> | void
 ): Promise<Buffer> {
@@ -199,7 +199,7 @@ async function generateChunkPcm(
  */
 export async function generateSeamlessGeminiAudio(
   fullText: string,
-  lang: 'bn' | 'en' = 'bn',
+  lang: 'bn' | 'en' | 'ar' = 'bn',
   apiKeys: string[] = [],
   onLog?: (msg: string) => Promise<void> | void
 ): Promise<Buffer> {
