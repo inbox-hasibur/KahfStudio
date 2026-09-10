@@ -12,10 +12,9 @@ import { Button } from "@/components/ui/button";
 import AudioPlayer from "@/components/AudioPlayer";
 import { useSession } from "@/lib/auth-client";
 
-// Using Unsplash source for placeholder images based on category
-const getPlaceholderImage = (category: string) => {
-  const cat = category?.toLowerCase() || 'news';
-  return `https://source.unsplash.com/800x600/?${cat},bangladesh`;
+// Reliable fallback image when article has no cover image
+const getPlaceholderImage = (category?: string) => {
+  return "https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&w=1200&q=80";
 };
 
 const containerVariants = {
@@ -518,8 +517,14 @@ export default function NewsDetailPage() {
           className="relative w-full aspect-[21/9] max-h-[260px] sm:max-h-[320px] md:max-h-[360px] rounded-xl overflow-hidden mb-5 border border-border shadow-sm bg-muted/40"
         >
           <img
-            src={newsItem.imageUrl}
+            src={newsItem.imageUrl || getPlaceholderImage(newsItem.category)}
             alt=""
+            onError={(e) => {
+              const target = e.target as HTMLImageElement;
+              if (!target.src.includes('photo-1585829365295')) {
+                target.src = getPlaceholderImage(newsItem.category);
+              }
+            }}
             className="object-cover w-full h-full"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent pointer-events-none" />

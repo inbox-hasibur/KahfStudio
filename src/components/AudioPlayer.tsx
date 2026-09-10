@@ -321,7 +321,7 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
 
       // Determine text to read based on mode
       let rawText = "";
-      if (mode === "bn_full" || mode === "en_full") {
+      if (mode === "bn_full" || mode === "en_full" || mode === "ar_full") {
         rawText = track.raw_content || track.text || `${track.title}. ${track.summary || ""}`;
       } else {
         rawText = `${track.title}. ${track.summary || ""}`;
@@ -329,9 +329,13 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
 
       const cleanText = cleanTextForSpeech(rawText) || track.title;
 
-      // Sentence chunking to safely bypass browser 15s freeze
+      // Language configuration
       const isEnglish = mode.includes("en");
       const isArabic = mode.includes("ar");
+      const targetLangCode = isArabic ? "ar-SA" : isEnglish ? "en-US" : "bn-BD";
+      const targetLangPrefix = isArabic ? "ar" : isEnglish ? "en" : "bn";
+
+      // Sentence chunking to safely bypass browser 15s freeze
       const sentences = cleanText
         .split(/(?<=[।?!.\n;؟،؛])/g)
         .map((s) => s.trim())
@@ -363,10 +367,9 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
       setCurrentTime(initialTime);
       setProgress(resumeFromChunk / chunks.length);
 
-      // Find high-quality natural voice with preference for Natural/Neural/Online/Google voices
-      const currentVoices = window.speechSynthesis.getVoices();
-      const targetLangPrefix = isArabic ? "ar" : isEnglish ? "en" : "bn";
-      const langVoices = currentVoices.filter((v) => v.lang.toLowerCase().startsWith(targetLangPrefix));
+      // Find high-quality natural voice
+      const allVoices = voices.length > 0 ? voices : window.speechSynthesis.getVoices();
+      const langVoices = allVoices.filter((v) => v.lang.toLowerCase().startsWith(targetLangPrefix));
 
       const wantMale = ttsSettings.voiceGender === "male";
       const isVoiceNatural = (name: string) => /natural|online|neural|google|premium|pro/i.test(name);
@@ -378,7 +381,9 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
         langVoices.find((v) => isVoiceNatural(v.name)) ||
         langVoices.find((v) => (wantMale ? isVoiceMale(v.name) : isVoiceFemale(v.name))) ||
         langVoices[0] ||
-        (!isArabic && !isEnglish ? currentVoices.find((v) => v.lang.toLowerCase().startsWith("hi") || v.default) : null);
+        (!isArabic && !isEnglish ? allVoices.find((v) => v.lang.toLowerCase().startsWith("hi") || v.default) : null);
+
+      let chunkStartTime = Date.now();
 
       const speakChunk = (chunkIdx: number) => {
         if (sessionCounterRef.current !== sessionId) return;
@@ -394,7 +399,10 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
         }
 
         currentChunkIndexRef.current = chunkIdx;
+        chunkStartTime = Date.now();
+
         const utterance = new SpeechSynthesisUtterance(chunks[chunkIdx]);
+        utterance.lang = targetLangCode;
         if (matchedVoice) utterance.voice = matchedVoice;
         utterance.rate = ttsSettings.speed || 1.0;
         utterance.volume = isMuted ? 0 : volume;
@@ -412,29 +420,50 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
         utterance.onerror = (e) => {
           if (sessionCounterRef.current !== sessionId) return;
           if (e.error === "canceled" || e.error === "interrupted") return;
-          console.warn("WebSpeech chunk error:", e);
-          speakChunk(chunkIdx + 1);
+          console.warn("WebSpeech chunk error:", e.error);
+          if (chunkIdx + 1 < chunks.length) {
+            setTimeout(() => speakChunk(chunkIdx + 1), 80);
+          } else {
+            isSpeakingRef.current = false;
+            setIsPlaying(false);
+          }
         };
 
-        window.speechSynthesis.speak(utterance);
+        // Small 40ms buffer to allow browser speech engine to clear state after cancel()
+        setTimeout(() => {
+          if (sessionCounterRef.current !== sessionId) return;
+          try {
+            window.speechSynthesis.speak(utterance);
+          } catch (err) {
+            console.warn("speechSynthesis.speak error:", err);
+          }
+        }, 40);
       };
 
       // Start speaking
       speakChunk(resumeFromChunk);
 
-      // WebSpeech progress ticker (advances smoothly every 100ms)
-      const startTime = Date.now() - (resumeFromChunk / chunks.length) * totalEstimatedDuration * 1000;
+      // WebSpeech progress ticker with smooth chunk interpolation
+      if (webSpeechTimerRef.current) clearInterval(webSpeechTimerRef.current);
       webSpeechTimerRef.current = setInterval(() => {
         if (sessionCounterRef.current !== sessionId) return;
         if (!isSpeakingRef.current) return;
 
-        const elapsed = (Date.now() - startTime) / 1000;
-        const clamped = Math.min(totalEstimatedDuration, elapsed);
-        setCurrentTime(clamped);
-        setProgress(clamped / totalEstimatedDuration);
+        const currentChunk = currentChunkIndexRef.current;
+        const chunkWeight = 1 / chunks.length;
+        const baseProgress = currentChunk * chunkWeight;
+        const chunkDuration = (totalEstimatedDuration / chunks.length) * 1000;
+        const chunkElapsed = Math.min(chunkDuration, Math.max(0, Date.now() - chunkStartTime));
+        const withinChunkRatio = chunkElapsed / chunkDuration;
+
+        const calculatedProgress = Math.min(0.99, baseProgress + withinChunkRatio * chunkWeight);
+        const calculatedTime = Math.min(totalEstimatedDuration, calculatedProgress * totalEstimatedDuration);
+
+        setCurrentTime(calculatedTime);
+        setProgress(calculatedProgress);
       }, 100);
     },
-    [stopAllEngines, ttsSettings.speed, isMuted, volume]
+    [stopAllEngines, ttsSettings.speed, ttsSettings.voiceGender, isMuted, volume, voices]
   );
 
   // HTML5 Audio Starter for Gemini TTS

@@ -15,7 +15,7 @@ export interface TTSSettings {
   voiceGender: "male" | "female";
   voiceStyle: string;
   speed: number;
-  languagePreference: "auto" | "bn" | "en";
+  languagePreference: "auto" | "bn" | "en" | "ar";
 }
 
 const DEFAULT_SETTINGS: TTSSettings = {
@@ -195,11 +195,12 @@ export default function AudioSettingsModal({ isOpen, onClose }: AudioSettingsMod
                   <Radio className="w-3.5 h-3.5 text-primary" />
                   Audio Language Sync
                 </label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {[
-                    { id: "auto", label: "Auto (Site Sync)", desc: "Match current website language (BN/EN)" },
+                    { id: "auto", label: "Auto (Site Sync)", desc: "Match current site language (BN/EN/AR)" },
                     { id: "bn", label: "বাংলা (BN Only)", desc: "Always play Bengali audio" },
                     { id: "en", label: "English (EN Only)", desc: "Always play English audio" },
+                    { id: "ar", label: "العربية (AR Only)", desc: "Always play Arabic audio" },
                   ].map((lang) => (
                     <button
                       key={lang.id}

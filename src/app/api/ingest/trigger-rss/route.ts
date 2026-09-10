@@ -433,8 +433,8 @@ YOUR RESPONSE MUST STRICTLY FOLLOW THIS JSON SCHEMA:
   "rejection_reason": "<If false, short explanation, else empty string>",
   "importance_score": <Integer from 1 to 100>,
   "clean_headline": "<Engaging, accurate ${targetLang} headline>",
-  "clean_content": "<FULL UNABRIDGED RAW ARTICLE BODY in clean ${targetLang} markdown. CRITICAL: DO NOT SUMMARIZE OR SHORTEN THIS. Keep EVERY single paragraph, quote, and detail from the raw article intact. Only clean up formatting, ads, and navigation noise>",
-  "ai_summary": "<A CONCISE 2-paragraph ${targetLang} summary highlighting key events, followed by exactly 3 bullet points of key takeaways>",
+  "clean_content": "<FULL COMPLETE UNABRIDGED RAW ARTICLE BODY in clean ${targetLang} markdown. CRITICAL: DO NOT SUMMARIZE OR CONDENSE THIS. Keep EVERY single paragraph, quote, and background detail from the raw article intact. Only clean up formatting, ads, and navigation noise>",
+  "ai_summary": "<A concise, informative narrative summary between 2 to 5 complete sentences in ${targetLang}. Never 1 line, and never exceeding 5 sentences. Must clearly cover what happened, why it matters, and key outcome. Do not output bullet points in summary, just 2 to 5 clean cohesive sentences.>",
   "detected_category": "<One of: Politics, Economy, Technology, Sports, Entertainment, World, Bangladesh, Lifestyle, General>"
 }`;
 
@@ -541,9 +541,12 @@ YOUR RESPONSE MUST STRICTLY FOLLOW THIS JSON SCHEMA:
           continue;
         }
 
-        // 5d. Non-Blocking Audio TTS Generation
-        if (activeKeys.length > 0 && insertedArticleId) {
-          await sendLog(`  ├─ Generating Bengali Audio TTS...`);
+        // 5d. Country-Specific Audio TTS Generation:
+        // BD (Bangladesh): Generate pre-rendered Gemini 3.1 Flash TTS
+        // Global / UK / Saudi Arabia: Skip heavy chunk-based Gemini TTS during scraping to preserve quota! (Plays via high-quality Device WebSpeech TTS)
+        const isBanglaArticle = articleCountry === "BD";
+        if (isBanglaArticle && activeKeys.length > 0 && insertedArticleId) {
+          await sendLog(`  ├─ Generating Bengali Audio TTS (Gemini 3.1 Flash)...`);
           try {
             const textToSpeak = (aiResult.ai_summary || aiResult.clean_headline)
               .replace(/[*_#`[\]()]/g, " ")
@@ -571,6 +574,8 @@ YOUR RESPONSE MUST STRICTLY FOLLOW THIS JSON SCHEMA:
           } catch (audioErr: any) {
             await sendLog(`  └─ ⚠️ Audio TTS Skipped: ${audioErr.message}`);
           }
+        } else if (!isBanglaArticle) {
+          await sendLog(`  └─ ⚡ [Audio Strategy] ${articleCountry} news queued for Device Native WebSpeech playback (Gemini quota preserved).`);
         }
       }
 

@@ -61,6 +61,30 @@ export async function extractArticleContent(url: string, fallbackTitle?: string)
         }
       }
 
+      // If Jina didn't embed an image in markdown, quickly grab og:image from the target page's <head> (first 128KB)
+      if (!ogImage) {
+        try {
+          const headRes = await axios.get(url, {
+            timeout: 2500,
+            headers: {
+              'User-Agent': BROWSER_USER_AGENT,
+              'Range': 'bytes=0-131072',
+            },
+          });
+          const headHtml = typeof headRes.data === 'string' ? headRes.data : '';
+          const metaImgMatch =
+            headHtml.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i) ||
+            headHtml.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i) ||
+            headHtml.match(/<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["']/i) ||
+            headHtml.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']twitter:image["']/i);
+          if (metaImgMatch && metaImgMatch[1]?.startsWith('http')) {
+            ogImage = metaImgMatch[1];
+          }
+        } catch (headErr) {
+          // Non-critical image fallback
+        }
+      }
+
       // 4. Clean Markdown Body Text
       const cleanedJina = cleanJinaMarkdown(rawJinaData);
       if (cleanedJina && cleanedJina.trim().length > 100) {

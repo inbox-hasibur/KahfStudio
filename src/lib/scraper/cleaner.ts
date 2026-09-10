@@ -5,13 +5,19 @@
  */
 
 // Section terminator boundaries - once any of these headings appear, the article body has finished!
-// Note: Do NOT use \b for non-ASCII/Bengali scripts as JS regex \b only handles ASCII \w
+// True section terminator boundaries - once any of these headings appear, the article body has finished!
 const SECTION_CUTOFF_PATTERNS = [
+  /^(পাঠকের মন্তব্য|মন্তব্য সমূহ|comments|leave a comment|discussion)(?:\s|$|[:\-])/i,
+  /^(কপিরাইট|সর্বস্বত্ব সংরক্ষিত|all rights reserved|terms & conditions|privacy policy)(?:\s|$|[:\-])/i,
+  /^(ট্যাগ|বিষয়|টপিক|tags|topics|related topics)(?:\s|$|[:\-])/i,
+  /^(about the author|author bio|লেখক পরিচিতি)(?:\s|$|[:\-])/i,
+];
+
+// Inline promotional / teaser lines that should be skipped without breaking the rest of the article
+const INLINE_PROMO_PATTERNS = [
+  /^(আরও পড়ুন|আরও পড়ুন|সম্পর্কিত খবর|সম্পর্কিত সংবাদ|সম্পর্কিত বিষয়|সম্পর্কিত ভিডিও|related news|related stories|more from|read more|more on this|also read|see also)(?:\s|$|[:\-])/i,
   /^(পরবর্তী ভিডিও|পরবর্তী সংবাদ|পরবর্তী খবর|next video|next article)(?:\s|$|[:\-])/i,
-  /^(আরও পড়ুন|আরও পড়ুন|সম্পর্কিত খবর|সম্পর্কিত সংবাদ|সম্পর্কিত বিষয়|সম্পর্কিত ভিডিও|related news|related stories|more from|read more)(?:\s|$|[:\-])/i,
   /^(ভিডিও থেকে আরও দেখুন|ছবি থেকে আরও দেখুন|আরও দেখুন|সর্বশেষ খবর|টপ নিউজ|জনপ্রিয় খবর|most popular|most read)(?:\s|$|[:\-])/i,
-  /^(পাঠকের মন্তব্য|মন্তব্য সমূহ|comments|leave a comment)(?:\s|$|[:\-])/i,
-  /^(ট্যাগ|বিষয়|টপিক|tags|topics)(?:\s|$|[:\-])/i,
 ];
 
 // Regex patterns for advertisement, social share buttons, navigation, and boilerplate noise
@@ -112,14 +118,17 @@ export function cleanJinaMarkdown(rawContent: string): string {
     trimmed = trimmed.replace(/\s+/g, ' ').trim();
     if (!trimmed) continue;
 
-    // Check if this line marks the end of main article (e.g. "পরবর্তী ভিডিও", "সম্পর্কিত খবর", "আরও পড়ুন")
+    // Check if this line marks the true end of the main article (comments, footer, copyright, tags)
     if (SECTION_CUTOFF_PATTERNS.some((pattern) => pattern.test(trimmed))) {
-      // If we already have some article content, stop parsing further lines!
-      if (cleanParagraphs.length > 0) {
+      if (cleanParagraphs.length > 2) {
         break;
-      } else {
-        continue;
       }
+      continue;
+    }
+
+    // Check against inline promo / teaser lines (skip this single promo line and continue parsing rest of the article!)
+    if (INLINE_PROMO_PATTERNS.some((pattern) => pattern.test(trimmed))) {
+      continue;
     }
 
     // Check against noise patterns (advertisements, share buttons, footer links, timestamps, etc.)
