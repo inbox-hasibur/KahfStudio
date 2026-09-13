@@ -19,6 +19,8 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const category = searchParams.get('category');
     const country = searchParams.get('country');
+    const source = searchParams.get('source');
+    const streamOnly = searchParams.get('stream_only') === 'true';
     const sort = searchParams.get('sort') || 'smart'; // 'smart' or 'date'
     const interestsParam = searchParams.get('interests'); // e.g. "Technology,Sports"
     const limit = parseInt(searchParams.get('limit') || '30');
@@ -32,6 +34,14 @@ export async function GET(req: NextRequest) {
 
     if (category && category !== 'All') {
       query = query.eq('category', category);
+    }
+
+    if (source && source !== 'All') {
+      query = query.eq('source', source);
+    }
+
+    if (streamOnly) {
+      query = query.eq('admin_id', 'rss_stream');
     }
 
     if (country && country.toUpperCase() !== 'ALL') {
@@ -100,11 +110,15 @@ export async function GET(req: NextRequest) {
 
     // Apply exact requested limit
     const finalNews = processedNews.slice(0, limit);
+    const availableSources = Array.from(
+      new Set(processedNews.map((n: any) => n.source).filter(Boolean))
+    );
 
     return NextResponse.json({
       success: true,
       data: finalNews,
       count: finalNews.length,
+      sources: availableSources,
       sort,
     });
 
@@ -141,3 +155,48 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
+// DELETE — Remove news article by ID
+export async function DELETE(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get('id');
+
+    if (!id) {
+      return NextResponse.json(
+        { success: false, error: 'Article ID is required' },
+        { status: 400 }
+      );
+    }
+
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
+    // Cascade delete any bookmark references first to avoid foreign key violations
+    try {
+      await supabase.from('saved_articles').delete().eq('news_id', id);
+    } catch (e) { }
+
+    const { error } = await supabase
+      .from('news_articles')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+
+    return NextResponse.json({
+      success: true,
+      message: 'Article successfully deleted',
+      deletedId: id,
+    });
+  } catch (error: any) {
+    console.error("API /news DELETE Error:", error);
+    return NextResponse.json(
+      { success: false, error: error.message || 'Failed to delete news article' },
+      { status: 500 }
+    );
+  }
+}
+

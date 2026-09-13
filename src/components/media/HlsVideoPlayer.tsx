@@ -96,6 +96,30 @@ export const HlsVideoPlayer: React.FC<HlsVideoPlayerProps> = ({
       setBuffered(0);
 
       if (src) {
+        const ytMatch = src.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|live\/))([\w-]{11})/);
+        if (ytMatch && ytMatch[1]) {
+          setStatusMsg("Connecting stream...");
+          try {
+            const res = await fetch(`/api/yt-stream?v=${ytMatch[1]}`);
+            const data = await res.json();
+            if (!isCancelled) {
+              if (data.success && data.streamUrl) {
+                setResolvedSrc(data.streamUrl);
+                setStatusMsg(data.isLive ? "Live Stream (HLS)" : "Video Stream (MP4)");
+              } else {
+                setErrorMsg(data.error || "Stream unavailable");
+              }
+            }
+          } catch (err: any) {
+            if (!isCancelled) {
+              setErrorMsg(err.message || "Failed to load stream");
+            }
+          } finally {
+            if (!isCancelled) setIsLoading(false);
+          }
+          return;
+        }
+
         setResolvedSrc(src);
         setStatusMsg(src.includes(".m3u8") ? "Live HLS Stream" : "Video Ready");
         setIsLoading(false);

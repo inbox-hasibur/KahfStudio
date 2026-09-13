@@ -93,7 +93,7 @@ export default function MainFeed({ newsItems, isGlobal = false, isArabic = false
             </div>
           </div>
           <h2 className="text-base sm:text-lg md:text-xl font-sans font-bold text-foreground tracking-tight">
-            {isArabic ? "جميع الأخبار" : isGlobal ? "All News" : "সব খবর"}
+            {isArabic ? "أهم الأخبار الشاملة" : isGlobal ? "Important News" : "গুরুত্বপূর্ণ সব খবর"}
           </h2>
         </div>
 

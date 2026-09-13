@@ -76,7 +76,6 @@ const Navbar = () => {
       document.cookie = `googtrans=/bn/ar; path=/; domain=${window.location.hostname}`;
       try {
         localStorage.setItem("kahf-language", "AR");
-        localStorage.setItem("kahf_user_country", "SA");
         localStorage.setItem("kahf_manual_lang", "true");
       } catch (e) {}
     } else if (lang === "EN") {
@@ -84,7 +83,6 @@ const Navbar = () => {
       document.cookie = `googtrans=/bn/en; path=/; domain=${window.location.hostname}`;
       try {
         localStorage.setItem("kahf-language", "EN");
-        localStorage.setItem("kahf_user_country", "GLOBAL");
         localStorage.setItem("kahf_manual_lang", "true");
       } catch (e) {}
     } else {
@@ -95,7 +93,6 @@ const Navbar = () => {
       document.cookie = `googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=${window.location.hostname}`;
       try {
         localStorage.setItem("kahf-language", "BN");
-        localStorage.setItem("kahf_user_country", "BD");
         localStorage.setItem("kahf_manual_lang", "true");
       } catch (e) {}
     }
@@ -106,18 +103,27 @@ const Navbar = () => {
   useEffect(() => {
     setMounted(true);
     
-    // Check initial language from cookie & storage
+    // Check initial language from storage & cookie (Explicit user language setting takes priority over country)
+    const savedLang = typeof window !== 'undefined' ? localStorage.getItem('kahf-language') : null;
     const hasArCookie = document.cookie.includes('googtrans=/bn/ar');
-    const hasArStorage = typeof window !== 'undefined' && (localStorage.getItem('kahf-language') === 'AR' || localStorage.getItem('kahf_user_country') === 'SA');
     const hasEnCookie = document.cookie.includes('googtrans=/bn/en');
-    const hasEnStorage = typeof window !== 'undefined' && (localStorage.getItem('kahf-language') === 'EN' || ['GLOBAL', 'UK'].includes(localStorage.getItem('kahf_user_country') || ''));
     
-    if (hasArCookie || hasArStorage) {
+    if (savedLang === 'AR' || (!savedLang && hasArCookie)) {
       setLanguage('AR');
-    } else if (hasEnCookie || hasEnStorage) {
+    } else if (savedLang === 'EN' || (!savedLang && hasEnCookie)) {
       setLanguage('EN');
-    } else {
+    } else if (savedLang === 'BN') {
       setLanguage('BN');
+    } else {
+      // Fallback only if no language preference is set
+      const savedCountry = typeof window !== 'undefined' ? localStorage.getItem('kahf_user_country') : null;
+      if (savedCountry === 'SA') {
+        setLanguage('AR');
+      } else if (['GLOBAL', 'UK'].includes(savedCountry || '')) {
+        setLanguage('EN');
+      } else {
+        setLanguage('BN');
+      }
     }
   }, []);
 

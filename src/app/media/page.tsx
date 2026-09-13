@@ -10,8 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSession } from "@/lib/auth-client";
-import Link from "next/link";
 import { HalalExperimentSection } from "@/components/media/HalalExperimentSection";
+import { HlsVideoPlayer } from "@/components/media/HlsVideoPlayer";
 
 export interface IPTVChannel {
   id: string;
@@ -23,6 +23,8 @@ export interface IPTVChannel {
   text: string;
   source: string;
   isLive?: boolean;
+  isIptvStream?: boolean;
+  country?: string;
 }
 
 export interface NewsVideo {
@@ -34,6 +36,7 @@ export interface NewsVideo {
   duration: string;
   description: string;
   source?: string;
+  originalUrl?: string;
 }
 
 const toBengaliDigits = (num: number | string) => {
@@ -42,93 +45,110 @@ const toBengaliDigits = (num: number | string) => {
 };
 
 const ChannelLogo = ({ channelId, name }: { channelId: string; name: string }) => {
-  switch (channelId) {
-    case "c1": // Jamuna TV
-      return (
-        <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center text-white font-black text-[9px] tracking-tighter shrink-0 shadow-sm border border-red-500/40">
-          <span className="text-red-400">J</span><span className="text-white">TV</span>
-        </div>
-      );
-    case "c2": // Somoy TV
-      return (
-        <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-orange-500 to-orange-700 flex items-center justify-center text-white font-black text-[9px] shrink-0 shadow-sm border border-orange-400/30">
-          <span>সময়</span>
-        </div>
-      );
-    case "c3": // Channel 24
-      return (
-        <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-emerald-600 to-teal-800 flex items-center justify-center text-white font-black text-[10px] shrink-0 shadow-sm border border-emerald-400/40">
-          <span>24</span>
-        </div>
-      );
-
-    case "c5": // Ekattor TV
-      return (
-        <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-green-700 to-green-900 flex items-center justify-center text-red-300 font-black text-[10px] shrink-0 shadow-sm border border-red-500/50">
-          <span>৭১</span>
-        </div>
-      );
-    case "c6": // Independent TV
-      return (
-        <div className="w-6 h-6 rounded-lg bg-zinc-900 border border-amber-400/60 flex items-center justify-center text-amber-400 font-black text-[11px] shrink-0 shadow-sm">
-          <span>i</span>
-        </div>
-      );
-    case "c7": // RTV News
-      return (
-        <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-red-600 to-red-800 flex items-center justify-center text-white font-black text-[8px] tracking-tight shrink-0 shadow-sm border border-red-400/30">
-          <span>rtv</span>
-        </div>
-      );
-    case "c8": // Banglavision
-      return (
-        <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-sky-500 to-sky-700 flex items-center justify-center text-white font-black text-[9px] shrink-0 shadow-sm border border-sky-400/30">
-          <span>BV</span>
-        </div>
-      );
-    case "c9": // Desh TV
-      return (
-        <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-teal-600 to-teal-800 flex items-center justify-center text-white font-bold text-[8px] shrink-0 shadow-sm border border-teal-400/30">
-          <span>দেশ</span>
-        </div>
-      );
-    case "c10": // Al Jazeera
-      return (
-        <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-amber-600 to-amber-800 flex items-center justify-center text-white font-black text-[9px] tracking-tight shrink-0 shadow-sm border border-amber-400/40">
-          <span>AJ</span>
-        </div>
-      );
-    case "c11": // DW News
-      return (
-        <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-sky-600 to-blue-800 flex items-center justify-center text-white font-black text-[8px] tracking-tight shrink-0 shadow-sm border border-sky-400/30">
-          <span>DW</span>
-        </div>
-      );
-    case "c12": // Sky News
-      return (
-        <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-rose-600 to-red-700 flex items-center justify-center text-white font-bold text-[8px] tracking-tight shrink-0 shadow-sm border border-rose-400/30">
-          <span>sky</span>
-        </div>
-      );
-    case "c13": // DBC News
-      return (
-        <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-purple-600 to-indigo-800 flex items-center justify-center text-white font-black text-[8px] tracking-tight shrink-0 shadow-sm border border-purple-400/30">
-          <span>DBC</span>
-        </div>
-      );
-    case "c14": // Channel i
-      return (
-        <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-emerald-600 to-teal-800 flex items-center justify-center text-red-400 font-black text-[10px] shrink-0 shadow-sm border border-emerald-400/30">
-          <span>i</span>
-        </div>
-      );
-    default:
-      return (
-        <div className="w-6 h-6 rounded-lg bg-primary/20 text-primary flex items-center justify-center font-bold text-[10px] shrink-0">
-          <Tv className="w-3 h-3" />
-        </div>
-      );
+  const n = (name || "").toLowerCase();
+  if (channelId === "c1" || n.includes("jamuna") || n.includes("যমুনা")) {
+    return (
+      <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center text-white font-black text-[9px] tracking-tighter shrink-0 shadow-sm border border-red-500/40">
+        <span className="text-red-400">J</span><span className="text-white">TV</span>
+      </div>
+    );
   }
+  if (channelId === "c2" || n.includes("somoy") || n.includes("সময়")) {
+    return (
+      <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-orange-500 to-orange-700 flex items-center justify-center text-white font-black text-[9px] shrink-0 shadow-sm border border-orange-400/30">
+        <span>সময়</span>
+      </div>
+    );
+  }
+  if (channelId === "c3" || n.includes("channel 24") || n.includes("২৪")) {
+    return (
+      <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-emerald-600 to-teal-800 flex items-center justify-center text-white font-black text-[10px] shrink-0 shadow-sm border border-emerald-400/40">
+        <span>24</span>
+      </div>
+    );
+  }
+  if (channelId === "c4" || n.includes("news24") || n.includes("নিউজ ২৪")) {
+    return (
+      <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-red-600 to-rose-800 flex items-center justify-center text-white font-black text-[9px] shrink-0 shadow-sm border border-red-400/30">
+        <span>N24</span>
+      </div>
+    );
+  }
+  if (channelId === "c5" || n.includes("ekattor") || n.includes("একাত্তর")) {
+    return (
+      <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-green-700 to-green-900 flex items-center justify-center text-red-300 font-black text-[10px] shrink-0 shadow-sm border border-red-500/50">
+        <span>৭১</span>
+      </div>
+    );
+  }
+  if (channelId === "c6" || n.includes("independent") || n.includes("ইন্ডিপেনডেন্ট")) {
+    return (
+      <div className="w-6 h-6 rounded-lg bg-zinc-900 border border-amber-400/60 flex items-center justify-center text-amber-400 font-black text-[11px] shrink-0 shadow-sm">
+        <span>i</span>
+      </div>
+    );
+  }
+  if (channelId === "c7" || n.includes("rtv") || n.includes("আরটিভি")) {
+    return (
+      <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-red-600 to-red-800 flex items-center justify-center text-white font-black text-[8px] tracking-tight shrink-0 shadow-sm border border-red-400/30">
+        <span>rtv</span>
+      </div>
+    );
+  }
+  if (channelId === "c8" || n.includes("banglavision") || n.includes("বাংলাভিশন")) {
+    return (
+      <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-sky-500 to-sky-700 flex items-center justify-center text-white font-black text-[9px] shrink-0 shadow-sm border border-sky-400/30">
+        <span>BV</span>
+      </div>
+    );
+  }
+  if (channelId === "c9" || n.includes("desh") || n.includes("দেশ")) {
+    return (
+      <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-teal-600 to-teal-800 flex items-center justify-center text-white font-bold text-[8px] shrink-0 shadow-sm border border-teal-400/30">
+        <span>দেশ</span>
+      </div>
+    );
+  }
+  if (channelId === "c10" || n.includes("al jazeera") || n.includes("জাজিরা")) {
+    return (
+      <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-amber-600 to-amber-800 flex items-center justify-center text-white font-black text-[9px] tracking-tight shrink-0 shadow-sm border border-amber-400/40">
+        <span>AJ</span>
+      </div>
+    );
+  }
+  if (channelId === "c11" || n.includes("dw")) {
+    return (
+      <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-sky-600 to-blue-800 flex items-center justify-center text-white font-black text-[8px] tracking-tight shrink-0 shadow-sm border border-sky-400/30">
+        <span>DW</span>
+      </div>
+    );
+  }
+  if (channelId === "c12" || n.includes("sky")) {
+    return (
+      <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-rose-600 to-red-700 flex items-center justify-center text-white font-bold text-[8px] tracking-tight shrink-0 shadow-sm border border-rose-400/30">
+        <span>sky</span>
+      </div>
+    );
+  }
+  if (channelId === "c13" || n.includes("dbc")) {
+    return (
+      <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-purple-600 to-indigo-800 flex items-center justify-center text-white font-black text-[8px] tracking-tight shrink-0 shadow-sm border border-purple-400/30">
+        <span>DBC</span>
+      </div>
+    );
+  }
+  if (channelId === "c14" || n.includes("channel i") || n.includes("চ্যানেল আই")) {
+    return (
+      <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-emerald-600 to-teal-800 flex items-center justify-center text-red-400 font-black text-[10px] shrink-0 shadow-sm border border-emerald-400/30">
+        <span>i</span>
+      </div>
+    );
+  }
+  return (
+    <div className="w-6 h-6 rounded-lg bg-primary/20 text-primary flex items-center justify-center font-bold text-[10px] shrink-0">
+      <Tv className="w-3 h-3" />
+    </div>
+  );
 };
 
 const defaultChannels: IPTVChannel[] = [
@@ -363,6 +383,7 @@ export default function MediaPage() {
   const isPremium = (session?.user as any)?.tier === "premium" || (session?.user as any)?.role === "admin";
   
   const [channels, setChannels] = useState<IPTVChannel[]>(defaultChannels);
+  const [videos, setVideos] = useState<NewsVideo[]>(realNewsVideos);
   const [streamType, setStreamType] = useState<"live" | "video">("live");
   const [activeChannel, setActiveChannel] = useState<IPTVChannel>(defaultChannels[0]);
   const [currentVideo, setCurrentVideo] = useState<NewsVideo>(realNewsVideos[0]);
@@ -383,7 +404,14 @@ export default function MediaPage() {
           setChannels(data.channels);
           setActiveChannel((prev) => {
             const updated = data.channels.find((c: IPTVChannel) => c.id === prev.id);
-            return updated || prev;
+            return updated || data.channels[0];
+          });
+        }
+        if (data && data.videos && data.videos.length > 0) {
+          setVideos(data.videos);
+          setCurrentVideo((prev) => {
+            const updated = data.videos.find((v: NewsVideo) => v.id === prev.id);
+            return updated || data.videos[0];
           });
         }
       })
@@ -415,6 +443,9 @@ export default function MediaPage() {
           লাইভ টিভি চ্যানেল ও ভিডিও সংবাদ দেখুন এবং এআই মিউজিক ফিল্টারের মাধ্যমে মিউজিক-মুক্ত (হালাল) খবর উপভোগ করুন।
         </p>
       </div>
+
+      {/* 🧪 Isolated Halal Sound Mode Experimental Lab (Elevated to top view) */}
+      <HalalExperimentSection />
 
       {/* 2. Wide Halal Mode AI Banner (Positioned Right Above Video Player) */}
       <div className="w-full bg-card border border-border rounded-xl sm:rounded-2xl p-2 sm:p-2.5 shadow-sm flex items-center justify-between gap-2">
@@ -468,15 +499,25 @@ export default function MediaPage() {
       <Card className="overflow-hidden bg-card border border-border rounded-xl sm:rounded-2xl shadow-sm transition-all">
         <div className="relative aspect-video bg-black group overflow-hidden select-none">
           {/* Active 24/7 Live Stream / Real Video Embed */}
-          <iframe
-            key={streamType === "live" ? activeChannel.videoId : currentVideo.videoId}
-            src={activeEmbedUrl}
-            title={streamType === "live" ? activeChannel.name : currentVideo.title}
-            className="w-full h-full border-0"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-            allowFullScreen
-            referrerPolicy="strict-origin-when-cross-origin"
-          />
+          {streamType === "live" && activeChannel.isIptvStream ? (
+            <HlsVideoPlayer
+              key={activeChannel.streamUrl}
+              src={activeChannel.streamUrl}
+              title={activeChannel.name}
+              autoPlay={hasUserInteracted}
+              className="w-full h-full rounded-none border-none shadow-none"
+            />
+          ) : (
+            <iframe
+              key={streamType === "live" ? activeChannel.videoId : currentVideo.videoId}
+              src={activeEmbedUrl}
+              title={streamType === "live" ? activeChannel.name : currentVideo.title}
+              className="w-full h-full border-0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              allowFullScreen
+              referrerPolicy="strict-origin-when-cross-origin"
+            />
+          )}
         </div>
 
         {/* Video / Stream Metadata Info Row (Ultra-Slim Design) */}
@@ -563,7 +604,7 @@ export default function MediaPage() {
           ref={videosScrollRef}
           className="flex gap-2.5 overflow-x-auto pb-1.5 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent snap-x snap-mandatory"
         >
-          {realNewsVideos.map((video) => {
+          {videos.map((video) => {
             const isSelected = streamType === "video" && currentVideo.id === video.id;
             return (
               <div
@@ -697,9 +738,6 @@ export default function MediaPage() {
           })}
         </div>
       </section>
-
-      {/* 🧪 Isolated Halal Sound Mode Experimental Lab (Step 5E & 6) */}
-      <HalalExperimentSection />
 
     </main>
   );

@@ -56,7 +56,21 @@ export function useNews(options: UseNewsOptions | string = {}) {
     };
   }, [category, country, sort, JSON.stringify(interests), limit]);
 
-  return { news, loading, error };
+  // Optimistically remove deleted articles across all components
+  useEffect(() => {
+    const handleArticleDeleted = (e: CustomEvent) => {
+      const deletedId = e.detail?.id;
+      if (deletedId) {
+        setNews((prev) => prev.filter((item) => (item.id !== deletedId && item._id !== deletedId)));
+      }
+    };
+    window.addEventListener("article-deleted", handleArticleDeleted as EventListener);
+    return () => {
+      window.removeEventListener("article-deleted", handleArticleDeleted as EventListener);
+    };
+  }, []);
+
+  return { news, setNews, loading, error };
 }
 
 export function useWeather(city = 'Dhaka', country = 'BD') {

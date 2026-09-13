@@ -20,8 +20,12 @@ const INLINE_PROMO_PATTERNS = [
   /^(ভিডিও থেকে আরও দেখুন|ছবি থেকে আরও দেখুন|আরও দেখুন|সর্বশেষ খবর|টপ নিউজ|জনপ্রিয় খবর|most popular|most read)(?:\s|$|[:\-])/i,
 ];
 
-// Regex patterns for advertisement, social share buttons, navigation, and boilerplate noise
+// Regex patterns for advertisement, social share buttons, navigation, Jina headers, and boilerplate noise
 const NOISE_PATTERNS = [
+  /^(title|url source|markdown content|author|published time|description|feed source):\s*/i, // Jina / Scraper metadata headers
+  /^(<\/?(item|rss|channel|feed|content:encoded|dc:creator|pubdate|guid|atom:link)[^>]*>)/i, // RSS XML tags
+  /^<!\[cdata\[/i,
+  /^\]\]>$/,
   /^(বিজ্ঞাপন|advertisement|sponsored|sponsored content|ad)(?:\s|$|[:\-])/i,
   /^(শেয়ার করুন|শেয়ার করুন|শেয়ার|share on|share|follow us|ফলো করুন|সাবস্ক্রাইব|subscribe)(?:\s|$|[:\-])/i,
   /^(cookie policy|privacy policy|terms of service|terms of use|all rights reserved|সর্বস্বত্ব সংরক্ষিত|কপিরাইট|by using this site)/i,
@@ -52,20 +56,31 @@ function decodeHtmlEntities(text: string): string {
 
 /**
  * Cleans raw Jina AI / web scraped markdown text:
- * 1. Strips HTML script/style/nav tags and HTML comments
- * 2. Unescapes HTML entities
- * 3. Removes markdown images, headings (#, ##), empty links, and bold/italic markup
- * 4. Truncates text at section boundaries (related news, next videos, comments)
- * 5. Filters out advertisements, social buttons, and navigation fragments
- * 6. Reconstructs clean, prioritized narrative body paragraphs
+ * 1. Strips Jina metadata headers (Title:, URL Source:, Markdown Content:)
+ * 2. Strips CDATA and RSS XML wrappers
+ * 3. Strips HTML script/style/nav tags and comments
+ * 4. Unescapes HTML entities
+ * 5. Removes markdown images, headings, empty links, and bold/italic markup
+ * 6. Truncates text at section boundaries (comments, footer)
+ * 7. Filters out advertisements, social buttons, and navigation fragments
+ * 8. Reconstructs clean narrative body paragraphs
  */
 export function cleanJinaMarkdown(rawContent: string): string {
   if (!rawContent || rawContent.trim() === '') {
     return '';
   }
 
-  // 1. Strip HTML tags, scripts, styles, iframes, and comments
+  // 1. Pre-strip Jina AI Reader metadata headers & CDATA wrapper blocks
   let text = rawContent
+    .replace(/^Title:\s*.*$/gim, '')
+    .replace(/^URL Source:\s*.*$/gim, '')
+    .replace(/^Markdown Content:\s*.*$/gim, '')
+    .replace(/^Author:\s*.*$/gim, '')
+    .replace(/^Published Time:\s*.*$/gim, '')
+    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/gi, '$1');
+
+  // 2. Strip HTML tags, scripts, styles, iframes, and comments
+  text = text
     .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, ' ')
     .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, ' ')
     .replace(/<svg\b[^<]*(?:(?!<\/svg>)<[^<]*)*<\/svg>/gi, ' ')

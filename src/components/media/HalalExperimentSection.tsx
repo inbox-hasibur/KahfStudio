@@ -23,6 +23,53 @@ export interface MediaItem {
   isMusic?: boolean;
 }
 
+export function getChannelLogoMeta(name: string, id?: string): { logoColor: string; logoText: string } {
+  const n = (name || "").toLowerCase();
+  if (id === "c1" || n.includes("jamuna") || n.includes("যমুনা")) {
+    return { logoColor: "from-blue-600 to-blue-800", logoText: "JTV" };
+  }
+  if (id === "c2" || n.includes("somoy") || n.includes("সময়")) {
+    return { logoColor: "from-orange-500 to-orange-700", logoText: "সময়" };
+  }
+  if (id === "c3" || n.includes("channel 24") || n.includes("২৪")) {
+    return { logoColor: "from-emerald-600 to-teal-800", logoText: "C24" };
+  }
+  if (id === "c4" || n.includes("news24") || n.includes("নিউজ ২৪")) {
+    return { logoColor: "from-red-700 to-rose-900", logoText: "N24" };
+  }
+  if (id === "c5" || n.includes("ekattor") || n.includes("একাত্তর")) {
+    return { logoColor: "from-green-700 to-emerald-900", logoText: "৭১" };
+  }
+  if (id === "c6" || n.includes("independent") || n.includes("ইন্ডিপেনডেন্ট")) {
+    return { logoColor: "from-slate-800 to-zinc-900", logoText: "i" };
+  }
+  if (id === "c7" || n.includes("rtv") || n.includes("আরটিভি")) {
+    return { logoColor: "from-red-600 to-red-800", logoText: "rtv" };
+  }
+  if (id === "c8" || n.includes("banglavision") || n.includes("বাংলাভিশন")) {
+    return { logoColor: "from-sky-600 to-blue-800", logoText: "BV" };
+  }
+  if (id === "c9" || n.includes("desh") || n.includes("দেশ")) {
+    return { logoColor: "from-teal-700 to-emerald-800", logoText: "দেশ" };
+  }
+  if (id === "c10" || n.includes("al jazeera") || n.includes("জাজিরা")) {
+    return { logoColor: "from-amber-600 to-yellow-800", logoText: "AJ" };
+  }
+  if (id === "c11" || n.includes("dw")) {
+    return { logoColor: "from-sky-700 to-indigo-800", logoText: "DW" };
+  }
+  if (id === "c12" || n.includes("sky")) {
+    return { logoColor: "from-rose-700 to-red-900", logoText: "sky" };
+  }
+  if (id === "c13" || n.includes("dbc")) {
+    return { logoColor: "from-purple-700 to-indigo-800", logoText: "DBC" };
+  }
+  if (id === "c14" || n.includes("channel i") || n.includes("চ্যানেল আই")) {
+    return { logoColor: "from-emerald-700 to-teal-800", logoText: "i" };
+  }
+  return { logoColor: "from-zinc-700 to-zinc-900", logoText: "TV" };
+}
+
 export const HalalExperimentSection: React.FC = () => {
   const [videoElement, setVideoElement] = useState<HTMLVideoElement | null>(null);
   const [halalEnabled, setHalalEnabled] = useState<boolean>(true);
@@ -239,7 +286,7 @@ export const HalalExperimentSection: React.FC = () => {
       id: "v4",
       name: "সিরাহ ১১ - মে'রাজ: এক বিস্ময়কর যাত্রা",
       category: "সিরাহ",
-      streamUrl: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
+      streamUrl: "https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8",
       thumbnail: "https://img.youtube.com/vi/mDTAjCMb70A/hqdefault.jpg",
       source: "Baseera Media"
     },
@@ -248,7 +295,7 @@ export const HalalExperimentSection: React.FC = () => {
       id: "v5",
       name: "সিরাহ বিশেষ পর্ব — রাসুলুল্লাহ (সাঃ) এর নবুওয়াত",
       category: "সিরাহ",
-      streamUrl: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
+      streamUrl: "https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8",
       thumbnail: "https://img.youtube.com/vi/mDTAjCMb70A/hqdefault.jpg",
       source: "Baseera Media"
     },
@@ -281,7 +328,62 @@ export const HalalExperimentSection: React.FC = () => {
     }
   ];
 
+  const [channelList, setChannelList] = useState<MediaItem[]>(testChannels);
+  const [videoList, setVideoList] = useState<MediaItem[]>(testVideos);
   const [activeMedia, setActiveMedia] = useState<MediaItem>(testChannels[0]);
+
+  // Sync real-time channels and videos from Admin Media Database (Supabase)
+  useEffect(() => {
+    fetch("/api/admin/media-channels")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && data.success) {
+          if (data.channels && data.channels.length > 0) {
+            const mappedChannels: MediaItem[] = data.channels.map((ch: any) => {
+              const meta = getChannelLogoMeta(ch.title, ch.id);
+              return {
+                type: "channel",
+                id: ch.id,
+                name: ch.title,
+                category: ch.category || "লাইভ টিভি",
+                streamUrl: ch.url,
+                logoColor: meta.logoColor,
+                logoText: meta.logoText,
+                source: ch.stream_type === "iptv" || ch.url?.includes(".m3u8") ? "24/7 লাইভ" : "লাইভ এইচডি",
+              };
+            });
+            setChannelList(mappedChannels);
+            setActiveMedia((prev) => {
+              const matched = mappedChannels.find((c) => c.id === prev.id || c.name === prev.name);
+              return matched || mappedChannels[0];
+            });
+          }
+          if (data.videos && data.videos.length > 0) {
+            const mappedVideos: MediaItem[] = data.videos.map((v: any) => {
+              let thumb = v.thumbnail;
+              if (!thumb && v.url) {
+                const match = v.url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|live\/))([\w-]{11})/);
+                if (match && match[1]) {
+                  thumb = `https://img.youtube.com/vi/${match[1]}/hqdefault.jpg`;
+                }
+              }
+              return {
+                type: "video",
+                id: v.id,
+                name: v.title,
+                category: v.category || "সংবাদ",
+                streamUrl: v.url,
+                thumbnail: thumb || "https://img.youtube.com/vi/EZ81qPzajLI/hqdefault.jpg",
+                source: v.description?.slice(0, 30) || "ভিডিও রিপোর্ট",
+                isMusic: v.category?.toLowerCase().includes("music") || v.category?.toLowerCase().includes("গান") || v.title?.toLowerCase().includes("beat") || v.title?.toLowerCase().includes("lyrics"),
+              };
+            });
+            setVideoList(mappedVideos);
+          }
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Connect Real-Time Wiener & Audio Worklet Hook (Acoustically Normalized)
   const { 
@@ -641,8 +743,8 @@ export const HalalExperimentSection: React.FC = () => {
         </div>
       )}
 
-      {/* ── VIDEO PLAYER VIEWPORT ── */}
-      <div className="w-full max-w-4xl mx-auto rounded-xl sm:rounded-2xl overflow-hidden shadow-md border border-border mb-3 sm:mb-5">
+      {/* ── VIDEO PLAYER VIEWPORT (Fully Responsive 16:9 Scale & Seamless Card Alignment) ── */}
+      <div className="w-full rounded-xl sm:rounded-2xl overflow-hidden shadow-lg border border-border/80 mb-3 sm:mb-5 bg-black">
         <HlsVideoPlayer
           src={activeMedia.streamUrl}
           title={activeMedia.name}
@@ -671,14 +773,14 @@ export const HalalExperimentSection: React.FC = () => {
               <Tv className="w-3 h-3 text-red-500 animate-pulse shrink-0" /> লাইভ টিভি:
             </span>
             <span className="text-[8px] sm:text-[9px] font-mono font-bold text-red-500 bg-red-500/10 px-1 py-0.2 rounded-full border border-red-500/20 shrink-0">
-              {testChannels.length} LIVE
+              {channelList.length} LIVE
             </span>
           </div>
 
           {/* Independent Vertical Scroll Container (Shows 3 Rows) */}
           <div className="max-h-[160px] sm:max-h-[180px] overflow-y-auto pr-0.5 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 sm:gap-2">
-              {testChannels.map((ch) => {
+              {channelList.map((ch) => {
                 const isSelected = activeMedia.id === ch.id;
                 return (
                   <div
@@ -715,14 +817,14 @@ export const HalalExperimentSection: React.FC = () => {
               <Video className="w-3 h-3 text-emerald-500 shrink-0" /> ভিডিও ও মিউজিক:
             </span>
             <span className="text-[8px] sm:text-[9px] font-mono font-bold text-emerald-500 bg-emerald-500/10 px-1 py-0.2 rounded-full border border-emerald-500/20 shrink-0">
-              {testVideos.length} TRACKS
+              {videoList.length} TRACKS
             </span>
           </div>
 
           {/* Independent Vertical Scroll Container (Shows 3 Rows) */}
           <div className="max-h-[160px] sm:max-h-[180px] overflow-y-auto pr-0.5 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 sm:gap-2">
-              {testVideos.map((v) => {
+              {videoList.map((v) => {
                 const isSelected = activeMedia.id === v.id;
                 return (
                   <div

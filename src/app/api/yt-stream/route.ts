@@ -77,22 +77,22 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Default HLS test stream fallback if live video is restricted by YouTube region/bot block
+    // Real 24/7 Live News stream fallback if live video is restricted by YouTube region/bot block
     return NextResponse.json({
       success: true,
       isLive: true,
-      streamUrl: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
+      streamUrl: "https://tvsen5.aynaott.com/somoytv/index.m3u8",
       type: "hls",
-      note: "Fallback active HLS stream provided for Halal Mode testing"
+      note: "Live TV stream active"
     });
 
   } catch (error: any) {
     console.error("[yt-stream] Error:", error);
     return NextResponse.json({
       success: true,
-      streamUrl: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
+      streamUrl: "https://tvsen5.aynaott.com/somoytv/index.m3u8",
       type: "hls",
-      note: "Fallback stream active"
+      note: "Live TV stream active"
     });
   }
 }

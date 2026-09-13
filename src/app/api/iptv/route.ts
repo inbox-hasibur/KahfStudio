@@ -76,6 +76,78 @@ async function resolveChannelMedia(ch: ChannelConfig): Promise<{ videoId: string
 }
 
 export async function GET() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  let dynamicChannels: any[] = [];
+  let dynamicVideos: any[] = [];
+
+  if (supabaseUrl && supabaseKey) {
+    try {
+      const { createClient } = await import("@supabase/supabase-js");
+      const supabase = createClient(supabaseUrl, supabaseKey);
+      const { data } = await supabase
+        .from("media_channels")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (data && data.length > 0) {
+        for (const item of data) {
+          const isVideo = item.type === "video" || item.category?.includes("[VIDEO]");
+          const url = item.url || "";
+          let videoId = "";
+          const ytMatch = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|live\/))([\w-]{11})/);
+          if (ytMatch && ytMatch[1]) videoId = ytMatch[1];
+          else if (/^[\w-]{11}$/.test(url.trim())) videoId = url.trim();
+
+          const isIptvStream = item.stream_type === "iptv" || url.includes(".m3u8");
+
+          if (isVideo) {
+            dynamicVideos.push({
+              id: item.id,
+              title: item.title,
+              videoId: videoId || item.id,
+              thumbnail: item.thumbnail || (videoId ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg` : ""),
+              category: item.category?.replace("[VIDEO]", "").trim() || "সংবাদ",
+              duration: item.duration || "০৩:৩০",
+              source: item.country ? `${item.country} নিউজ` : "ভিডিও প্রতিবেদন",
+              description: item.description || "",
+              originalUrl: url,
+            });
+          } else {
+            dynamicChannels.push({
+              id: item.id,
+              name: item.title,
+              category: item.category?.replace("[IPTV]", "").trim() || "লাইভ টিভি",
+              videoId: videoId || "",
+              streamUrl: isIptvStream
+                ? url
+                : `https://www.youtube.com/embed/${videoId}?autoplay=1&playsinline=1&rel=0&modestbranding=1&enablejsapi=1`,
+              isLive: true,
+              isIptvStream,
+              color: "bg-primary/20",
+              text: "text-foreground",
+              source: isIptvStream ? "আইপিটিভি স্ট্রিম" : "24/7 লাইভ সম্প্রচার",
+              country: item.country || "BD",
+            });
+          }
+        }
+      }
+    } catch (dbErr) {
+      console.warn("Could not query media_channels from DB:", dbErr);
+    }
+  }
+
+  // If dynamic channels exist in DB, return them alongside dynamic videos
+  if (dynamicChannels.length > 0 || dynamicVideos.length > 0) {
+    return NextResponse.json({
+      channels: dynamicChannels.length > 0 ? dynamicChannels : null,
+      videos: dynamicVideos.length > 0 ? dynamicVideos : null,
+      source: "database",
+    });
+  }
+
+  // Otherwise, fallback to cached / resolved default channels
   const now = Date.now();
   if (cache && now - cache.timestamp < CACHE_TTL_MS) {
     return NextResponse.json({ channels: cache.data, cached: true });

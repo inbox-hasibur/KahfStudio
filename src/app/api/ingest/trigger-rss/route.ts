@@ -4,6 +4,7 @@ import Parser from "rss-parser";
 import axios from "axios";
 import * as cheerio from "cheerio";
 import { extractArticleContent } from "@/lib/scraper/universal-extractor";
+import { discoverRssFeed, enrichRssItemsWithOgImage } from "@/lib/scraper/rss-discovery";
 import { generateSeamlessGeminiAudio, uploadAudioToCloudinary } from "@/lib/audio/gemini-tts";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
@@ -34,6 +35,132 @@ interface CandidateItem {
   sourceName: string;
   category: string;
   country?: string;
+  description?: string;
+  imageUrl?: string | null;
+  pubDate?: string;
+  importance?: number;
+  author?: string;
+}
+
+const JUNK_TITLE_PATTERNS = [
+  /^!*image\s*\d*/i,
+  /^!*\[*image/i,
+  /^skip to /i,
+  /^about us$/i,
+  /^contact( us)?$/i,
+  /^privacy policy$/i,
+  /^terms( of service| of use)?$/i,
+  /^advertisement$/i,
+  /^cookie policy$/i,
+  /^subscribe$/i,
+  /^log in$/i,
+  /^sign up$/i,
+  /^e-paper$/i,
+  /^archives?$/i,
+  /^investigative stories$/i,
+  /^books and literature$/i,
+  /^accidents and fires$/i,
+  /^geopolitical insights$/i,
+  /^travel and leisure$/i,
+  /^health and wellness$/i,
+  /^opinion$/i,
+  /^editorial$/i,
+  /^entertainment$/i,
+  /^sports$/i,
+  /^business$/i,
+  /^lifestyle$/i,
+  /^bangladesh$/i,
+  /^all categories$/i,
+  /^home$/i,
+];
+
+export function isValidArticleCandidate(title: string, url: string): boolean {
+  if (!title || !url) return false;
+  const cleanTitle = title.trim();
+
+  // Must have at least 22 characters
+  if (cleanTitle.length < 22) return false;
+
+  // Must have at least 4 words
+  const words = cleanTitle.split(/\s+/).filter(Boolean);
+  if (words.length < 4) return false;
+
+  // Reject image captions, markdown images, and Jina image alt-tags (with or without numbers)
+  if (
+    cleanTitle.startsWith('!') ||
+    cleanTitle.startsWith('[') ||
+    /^!?\[?(image|photo|figure|img|pic|picture)\b/i.test(cleanTitle)
+  ) {
+    return false;
+  }
+
+  // Reject titles containing UI junk keywords
+  const UI_JUNK_REGEX = /\b(more-menu|burger-menu|navigation-menu|categories-menu|search icon|dark mode|media accounts? icon|imageicon|cardimage|theme\d+slider)\b/i;
+  if (UI_JUNK_REGEX.test(cleanTitle)) {
+    return false;
+  }
+
+  // Reject if ends with UI terms like 'icon', 'menu', 'logo', 'button', 'thumbnail'
+  if (/(icon|menu|logo|button|thumbnail|banner|widget)$/i.test(cleanTitle)) {
+    return false;
+  }
+
+  // Reject junk titles
+  for (const pattern of JUNK_TITLE_PATTERNS) {
+    if (pattern.test(cleanTitle)) return false;
+  }
+
+  // URL checks
+  try {
+    const parsed = new URL(url);
+    const pathname = parsed.pathname.toLowerCase();
+    
+    // Ignore homepages, tags, topic lists, categories, search pages
+    if (pathname === '/' || pathname === '') return false;
+    if (pathname.includes('/tag/') || pathname.includes('/category/') || pathname.includes('/topic/') || pathname.includes('/section/')) {
+      const segments = pathname.split('/').filter(Boolean);
+      if (segments.length <= 2 && !/\d/.test(pathname)) return false;
+    }
+    if (parsed.hash && parsed.hash.includes('content')) return false;
+    if (/\.(png|jpe?g|gif|svg|webp|ico|css|js)$/i.test(pathname)) return false;
+  } catch (e) {
+    return false;
+  }
+
+  return true;
+}
+
+export function sanitizeArticleContent(content: string): string {
+  if (!content) return "";
+  let text = content;
+  // 1. Strip Jina AI reader metadata headers
+  text = text.replace(/^(Title|URL Source|Markdown Content|Author|Published Time|Description):\s*.*$/gim, '');
+  // 2. Strip CDATA wrappers and raw HTML/XML tags
+  text = text.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/gi, '$1');
+  text = text.replace(/<\/?[a-z][a-z0-9]*[^<>]*>/gi, '');
+  // 3. Convert markdown links [text](http...) -> plain text
+  text = text.replace(/\[([^\]]+)\]\(https?:\/\/[^\s)]+\)/g, '$1');
+  // 4. Strip standalone or inline naked URLs
+  text = text.replace(/https?:\/\/\S+/gi, '');
+  // 5. Strip editorial prefixes
+  text = text.replace(/^(মূল সংবাদ|বিস্তারিত সংবাদ|প্রতিবেদন|সংবাদ|Full Story|Full News|Article Body):\s*/gim, '');
+  // 6. Normalize whitespace and double newlines
+  text = text
+    .split('\n')
+    .map(line => line.trim())
+    .filter(line => line.length > 0 && !/^(Title|URL Source|Markdown Content):\s*/i.test(line))
+    .join('\n\n');
+  return text.trim();
+}
+
+export function sanitizeSummary(summary: string): string {
+  if (!summary) return "";
+  let text = summary;
+  text = text.replace(/^(Title|URL Source|Markdown Content|Author|Published Time):\s*.*$/gim, '');
+  text = text.replace(/^(সারসংক্ষেপ|সংক্ষেপ|মূল কথা|Summary|AI Summary|Key Points|Brief):\s*/gim, '');
+  text = text.replace(/\[([^\]]+)\]\(https?:\/\/[^\s)]+\)/g, '$1');
+  text = text.replace(/https?:\/\/\S+/gi, '');
+  return text.replace(/\s+/g, ' ').trim();
 }
 
 // Jina-First / HTML Link Extractor when RSS feed is invalid or blocked by Cloudflare/Datacenter IP
@@ -59,19 +186,21 @@ async function extractCandidatesFromHtmlOrJina(sourceUrl: string, sourceName: st
       },
     });
     const markdown = typeof jinaRes.data === 'string' ? jinaRes.data : '';
-    const linkRegex = /\[([^\]]{18,120})\]\((https?:\/\/[^\s\)]+)\)/g;
+    const linkRegex = /\[([^\]]{22,140})\]\((https?:\/\/[^\s\)]+)\)/g;
     let match;
     while ((match = linkRegex.exec(markdown)) !== null && results.length < 12) {
       const title = match[1].replace(/[*_#`[\]()]/g, '').trim();
       const link = match[2].trim();
-      try {
-        const host = new URL(link).hostname;
-        const targetHost = new URL(targetUrl).hostname;
-        if (host.includes(targetHost.replace('www.', '')) && !seenUrls.has(link) && !link.includes('/tag/') && !link.includes('/category/')) {
-          seenUrls.add(link);
-          results.push({ url: link, title, sourceName, category });
-        }
-      } catch (e) { }
+      if (isValidArticleCandidate(title, link)) {
+        try {
+          const host = new URL(link).hostname;
+          const targetHost = new URL(targetUrl).hostname;
+          if (host.includes(targetHost.replace('www.', '')) && !seenUrls.has(link)) {
+            seenUrls.add(link);
+            results.push({ url: link, title, sourceName, category });
+          }
+        } catch (e) { }
+      }
     }
     if (results.length > 0) return results;
   } catch (jinaErr) { }
@@ -88,18 +217,20 @@ async function extractCandidatesFromHtmlOrJina(sourceUrl: string, sourceName: st
         if (results.length >= 10) return;
         const text = $(el).text().replace(/\s+/g, ' ').trim();
         const href = $(el).attr('href');
-        if (text.length >= 18 && href && !href.startsWith('#') && !href.startsWith('javascript:')) {
+        if (text && href && !href.startsWith('#') && !href.startsWith('javascript:')) {
           try {
             let fullUrl = href;
             if (!href.startsWith('http')) {
               const base = new URL(targetUrl).origin;
               fullUrl = `${base}${href.startsWith('/') ? '' : '/'}${href}`;
             }
-            const host = new URL(fullUrl).hostname;
-            const targetHost = new URL(targetUrl).hostname;
-            if (host.includes(targetHost.replace('www.', '')) && !seenUrls.has(fullUrl)) {
-              seenUrls.add(fullUrl);
-              results.push({ url: fullUrl, title: text, sourceName, category });
+            if (isValidArticleCandidate(text, fullUrl)) {
+              const host = new URL(fullUrl).hostname;
+              const targetHost = new URL(targetUrl).hostname;
+              if (host.includes(targetHost.replace('www.', '')) && !seenUrls.has(fullUrl)) {
+                seenUrls.add(fullUrl);
+                results.push({ url: fullUrl, title: text, sourceName, category });
+              }
             }
           } catch (e) { }
         }
@@ -222,33 +353,79 @@ export async function GET(req: NextRequest) {
         let feedCandidates: CandidateItem[] = [];
 
         try {
-          const feed = await fetchWithTimeout(
-            parser.parseURL(source.url),
-            3000,
-            `RSS Feed timed out`
-          );
+          let feedUrl = source.url;
+          let feed: any = null;
 
-          const topItems = feed.items ? feed.items.slice(0, 15) : [];
-          for (const item of topItems) {
-            const itemTitle = typeof item.title === 'string'
-              ? item.title.trim()
-              : (item.title as any)?._ || (item.title as any)?.value || (item.title ? String(item.title) : '');
-
-            if (item.link && itemTitle) {
-              feedCandidates.push({
-                url: item.link,
-                title: itemTitle,
-                sourceName: source.name,
-                category: source.category || "General",
-                country: source.country || "BD",
-              });
-            }
+          try {
+            feed = await fetchWithTimeout(
+              parser.parseURL(feedUrl),
+              3500,
+              `Direct RSS Feed timed out`
+            );
+          } catch (directErr) {
+            // Attempt Smart RSS Discovery (Checks <head> link[rel="alternate"] & common paths)
+            try {
+              const discovered = await discoverRssFeed(source.url);
+              if (discovered) {
+                feedUrl = discovered;
+                feed = await fetchWithTimeout(
+                  parser.parseURL(feedUrl),
+                  3500,
+                  `Discovered RSS Feed timed out`
+                );
+                await sendLog(`  ├─ 🔍 [${source.name}] Smart RSS Discovered: ${discovered}`);
+              }
+            } catch (discErr) { }
           }
-          await sendLog(`  ├─ ✅ [${source.name}] RSS OK: Found ${feedCandidates.length} articles.`);
+
+          if (feed && feed.items && feed.items.length > 0) {
+            const topItems = feed.items.slice(0, 30);
+            for (const item of topItems) {
+              const itemTitle = typeof item.title === 'string'
+                ? item.title.trim()
+                : (item.title as any)?._ || (item.title as any)?.value || (item.title ? String(item.title) : '');
+
+              // Image extraction from enclosure or media tags
+              let imgUrl: string | null = null;
+              if (item.enclosure?.url && typeof item.enclosure.url === 'string') {
+                imgUrl = item.enclosure.url;
+              } else if ((item as any)['media:content']?.$?.url) {
+                imgUrl = (item as any)['media:content'].$.url;
+              } else if ((item as any)['media:thumbnail']?.$?.url) {
+                imgUrl = (item as any)['media:thumbnail'].$.url;
+              }
+
+              // Description extraction
+              const itemDesc = item.contentSnippet || item.summary || item.content || (item as any)['content:encoded'] || '';
+              const cleanDesc = typeof itemDesc === 'string'
+                ? itemDesc.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+                : '';
+
+              if (item.link && itemTitle) {
+                feedCandidates.push({
+                  url: item.link,
+                  title: itemTitle,
+                  sourceName: source.name,
+                  category: source.category || "General",
+                  country: source.country || "BD",
+                  description: cleanDesc.slice(0, 800),
+                  imageUrl: imgUrl,
+                  pubDate: item.isoDate || item.pubDate || new Date().toISOString(),
+                });
+              }
+            }
+            await sendLog(`  ├─ ✅ [${source.name}] RSS OK: Found ${feedCandidates.length} articles.`);
+          } else {
+            throw new Error("No RSS items found");
+          }
         } catch (rssErr: any) {
           try {
             const extractedCandidates = await extractCandidatesFromHtmlOrJina(source.url, source.name, source.category || "General");
-            feedCandidates = extractedCandidates.map(c => ({ ...c, country: source.country || "BD" }));
+            feedCandidates = extractedCandidates.map(c => ({
+              ...c,
+              country: source.country || "BD",
+              pubDate: new Date().toISOString(),
+            }));
             await sendLog(`  ├─ ⚡ [${source.name}] Jina Proxy OK: Discovered ${feedCandidates.length} articles.`);
           } catch (fallbackErr: any) {
             await sendLog(`  ├─ ⚠️ [${source.name}] Skipped: ${fallbackErr.message}`);
@@ -316,37 +493,52 @@ export async function GET(req: NextRequest) {
         }
       }
 
-      // 4. AI Title Batch Pre-Filtering
-      let selectedArticles: typeof rawCandidates = [];
+      // 4. AI Title Batch Pre-Filtering & Halal Gatekeeper (Dual-Track Split)
+      let selectedTopArticles: typeof rawCandidates = [];
+      let acceptedStreamArticles: typeof rawCandidates = [];
+      let candidateQueue: typeof newCandidates = [];
 
-      if (newCandidates.length <= targetLimit) {
-        selectedArticles = newCandidates;
-        await sendLog(`Processing all ${selectedArticles.length} candidate(s) directly.`);
+      if (newCandidates.length === 0) {
+        await sendLog(`No new candidate articles found from source(s).`);
       } else {
-        await sendLog(`Sending candidate titles to Gemini Evaluator to select TOP ${targetLimit}...`);
+        await sendLog(`Sending ${newCandidates.length} candidate titles to Gemini Halal Gatekeeper & Priority Evaluator...`);
 
+        // Evaluate all candidates in pool (up to 70 candidates)
+        const poolSize = Math.min(newCandidates.length, 70);
         const titlesList = newCandidates
-          .slice(0, 25)
-          .map((c, i) => `${i + 1}. Title: "${c.title}" | Category: ${c.category} | Source: ${c.sourceName}`)
+          .slice(0, poolSize)
+          .map((c, i) => `${i + 1}. [${c.sourceName}] Title: "${c.title}" | Category: ${c.category}`)
           .join("\n");
 
-        const prompt = `You are the chief editor of KahfNews, an ethical, family-friendly, and Halal-conscious news platform.
-Evaluate these candidate headlines and select the TOP ${targetLimit} most valuable, impactful stories:
+        const prompt = `You are the chief editorial evaluator of KahfNews, an ethical, family-friendly, and Halal-conscious multilingual news platform (Bengali, English, Arabic).
+Evaluate these candidate headlines:
 ${titlesList}
 
-STRICT EDITORIAL & HALAL STANDARDS:
-1. REJECT vulgar entertainment gossip, celebrity intimate/scandalous affairs, obscenity, sexualized content, revealing/vulgar photo stories, or promotion of non-halal/haram activities (gambling, casinos, alcohol, nightlife, explicit immorality).
-2. PERMIT & PRIORITIZE: Real national news, politics, governance, legal trials & crime/justice proceedings (investigations, court verdicts, law enforcement), economy, education, science & technology, healthy sports, and verified global events.
-3. REJECT sensationalized yellow journalism and misleading clickbait.
+CRITERIA:
+1. REJECT:
+   - Harām & Inappropriate content: revealing or provocative clothing controversy, celebrity glamour/photoshoot gossip, intimate or scandalous affairs, vulgarity, alcohol, nightlife, gambling/casinos, explicit immorality.
+   - Irrelevant non-news: website navigation menus, section headers (e.g. "Skip to main content", "Books and Literature", "Accidents and Fires"), image captions/alt-texts, advertising.
+2. ACCEPT:
+   - Real, authentic news: national and international politics, governance, law/courts/investigations, economy, education, science & technology, healthy sports, culture, climate, and verified events across Bengali, English, and Arabic.
+3. IMPORTANCE SCORE (1-100):
+   - 80-100: Top breaking national/world news, major policy, prime headlines.
+   - 45-79: Standard news reports, sports, business, technology.
+   - 10-44: Minor local events.
 
-Return a valid JSON array of chosen numbers (1-indexed), for example: [1, 3, 5]`;
+Return valid JSON:
+{
+  "approved": [
+    { "index": <1-indexed number>, "importance": <Integer 1-100> }
+  ],
+  "rejected_indices": [<1-indexed numbers>]
+}`;
 
-        let selectedIndices: number[] = [];
+        let approvedItems: Array<{ index: number; importance: number }> = [];
         const modelsToTry = ["gemini-3.6-flash", "gemini-2.5-flash", "gemini-2.5-flash-lite"];
         const keysToTry = activeKeys.slice(0, 2);
 
         for (const modelName of modelsToTry) {
-          if (selectedIndices.length > 0) break;
+          if (approvedItems.length > 0) break;
           for (const apiKey of keysToTry) {
             if (!apiKey) continue;
             try {
@@ -358,85 +550,135 @@ Return a valid JSON array of chosen numbers (1-indexed), for example: [1, 3, 5]`
 
               const res = await fetchWithTimeout(
                 model.generateContent(prompt),
-                5000,
+                7000,
                 "Gemini AI Pre-Filter timed out"
               );
 
               const parsed = JSON.parse(res.response.text());
-              if (Array.isArray(parsed) && parsed.length > 0) {
-                selectedIndices = parsed;
+              if (parsed && Array.isArray(parsed.approved) && parsed.approved.length > 0) {
+                approvedItems = parsed.approved;
+                break;
+              } else if (Array.isArray(parsed) && parsed.length > 0) {
+                approvedItems = parsed.map((idx: any, i: number) => ({
+                  index: typeof idx === 'number' ? idx : idx.index || (i + 1),
+                  importance: 75 - (i * 2),
+                }));
                 break;
               }
             } catch (e: any) { }
           }
         }
 
-        if (selectedIndices.length > 0) {
-          selectedArticles = selectedIndices
-            .map((idx) => newCandidates[idx - 1])
-            .filter(Boolean)
-            .slice(0, targetLimit);
-          await sendLog(`✅ Gemini Evaluator (${modelsToTry[0]}) selected ${selectedArticles.length} top priority article(s).`);
+        candidateQueue = [];
+        if (approvedItems.length > 0) {
+          approvedItems.sort((a, b) => (b.importance || 50) - (a.importance || 50));
+
+          candidateQueue = approvedItems
+            .map((item) => {
+              const cand = newCandidates[item.index - 1];
+              if (cand) {
+                return { ...cand, importance: item.importance || 50 };
+              }
+              return null;
+            })
+            .filter(Boolean) as typeof newCandidates;
+
+          await sendLog(`✅ Gemini Halal Gatekeeper: ${candidateQueue.length} approved candidate(s) queued for ingestion.`);
         } else {
-          selectedArticles = newCandidates.slice(0, targetLimit);
-          await sendLog(`Proceeding with top ${selectedArticles.length} candidate(s).`);
+          // Fallback if Gemini evaluator failed: filter out obvious vulgar keywords
+          const vulgarKeywords = ["পোশাক", "বোল্ড", "উষ্ণ", "খোলামেলা", "বিকিনি", "cleavage", "revealing", "bikini", "lingerie", "swimsuit"];
+          candidateQueue = newCandidates.filter(c => !vulgarKeywords.some(kw => c.title.toLowerCase().includes(kw)));
+          await sendLog(`Proceeding with safe fallback candidate queue: ${candidateQueue.length} candidate(s).`);
         }
       }
 
-      // 5. Ingestion Loop for each selected article
+      // 5. Ingestion Loop: Iterate through candidates one by one until targetLimit is reached
       let totalSuccessful = 0;
+      let queueIndex = 0;
+      const targetGoal = targetLimit;
 
-      for (let i = 0; i < selectedArticles.length; i++) {
-        const candidate = selectedArticles[i];
-        await sendLog(`\n[Article ${i + 1}/${selectedArticles.length}] Processing: "${candidate.title.slice(0, 50)}..."`);
+      await sendLog(`🎯 Target Ingestion Goal: Exactly ${targetGoal} top priority article(s). Processing ranked candidates one-by-one until goal is reached...`);
+
+      while (totalSuccessful < targetGoal && queueIndex < candidateQueue.length) {
+        const candidate = candidateQueue[queueIndex];
+        queueIndex++;
+
+        await sendLog(`\n[Queue #${queueIndex} | Completed: ${totalSuccessful}/${targetGoal}] Evaluating: "${candidate.title.slice(0, 55)}..." (Score: ${candidate.importance || 50})`);
 
         // 5a. Universal Article Extraction (Jina-First)
         await sendLog(`  ├─ Extracting content via Jina-First Extractor...`);
         let extracted;
         try {
           extracted = await extractArticleContent(candidate.url, candidate.title);
+          if (!extracted || !extracted.bodyText || extracted.bodyText.length < 120) {
+            await sendLog(`  └─ ⚠️ Extracted content too short or empty (${extracted?.bodyText?.length || 0} chars). Advancing to next candidate in queue...`);
+            continue;
+          }
           await sendLog(`  ├─ Extracted body (${extracted.bodyText.length} chars) via [${extracted.extractionMethod}]`);
         } catch (extErr: any) {
-          await sendLog(`  └─ ❌ Extraction failed: ${extErr.message}. Skipping article.`);
+          await sendLog(`  └─ ⚠️ Extraction failed: ${extErr.message}. Advancing to next candidate in queue...`);
           continue;
         }
 
-        // 5b. Unified Gemini Processing: Exact Full News + Summary + Importance Score + Halal Gatekeeper
+        // 5b. Unified Gemini Processing: Exact Full News + Strict 4-5 Line Summary + Importance Score + Halal Gatekeeper
         await sendLog(`  ├─ Running Unified AI News Synthesis with Gemini (Primary: gemini-3.6-flash)...`);
 
         const candidateCountry = (candidate.country || targetCountry || "BD").toUpperCase();
-        const targetLang = candidateCountry === "SA" 
-          ? "Arabic" 
-          : (candidateCountry === "GLOBAL" || candidateCountry === "UK") 
-          ? "English" 
-          : "Bengali";
+        const targetLang = candidateCountry === "SA"
+          ? "Arabic"
+          : (candidateCountry === "GLOBAL" || candidateCountry === "UK")
+            ? "English"
+            : "Bengali";
 
-        const prompt = `You are a chief news editor and journalist for KahfNews, an ethical, family-friendly, and Halal-conscious news platform.
-Analyze the following article and return a strictly valid JSON object in ${targetLang}.
+        const prompt = `You are a chief news editor and professional journalist for KahfNews, an ethical, family-friendly, and Halal-conscious news platform.
+Analyze the raw news content below and return a strictly valid JSON object in ${targetLang}.
 
-Input Title: ${candidate.title}
-Source: ${candidate.sourceName}
-Country: ${candidateCountry}
+Input Headline: ${candidate.title}
+Source Name: ${candidate.sourceName}
+Region/Country: ${candidateCountry}
 Target Language: ${targetLang}
 Category Hint: ${candidate.category || "General"}
-Raw Article Body:
+
+Raw Article Content:
 ${extracted.bodyText.slice(0, 16000)}
 
-EDITORIAL POLICY:
-1. Target Language: Write the "clean_headline", "clean_content", and "ai_summary" strictly in ${targetLang}.
-2. Family-Friendly & Halal: Reject vulgar entertainment gossip, sexualized content, revealing attire/bikini stories, or illicit affair scandals. Legitimate crime, anti-corruption, court verdicts, and national events are permitted.
-3. FULL CONTENT PRESERVATION: Under "clean_content", you MUST keep the entire full unabridged article intact in ${targetLang}. Never shorten or condense it into a summary. Keep every single paragraph, quote, and background detail.
+STRICT EDITORIAL & FORMATTING RULES:
+1. "clean_headline":
+   - Clear, impactful, accurate journalistic headline in ${targetLang}.
+   - Do NOT enclose in quotation marks.
+   - Do NOT include labels like "Title:" or source suffixes like "- Prothom Alo".
 
-YOUR RESPONSE MUST STRICTLY FOLLOW THIS JSON SCHEMA:
-{
-  "is_halal_and_family_friendly": <Boolean: true if clean, ethical, family-safe; false if it contains vulgar gossip, obscenity, sexualized content, or non-halal promotion>,
-  "rejection_reason": "<If false, short explanation, else empty string>",
-  "importance_score": <Integer from 1 to 100>,
-  "clean_headline": "<Engaging, accurate ${targetLang} headline>",
-  "clean_content": "<FULL COMPLETE UNABRIDGED RAW ARTICLE BODY in clean ${targetLang} markdown. CRITICAL: DO NOT SUMMARIZE OR CONDENSE THIS. Keep EVERY single paragraph, quote, and background detail from the raw article intact. Only clean up formatting, ads, and navigation noise>",
-  "ai_summary": "<A concise, informative narrative summary between 2 to 5 complete sentences in ${targetLang}. Never 1 line, and never exceeding 5 sentences. Must clearly cover what happened, why it matters, and key outcome. Do not output bullet points in summary, just 2 to 5 clean cohesive sentences.>",
-  "detected_category": "<One of: Politics, Economy, Technology, Sports, Entertainment, World, Bangladesh, Lifestyle, General>"
-}`;
+2. "ai_summary":
+   - STRICT LENGTH: Exactly 4 to 5 complete, informative narrative sentences in ${targetLang}.
+   - NEVER output a 1-line or single-sentence summary.
+   - NEVER exceed 5 sentences.
+   - Cover: (1) Main event/incident, (2) Key context & involved parties, (3) Concrete facts/figures/quotes, (4) Present status or outcome.
+   - Do NOT use bullet points, asterisks, or numbered lists.
+   - Do NOT write labels like "Summary:", "সারসংক্ষেপ:", "সংক্ষেপ:". Output only the 4-5 sentences.
+
+3. "clean_content":
+   - The COMPLETE, UNABRIDGED FULL ARTICLE BODY in clean ${targetLang} paragraphs.
+   - CRITICAL: DO NOT SUMMARIZE OR SHORTEN THIS. Keep EVERY single paragraph, direct quote, and background detail from the raw article intact.
+   - CRITICAL NEGATIVE CONSTRAINTS:
+     * DO NOT prepend or include the "ai_summary" inside "clean_content".
+     * DO NOT include "Title:", "URL Source:", "Source:", "Author:", or "Published Time:".
+     * DO NOT include raw HTML tags (<p>, <div>, <span>, <a>) or RSS tags (<![CDATA[...]]>, <item>).
+     * DO NOT include markdown links like [text](url) — keep only the plain text.
+     * Separate paragraphs cleanly with double newlines (\\n\\n).
+
+4. "is_halal_and_family_friendly":
+   - Boolean: true if ethical, authentic news; false if it promotes or focuses on vulgar celebrity glamour/photoshoots, revealing/provocative clothing, sexual scandals, casinos, alcohol, or explicit immorality.
+
+5. "rejection_reason":
+   - If "is_halal_and_family_friendly" is false, provide a short 1-sentence reason. Otherwise empty string "".
+
+6. "importance_score":
+   - Integer from 1 to 100 representing news priority.
+
+7. "detected_category":
+   - One of: Politics, Economy, Technology, Sports, Entertainment, World, Bangladesh, Lifestyle, General.
+
+YOUR RESPONSE MUST STRICTLY BE A VALID JSON OBJECT WITH THESE KEYS ONLY.`;
 
         let aiResult: any = null;
         const synthesisModels = ["gemini-3.6-flash", "gemini-2.5-flash", "gemini-2.5-flash-lite"];
@@ -461,7 +703,7 @@ YOUR RESPONSE MUST STRICTLY FOLLOW THIS JSON SCHEMA:
 
               aiResult = JSON.parse(res.response.text());
               if (aiResult && aiResult.clean_headline) {
-                await sendLog(`  ├─ ✅ Gemini AI (${modelName}) Generated Full News & Summary!`);
+                await sendLog(`  ├─ ✅ Gemini AI (${modelName}) Synthesized Clean Full News & 4-5 Line Summary!`);
                 break;
               }
             } catch (aiErr: any) { }
@@ -470,15 +712,15 @@ YOUR RESPONSE MUST STRICTLY FOLLOW THIS JSON SCHEMA:
 
         // Check Halal & Family-Friendly Filter
         if (aiResult && aiResult.is_halal_and_family_friendly === false) {
-          await sendLog(`  └─ 🛡️ [Halal Filter] Skipped non-halal / inappropriate story: "${candidate.title.slice(0, 45)}..." (${aiResult.rejection_reason || "Violates ethical guidelines"})`);
+          await sendLog(`  └─ 🛡️ [Halal Filter] Skipped inappropriate story: "${candidate.title.slice(0, 45)}..." (${aiResult.rejection_reason || "Violates ethical guidelines"}). Advancing to next candidate in queue...`);
           continue;
         }
 
         // Guaranteed Fallback: Never discard extracted news!
         if (!aiResult || !aiResult.clean_headline) {
-          await sendLog(`  ├─ ℹ️ Using Clean Extracted Content & Auto-Summary...`);
+          await sendLog(`  ├─ ℹ️ Using Clean Extracted Content & Fallback Summary...`);
           aiResult = {
-            importance_score: 60,
+            importance_score: candidate.importance || 60,
             clean_headline: candidate.title,
             clean_content: extracted.bodyText,
             ai_summary: extracted.bodyText.slice(0, 350) + "...",
@@ -486,39 +728,42 @@ YOUR RESPONSE MUST STRICTLY FOLLOW THIS JSON SCHEMA:
           };
         }
 
-        // Full News Body Retention Safeguard:
-        // If Gemini summarized/shortened clean_content (< 55% of extracted text when extracted text is substantial > 500 chars),
-        // or if clean_content is too short, preserve the full extracted body text!
         const isGeminiShortened = aiResult?.clean_content && extracted.bodyText.length > 500 && (aiResult.clean_content.length < extracted.bodyText.length * 0.55);
-        const finalFullContent = (!isGeminiShortened && aiResult?.clean_content && aiResult.clean_content.length >= 150)
+        const rawBodyCandidate = (!isGeminiShortened && aiResult?.clean_content && aiResult.clean_content.length >= 150)
           ? aiResult.clean_content
           : extracted.bodyText;
 
-        await sendLog(`  ├─ ✅ Content Ready: Headline: "${aiResult.clean_headline.slice(0, 45)}..." (Full Body: ${finalFullContent.length} chars, Summary: ${aiResult.ai_summary?.length || 0} chars)`);
+        const sanitizedHeadline = (aiResult.clean_headline || candidate.title)
+          .replace(/^(Title|Headline):\s*/i, '')
+          .replace(/^#+\s*/, '')
+          .replace(/[*_#`[\]]/g, '')
+          .trim();
+        const sanitizedContent = sanitizeArticleContent(rawBodyCandidate);
+        const sanitizedSummary = sanitizeSummary(aiResult.ai_summary || "");
+
+        await sendLog(`  ├─ ✅ Sanitized Content Ready: "${sanitizedHeadline.slice(0, 45)}..." (Full Body: ${sanitizedContent.length} chars, Summary: ${sanitizedSummary.length} chars)`);
 
         // 5c. Save to Database
         let insertedArticleId: string | null = null;
         const articleCountry = (candidate as any).country || (targetCountry !== "All" ? targetCountry : "BD");
         const insertPayload: any = {
-          headline: aiResult.clean_headline || candidate.title,
-          raw_content: finalFullContent,
-          ai_summary: aiResult.ai_summary,
+          headline: sanitizedHeadline,
+          raw_content: sanitizedContent,
+          ai_summary: sanitizedSummary,
           status: autoApp ? "published" : "draft",
           original_url: candidate.url,
           source: candidate.sourceName || "Web",
           category: aiResult.detected_category || candidate.category || "General",
           country: articleCountry,
           image_url: extracted.ogImage || null,
-          published_at: new Date().toISOString(),
+          published_at: candidate.pubDate ? new Date(candidate.pubDate).toISOString() : new Date().toISOString(),
+          importance_score: aiResult.importance_score || candidate.importance || 50,
         };
 
         try {
           const { data: insertedData, error: dbError } = await supabase
             .from("news_articles")
-            .insert({
-              ...insertPayload,
-              importance_score: aiResult.importance_score || 50,
-            })
+            .insert(insertPayload)
             .select("id")
             .single();
 
@@ -535,20 +780,18 @@ YOUR RESPONSE MUST STRICTLY FOLLOW THIS JSON SCHEMA:
           }
 
           totalSuccessful++;
-          await sendLog(`  ├─ ✅ Saved to DB! (Status: ${autoApp ? "published" : "draft"}, Country: ${articleCountry})`);
+          await sendLog(`  ├─ ✅ Successfully Saved [${totalSuccessful}/${targetGoal}] to DB! (Status: ${autoApp ? "published" : "draft"}, Country: ${articleCountry})`);
         } catch (dbErr: any) {
-          await sendLog(`  └─ [Database Error]: ${dbErr.message}`);
+          await sendLog(`  └─ [Database Error]: ${dbErr.message}. Advancing to next candidate in queue...`);
           continue;
         }
 
-        // 5d. Country-Specific Audio TTS Generation:
-        // BD (Bangladesh): Generate pre-rendered Gemini 3.1 Flash TTS
-        // Global / UK / Saudi Arabia: Skip heavy chunk-based Gemini TTS during scraping to preserve quota! (Plays via high-quality Device WebSpeech TTS)
+        // 5d. Country-Specific Audio TTS Generation (BD only)
         const isBanglaArticle = articleCountry === "BD";
         if (isBanglaArticle && activeKeys.length > 0 && insertedArticleId) {
           await sendLog(`  ├─ Generating Bengali Audio TTS (Gemini 3.1 Flash)...`);
           try {
-            const textToSpeak = (aiResult.ai_summary || aiResult.clean_headline)
+            const textToSpeak = (sanitizedSummary || sanitizedHeadline)
               .replace(/[*_#`[\]()]/g, " ")
               .replace(/\s+/g, " ")
               .trim();
@@ -577,6 +820,60 @@ YOUR RESPONSE MUST STRICTLY FOLLOW THIS JSON SCHEMA:
         } else if (!isBanglaArticle) {
           await sendLog(`  └─ ⚡ [Audio Strategy] ${articleCountry} news queued for Device Native WebSpeech playback (Gemini quota preserved).`);
         }
+      }
+
+      // Track 2: Allocate any remaining approved candidates from queueIndex onward to Live RSS Stream
+      acceptedStreamArticles = candidateQueue.slice(queueIndex);
+
+      // 6. Track 2: Bulk Live Stream Articles Ingestion (Zero Gemini API Quota Consumed!)
+      if (acceptedStreamArticles.length > 0) {
+        await sendLog(`\n[Live Stream Ingest] Preserving ${acceptedStreamArticles.length} Halal-approved RSS articles into Live Stream...`);
+
+        // Enrich any missing thumbnails using Kahf-Browser-style 768KB head-only fetch
+        try {
+          await sendLog(`  ├─ Checking thumbnails via lightweight head truncation (768KB)...`);
+          await enrichRssItemsWithOgImage(acceptedStreamArticles, 5);
+        } catch (enrichErr: any) {
+          await sendLog(`  ├─ ⚠️ Thumbnail enrichment warning: ${enrichErr.message}`);
+        }
+
+        let streamSavedCount = 0;
+        const bulkRows = acceptedStreamArticles.map((item) => ({
+          headline: item.title,
+          raw_content: item.description || item.title,
+          ai_summary: null, // As requested: no AI summary for raw RSS news
+          status: autoApp ? "published" : "draft",
+          original_url: item.url,
+          source: item.sourceName || "Web",
+          category: item.category || "General",
+          country: item.country || (targetCountry !== "All" ? targetCountry : "BD"),
+          image_url: item.imageUrl || null,
+          published_at: item.pubDate ? new Date(item.pubDate).toISOString() : new Date().toISOString(),
+          importance_score: (item as any).importance || 25,
+          admin_id: null,
+        }));
+
+        // Batch insert in chunks of 25 to be database friendly
+        for (let i = 0; i < bulkRows.length; i += 25) {
+          const chunk = bulkRows.slice(i, i + 25);
+          try {
+            const { error: insertErr } = await supabase.from("news_articles").insert(chunk);
+            if (!insertErr) {
+              streamSavedCount += chunk.length;
+            } else {
+              // Fallback to individual insert if batch encountered duplicate/error
+              for (const row of chunk) {
+                try {
+                  const { error: rowErr } = await supabase.from("news_articles").insert(row);
+                  if (!rowErr) streamSavedCount++;
+                } catch (e) { }
+              }
+            }
+          } catch (chunkErr) { }
+        }
+
+        totalSuccessful += streamSavedCount;
+        await sendLog(`  ├─ ✅ Preserved ${streamSavedCount} Live Stream articles in Database (0 Gemini tokens consumed)!`);
       }
 
       await sendLog(`\n🎉 Pipeline Completed! Successfully scraped, synthesized & saved ${totalSuccessful} new article(s).`);
