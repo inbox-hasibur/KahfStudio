@@ -2,8 +2,8 @@
 
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import Hls from "hls.js";
-import { 
-  Play, Pause, Volume2, VolumeX, Maximize, Minimize, AlertCircle, 
+import {
+  Play, Pause, Volume2, VolumeX, Maximize, Minimize, AlertCircle,
   Settings, Check, Loader2, Sparkles, PictureInPicture,
   RotateCcw, RotateCw, Gauge
 } from "lucide-react";
@@ -20,7 +20,11 @@ export interface HlsVideoPlayerProps {
   onToggleHalal?: () => void;
   mode?: string;
   mlStatus?: string;
+  isModelReady?: boolean;
+  modelProgress?: number;
   mlPrimed?: boolean;
+  mlBufferedSeconds?: number;
+  mlPreprocessPercent?: number;
 }
 
 export interface QualityLevel {
@@ -45,17 +49,24 @@ export const HlsVideoPlayer: React.FC<HlsVideoPlayerProps> = ({
   onToggleHalal,
   mode = "dsp",
   mlStatus = "",
-  mlPrimed = false
+  isModelReady = false,
+  modelProgress = 0,
+  mlPrimed = false,
+  mlBufferedSeconds = 0,
+  mlPreprocessPercent = 0
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const hlsRef = useRef<Hls | null>(null);
   const hideControlsTimerRef = useRef<NodeJS.Timeout | null>(null);
 
+  const [youtubeId, setYoutubeId] = useState<string | null>(null);
   const [resolvedSrc, setResolvedSrc] = useState<string>("");
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [isMuted, setIsMuted] = useState<boolean>(false);
-  
+  const [isScrolledOutOfView, setIsScrolledOutOfView] = useState<boolean>(false);
+
   // Displayed volume 0.0 to 1.0 (default 0.35 = safe pleasant listening)
   const [userVolume, setUserVolume] = useState<number>(0.35);
 
@@ -77,6 +88,79 @@ export const HlsVideoPlayer: React.FC<HlsVideoPlayerProps> = ({
 
   const speeds = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
 
+  // Helper to postMessage commands to YouTube embed iframe
+  const sendIframeCommand = useCallback((func: string, args: any[] = []) => {
+    if (iframeRef.current && iframeRef.current.contentWindow) {
+      try {
+        if (func === "listening") {
+          iframeRef.current.contentWindow.postMessage(JSON.stringify({ event: "listening" }), "*");
+        } else {
+          iframeRef.current.contentWindow.postMessage(
+            JSON.stringify({ event: "command", func, args }),
+            "*"
+          );
+        }
+      } catch (err) {
+        console.warn("[HlsVideoPlayer] iframe postMessage warning:", err);
+      }
+    }
+  }, []);
+
+  // Synchronize YouTube Iframe Player status with our custom controls
+  useEffect(() => {
+    if (!youtubeId) return;
+
+    const handleMessage = (event: MessageEvent) => {
+      try {
+        let data = event.data;
+        if (typeof data === "string") {
+          data = JSON.parse(data);
+        }
+        if (!data) return;
+
+        // YouTube infoDelivery contains currentTime, duration, playerState
+        if (data.event === "infoDelivery" && data.info) {
+          const info = data.info;
+          if (typeof info.currentTime === "number") {
+            setCurrentTime(info.currentTime);
+          }
+          if (typeof info.duration === "number" && info.duration > 0) {
+            setDuration(info.duration);
+          }
+          if (typeof info.videoLoadedFraction === "number" && info.duration) {
+            setBuffered(info.videoLoadedFraction * info.duration);
+          }
+          if (typeof info.playerState === "number") {
+            // 1 = playing, 2 = paused, 0 = ended, 3 = buffering
+            if (info.playerState === 1) {
+              setIsPlaying(true);
+              setIsLoading(false);
+              onPlayStateChange?.(true);
+            } else if (info.playerState === 2 || info.playerState === 0) {
+              setIsPlaying(false);
+              setIsLoading(false);
+              onPlayStateChange?.(false);
+            } else if (info.playerState === 3) {
+              setIsLoading(true);
+            }
+          }
+        }
+      } catch (_) {}
+    };
+
+    window.addEventListener("message", handleMessage);
+
+    // Initial handshake to start listening to YouTube API messages
+    const pingTimer = setInterval(() => {
+      sendIframeCommand("listening");
+    }, 800);
+
+    return () => {
+      window.removeEventListener("message", handleMessage);
+      clearInterval(pingTimer);
+    };
+  }, [youtubeId, onPlayStateChange, sendIframeCommand]);
+
   // Apply safe scaled volume to video element
   const applySafeVolume = useCallback((val: number, muted: boolean) => {
     if (!videoRef.current) return;
@@ -89,48 +173,102 @@ export const HlsVideoPlayer: React.FC<HlsVideoPlayerProps> = ({
     let isCancelled = false;
 
     async function resolve() {
+      // Clean up previous video playback immediately to prevent overlapping audio
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+        hlsRef.current = null;
+      }
+      if (videoRef.current) {
+        videoRef.current.pause();
+        videoRef.current.src = "";
+      }
+
       setIsLoading(true);
       setErrorMsg(null);
       setCurrentTime(0);
       setDuration(0);
       setBuffered(0);
+      setResolvedSrc("");
+      setYoutubeId(null);
 
-      if (src) {
-        setResolvedSrc(src);
-        setStatusMsg(src.includes(".m3u8") ? "Live HLS Stream" : "Video Ready");
-        setIsLoading(false);
+      // Extract YouTube Video ID from videoId or src
+      const ytCandidate = videoId || src || "";
+      const ytMatch = ytCandidate.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|live\/))([a-zA-Z0-9_-]{11})/);
+      const directYtId = (!ytMatch && /^[a-zA-Z0-9_-]{11}$/.test(ytCandidate.trim())) ? ytCandidate.trim() : (ytMatch ? ytMatch[1] : null);
+
+      if (directYtId) {
+        if (!isCancelled) {
+          setYoutubeId(directYtId);
+          setStatusMsg("YouTube HD");
+          setIsLoading(false);
+          setIsPlaying(true);
+          onPlayStateChange?.(true);
+        }
         return;
       }
 
-      if (videoId) {
-        setStatusMsg("Connecting stream...");
-        try {
-          const res = await fetch(`/api/yt-stream?v=${videoId}`);
-          const data = await res.json();
-          if (!isCancelled) {
-            if (data.success && data.streamUrl) {
-              setResolvedSrc(data.streamUrl);
-              setStatusMsg(data.isLive ? "Live Stream (HLS)" : "Video Stream (MP4)");
-            } else {
-              setErrorMsg(data.error || "Stream unavailable");
-            }
-          }
-        } catch (err: any) {
-          if (!isCancelled) {
-            setErrorMsg(err.message || "Failed to load stream");
-          }
-        } finally {
-          if (!isCancelled) setIsLoading(false);
+      // Direct playable stream (.m3u8, .mp4, etc.)
+      if (src) {
+        if (!isCancelled) {
+          setResolvedSrc(src);
+          setStatusMsg(src.includes(".m3u8") ? "Live HLS Stream" : "Video Ready");
+          setIsLoading(false);
         }
+        return;
       }
     }
 
     resolve();
     return () => { isCancelled = true; };
-  }, [src, videoId]);
+  }, [src, videoId, onPlayStateChange]);
+
+  // Auto-pause when player is scrolled out of viewport (prevents double media playing)
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || typeof IntersectionObserver === "undefined") return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (!entry) return;
+
+        // When out of viewport or less than 20% visible
+        if (!entry.isIntersecting || entry.intersectionRatio < 0.20) {
+          let wasActive = false;
+          if (videoRef.current && !videoRef.current.paused) {
+            videoRef.current.pause();
+            wasActive = true;
+          }
+          if (iframeRef.current && iframeRef.current.contentWindow) {
+            sendIframeCommand("pauseVideo");
+            wasActive = true;
+          }
+          if (wasActive) {
+            setIsPlaying(false);
+            onPlayStateChange?.(false);
+            setIsScrolledOutOfView(true);
+          }
+        } else {
+          // Visible again: reset the indicator, but keep paused per user requirement!
+          setIsScrolledOutOfView(false);
+        }
+      },
+      { threshold: [0, 0.2, 0.5] }
+    );
+
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [onPlayStateChange, sendIframeCommand]);
+
+  // Apply safe scaled volume to video element when user changes volume slider or mutes
+  useEffect(() => {
+    applySafeVolume(userVolume, isMuted);
+  }, [userVolume, isMuted, applySafeVolume]);
 
   // 2. Attach HLS.js or HTML5 Video with Low-Latency Buffer Configuration
   useEffect(() => {
+    if (youtubeId) return; // In YouTube mode, YouTube Embed handles media playback
+
     const video = videoRef.current;
     if (!video || !resolvedSrc) return;
 
@@ -168,7 +306,7 @@ export const HlsVideoPlayer: React.FC<HlsVideoPlayerProps> = ({
       hls.on(Hls.Events.MANIFEST_PARSED, (_event, data) => {
         setIsLoading(false);
         setStatusMsg("HLS Live HD");
-        
+
         const levels: QualityLevel[] = data.levels.map((lvl, index) => ({
           id: index,
           label: `${lvl.height}p`,
@@ -219,7 +357,7 @@ export const HlsVideoPlayer: React.FC<HlsVideoPlayerProps> = ({
       ]);
       video.play()
         .then(() => setIsPlaying(true))
-        .catch(() => {});
+        .catch(() => { });
     }
 
     return () => {
@@ -228,7 +366,7 @@ export const HlsVideoPlayer: React.FC<HlsVideoPlayerProps> = ({
         hlsRef.current = null;
       }
     };
-  }, [resolvedSrc, onVideoElementReady, applySafeVolume, userVolume, isMuted]);
+  }, [resolvedSrc, youtubeId, onVideoElementReady, applySafeVolume]);
 
   // Autohide controls on idle
   const resetControlsTimer = useCallback(() => {
@@ -267,6 +405,19 @@ export const HlsVideoPlayer: React.FC<HlsVideoPlayerProps> = ({
   };
 
   const togglePlay = () => {
+    if (youtubeId) {
+      if (isPlaying) {
+        sendIframeCommand("pauseVideo");
+        setIsPlaying(false);
+        onPlayStateChange?.(false);
+      } else {
+        sendIframeCommand("playVideo");
+        setIsPlaying(true);
+        onPlayStateChange?.(true);
+      }
+      resetControlsTimer();
+      return;
+    }
     if (!videoRef.current) return;
     if (videoRef.current.paused) {
       videoRef.current.play()
@@ -282,7 +433,11 @@ export const HlsVideoPlayer: React.FC<HlsVideoPlayerProps> = ({
   const toggleMute = () => {
     const nextMuted = !isMuted;
     setIsMuted(nextMuted);
-    applySafeVolume(userVolume, nextMuted);
+    if (youtubeId) {
+      sendIframeCommand(nextMuted ? "mute" : "unMute");
+    } else {
+      applySafeVolume(userVolume, nextMuted);
+    }
     resetControlsTimer();
   };
 
@@ -291,31 +446,44 @@ export const HlsVideoPlayer: React.FC<HlsVideoPlayerProps> = ({
     setUserVolume(val);
     const nextMuted = val === 0;
     setIsMuted(nextMuted);
-    applySafeVolume(val, nextMuted);
+    if (youtubeId) {
+      sendIframeCommand("setVolume", [Math.round(val * 100)]);
+      if (nextMuted) sendIframeCommand("mute");
+      else sendIframeCommand("unMute");
+    } else {
+      applySafeVolume(val, nextMuted);
+    }
     resetControlsTimer();
   };
 
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
     const time = parseFloat(e.target.value);
     setCurrentTime(time);
-    if (videoRef.current) {
+    if (youtubeId) {
+      sendIframeCommand("seekTo", [time, true]);
+    } else if (videoRef.current) {
       videoRef.current.currentTime = time;
     }
     resetControlsTimer();
   };
 
   const skipTime = (seconds: number) => {
-    if (!videoRef.current) return;
-    videoRef.current.currentTime = Math.max(0, Math.min(duration || Infinity, videoRef.current.currentTime + seconds));
+    const target = Math.max(0, Math.min(duration || Infinity, currentTime + seconds));
+    setCurrentTime(target);
+    if (youtubeId) {
+      sendIframeCommand("seekTo", [target, true]);
+    } else if (videoRef.current) {
+      videoRef.current.currentTime = target;
+    }
     resetControlsTimer();
   };
 
   const toggleFullscreen = () => {
     if (!containerRef.current) return;
     if (!document.fullscreenElement) {
-      containerRef.current.requestFullscreen().catch(() => {});
+      containerRef.current.requestFullscreen().catch(() => { });
     } else {
-      document.exitFullscreen().catch(() => {});
+      document.exitFullscreen().catch(() => { });
     }
     resetControlsTimer();
   };
@@ -343,7 +511,9 @@ export const HlsVideoPlayer: React.FC<HlsVideoPlayerProps> = ({
 
   const handleSpeedChange = (spd: number) => {
     setPlaybackSpeed(spd);
-    if (videoRef.current) {
+    if (youtubeId) {
+      sendIframeCommand("setPlaybackRate", [spd]);
+    } else if (videoRef.current) {
       videoRef.current.playbackRate = spd;
     }
     setIsSettingsOpen(false);
@@ -357,45 +527,61 @@ export const HlsVideoPlayer: React.FC<HlsVideoPlayerProps> = ({
   };
 
   return (
-    <div 
+    <div
       ref={containerRef}
       onMouseMove={resetControlsTimer}
       onMouseLeave={() => isPlaying && !isSettingsOpen && setControlsVisible(false)}
       className={`relative rounded-2xl overflow-hidden bg-black border border-border shadow-2xl group select-none ${className}`}
     >
-      {/* Viewport */}
-      <div 
+      {/* Viewport (Unified Click to Play/Pause on Both IPTV and YouTube) */}
+      <div
         onClick={togglePlay}
         onDoubleClick={toggleFullscreen}
         className="relative aspect-video w-full bg-zinc-950 flex items-center justify-center cursor-pointer overflow-hidden"
       >
-        <video
-          ref={videoRef}
-          crossOrigin="anonymous"
-          className="w-full h-full object-contain pointer-events-none"
-          playsInline
-          onPlay={() => {
-            setIsPlaying(true);
-            onPlayStateChange?.(true);
-          }}
-          onPause={() => {
-            setIsPlaying(false);
-            onPlayStateChange?.(false);
-          }}
-          onEnded={() => {
-            setIsPlaying(false);
-            onPlayStateChange?.(false);
-          }}
-          onTimeUpdate={handleTimeUpdate}
-          onLoadedMetadata={handleTimeUpdate}
-          onWaiting={() => setIsLoading(true)}
-          onPlaying={() => {
-            setIsLoading(false);
-            onPlayStateChange?.(true);
-          }}
-        />
+        {youtubeId ? (
+          <iframe
+            ref={iframeRef}
+            key={youtubeId}
+            src={`https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=1&enablejsapi=1&controls=0&modestbranding=1&rel=0&playsinline=1&iv_load_policy=3&disablekb=1&fs=0&origin=${typeof window !== 'undefined' ? window.location.origin : ''}`}
+            title={title}
+            onLoad={() => {
+              sendIframeCommand("listening");
+              sendIframeCommand("setVolume", [Math.round(userVolume * 100)]);
+            }}
+            className="w-full h-full border-0 aspect-video pointer-events-none"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowFullScreen
+          />
+        ) : (
+          <video
+            ref={videoRef}
+            crossOrigin="anonymous"
+            className="w-full h-full object-contain pointer-events-none"
+            playsInline
+            onPlay={() => {
+              setIsPlaying(true);
+              onPlayStateChange?.(true);
+            }}
+            onPause={() => {
+              setIsPlaying(false);
+              onPlayStateChange?.(false);
+            }}
+            onEnded={() => {
+              setIsPlaying(false);
+              onPlayStateChange?.(false);
+            }}
+            onTimeUpdate={handleTimeUpdate}
+            onLoadedMetadata={handleTimeUpdate}
+            onWaiting={() => setIsLoading(true)}
+            onPlaying={() => {
+              setIsLoading(false);
+              onPlayStateChange?.(true);
+            }}
+          />
+        )}
 
-        {/* Loading Spinner */}
+        {/* Loading Spinner for IPTV & YouTube buffering */}
         {isLoading && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 backdrop-blur-xs gap-3 z-10">
             <Loader2 className="w-10 h-10 text-emerald-400 animate-spin" />
@@ -403,7 +589,7 @@ export const HlsVideoPlayer: React.FC<HlsVideoPlayerProps> = ({
           </div>
         )}
 
-        {/* Center Play Button */}
+        {/* Center Play Button (Shown for BOTH IPTV and YouTube) */}
         {!isPlaying && !isLoading && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-[2px] transition-all duration-300 z-10">
             <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-emerald-500 hover:bg-emerald-400 text-black flex items-center justify-center shadow-[0_0_35px_rgba(16,185,129,0.5)] transform group-hover:scale-110 transition-all duration-300">
@@ -421,15 +607,20 @@ export const HlsVideoPlayer: React.FC<HlsVideoPlayerProps> = ({
 
             {/* Neural ML Status Overlay Pill */}
             {halalActive && mode === "ml" && (
-              !mlPrimed ? (
-                <div className="px-2 py-0.5 rounded-full bg-amber-950/80 border border-amber-500/50 text-amber-300 text-[9px] sm:text-[10px] font-mono font-semibold flex items-center gap-1 shadow-md backdrop-blur-md animate-pulse">
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-                  <span>AI Warming up (DSP active)...</span>
+              !isModelReady ? (
+                <div className="px-2 py-0.5 rounded-full bg-amber-950/80 border border-amber-500/50 text-amber-300 text-[9px] sm:text-[10px] font-mono font-semibold flex items-center gap-1 shadow-md backdrop-blur-md">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                  <span>DSP Active (0ms) • AI Downloading {modelProgress > 0 ? `(${modelProgress}%)` : ""}</span>
+                </div>
+              ) : !mlPrimed ? (
+                <div className="px-2 py-0.5 rounded-full bg-teal-950/80 border border-teal-500/50 text-teal-300 text-[9px] sm:text-[10px] font-mono font-semibold flex items-center gap-1 shadow-md backdrop-blur-md animate-pulse">
+                  <span className="w-1.5 h-1.5 rounded-full bg-teal-400" />
+                  <span>AI Preprocessing 2s Cushion...</span>
                 </div>
               ) : (
                 <div className="px-2 py-0.5 rounded-full bg-teal-950/80 border border-teal-500/50 text-teal-300 text-[9px] sm:text-[10px] font-mono font-semibold flex items-center gap-1 shadow-md backdrop-blur-md">
                   <span className="w-1.5 h-1.5 rounded-full bg-teal-400 animate-pulse" />
-                  <span>Neural AI: Separating music ✓</span>
+                  <span>Neural AI: Pure Voice ✓</span>
                 </div>
               )
             )}
@@ -437,7 +628,7 @@ export const HlsVideoPlayer: React.FC<HlsVideoPlayerProps> = ({
 
           <div className="flex items-center gap-2">
             {halalActive ? (
-              <div 
+              <div
                 onClick={(e) => { e.stopPropagation(); onToggleHalal?.(); }}
                 className="px-2.5 py-1 rounded-full bg-emerald-950/90 border border-emerald-500/60 text-emerald-300 text-[10px] sm:text-xs font-bold flex items-center gap-1.5 shadow-lg backdrop-blur-md cursor-pointer hover:bg-emerald-900 transition-all animate-pulse"
               >
@@ -445,7 +636,7 @@ export const HlsVideoPlayer: React.FC<HlsVideoPlayerProps> = ({
                 <span>HALAL AUDIO ON</span>
               </div>
             ) : (
-              <button 
+              <button
                 onClick={(e) => { e.stopPropagation(); onToggleHalal?.(); }}
                 className="px-2.5 py-1 rounded-full bg-zinc-900/80 border border-zinc-700 text-zinc-400 text-[10px] sm:text-xs font-medium flex items-center gap-1.5 shadow-lg backdrop-blur-md cursor-pointer hover:text-white hover:border-emerald-500/60 transition-all"
               >
@@ -455,6 +646,37 @@ export const HlsVideoPlayer: React.FC<HlsVideoPlayerProps> = ({
             )}
           </div>
         </div>
+
+        {/* Neural AI Priming Overlay (Zero Sound Leak Cushion) - Only shown when model is ready and filling 2.0s buffer */}
+        {halalActive && mode === "ml" && isPlaying && isModelReady && !mlPrimed && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/75 backdrop-blur-xs gap-3 z-15 select-none pointer-events-none">
+            <div className="p-3.5 sm:p-4 rounded-2xl bg-zinc-900/90 border border-teal-500/40 shadow-2xl flex flex-col items-center gap-2 max-w-xs text-center">
+              <Loader2 className="w-8 h-8 text-teal-400 animate-spin" />
+              <div>
+                <h4 className="text-xs sm:text-sm font-bold text-white tracking-wide">Removing Background Music...</h4>
+                <p className="text-[10px] text-zinc-400 mt-0.5">AI is preprocessing 2s audio cushion (Zero sound leak)</p>
+              </div>
+              {/* White progress bar inside the priming overlay */}
+              <div className="w-full bg-zinc-800 rounded-full h-1.5 overflow-hidden mt-1 border border-zinc-700">
+                <div
+                  className="bg-white h-full rounded-full transition-all duration-200 shadow-[0_0_8px_rgba(255,255,255,0.8)]"
+                  style={{ width: `${mlPreprocessPercent || 15}%` }}
+                />
+              </div>
+              <span className="text-[9px] font-mono font-bold text-teal-300">
+                {mlPreprocessPercent}% ({(mlBufferedSeconds || 0).toFixed(1)}s preprocessed)
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Auto-paused badge if out of view */}
+        {isScrolledOutOfView && (
+          <div className="absolute top-3 left-1/2 -translate-x-1/2 px-2.5 py-1 rounded-full bg-black/85 border border-amber-500/50 text-amber-300 text-[10px] font-mono z-25 shadow-lg backdrop-blur-xs flex items-center gap-1.5 pointer-events-none animate-in fade-in">
+            <Pause className="w-3 h-3 text-amber-400 fill-amber-400" />
+            <span>Paused while out of view</span>
+          </div>
+        )}
 
         {/* Error Overlay */}
         {errorMsg && (
@@ -471,8 +693,8 @@ export const HlsVideoPlayer: React.FC<HlsVideoPlayerProps> = ({
         )}
       </div>
 
-      {/* ── SLEEK BOTTOM OVERLAY CONTROLS ── */}
-      <div 
+      {/* ── SLEEK BOTTOM OVERLAY CONTROLS (Unified for BOTH IPTV and YouTube) ── */}
+      <div
         onClick={(e) => e.stopPropagation()}
         className={`absolute bottom-0 left-0 right-0 p-3 sm:p-4 bg-gradient-to-t from-black/95 via-black/80 to-transparent flex flex-col gap-2.5 transition-opacity duration-300 z-20 ${controlsVisible ? "opacity-100" : "opacity-0 pointer-events-none"}`}
       >
@@ -486,14 +708,27 @@ export const HlsVideoPlayer: React.FC<HlsVideoPlayerProps> = ({
           {/* Scrubber Bar */}
           <div className="relative flex-1 flex items-center group/scrubber cursor-pointer h-3">
             {duration > 0 && (
-              <div 
+              <div
                 className="absolute left-0 top-1/2 -translate-y-1/2 h-1 bg-zinc-700/60 rounded-full pointer-events-none transition-all"
                 style={{ width: `${Math.min(100, (buffered / duration) * 100)}%` }}
               />
             )}
 
+            {/* YouTube-style White Preprocessed Buffer Bar */}
             {duration > 0 && (
-              <div 
+              <div
+                className="absolute left-0 top-1/2 -translate-y-1/2 h-1 bg-white/70 rounded-full pointer-events-none transition-all duration-300 shadow-[0_0_6px_rgba(255,255,255,0.7)]"
+                style={{
+                  width: `${Math.min(100, mode === "ml"
+                    ? ((currentTime + (mlBufferedSeconds || 0)) / duration) * 100
+                    : (buffered / duration) * 100)}%`
+                }}
+                title={mode === "ml" ? `Neural AI Preprocessed Cushion: +${(mlBufferedSeconds || 0).toFixed(1)}s ahead` : "Buffered"}
+              />
+            )}
+
+            {duration > 0 && (
+              <div
                 className="absolute left-0 top-1/2 -translate-y-1/2 h-1 bg-emerald-400 rounded-full pointer-events-none transition-all shadow-[0_0_8px_rgba(52,211,153,0.8)]"
                 style={{ width: `${Math.min(100, (currentTime / duration) * 100)}%` }}
               />

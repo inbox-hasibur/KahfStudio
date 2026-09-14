@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Database, Play, Square, Link as LinkIcon, Settings, Key, Search, Plus, Trash2, Eye, EyeOff, Maximize2, Minimize2, Radio, Globe, RefreshCw, CheckCircle, Info } from "lucide-react";
+import { Database, Play, Square, Link as LinkIcon, Settings, Key, Search, Plus, Trash2, Eye, EyeOff, Maximize2, Minimize2, Radio, Globe, RefreshCw, CheckCircle, Info, Tv, Video, Edit2, Check, Copy, ExternalLink, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -83,6 +83,30 @@ export default function AdminScrapingPage() {
   const [ingestCategory, setIngestCategory] = useState("General");
   const [isIngesting, setIsIngesting] = useState(false);
   const [ingestKeyword, setIngestKeyword] = useState("");
+
+  // Media Channels & Video Sources Control (Admin-Only)
+  const [mediaTypeTab, setMediaTypeTab] = useState<"iptv" | "video">("iptv");
+  const [mediaChannels, setMediaChannels] = useState<any[]>([]);
+  const [mediaVideos, setMediaVideos] = useState<any[]>([]);
+  const [isLoadingMedia, setIsLoadingMedia] = useState(false);
+  const [newChannelName, setNewChannelName] = useState("");
+  const [newChannelUrl, setNewChannelUrl] = useState("");
+  const [newChannelCategory, setNewChannelCategory] = useState("জাতীয় সংবাদ");
+  const [newChannelType, setNewChannelType] = useState<"youtube" | "iptv">("youtube");
+  const [newChannelCountry, setNewChannelCountry] = useState("BD");
+  const [newVideoUrl, setNewVideoUrl] = useState("");
+  const [newVideoTitle, setNewVideoTitle] = useState("");
+  const [newVideoCategory, setNewVideoCategory] = useState("জাতীয়");
+  const [newVideoCountry, setNewVideoCountry] = useState("BD");
+  const [copiedMediaId, setCopiedMediaId] = useState<string | null>(null);
+  const [editingMedia, setEditingMedia] = useState<{
+    id: string;
+    title: string;
+    url: string;
+    category: string;
+    country: string;
+    stream_type?: string;
+  } | null>(null);
 
   // Sources Management
   const [sources, setSources] = useState<any[]>([]);
@@ -257,9 +281,157 @@ export default function AdminScrapingPage() {
           }
         }
       }
+      // Load Media Channels & Video Sources
+      await fetchMediaSources();
     } catch (err) {
       console.error("Error fetching data:", err);
     }
+  };
+
+  const fetchMediaSources = async () => {
+    setIsLoadingMedia(true);
+    try {
+      const res = await fetch("/api/admin/media-channels", { cache: "no-store" });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.channels) setMediaChannels(json.channels);
+        if (json.videos) setMediaVideos(json.videos);
+      }
+    } catch (e) {
+      console.error("fetchMediaSources error:", e);
+    } finally {
+      setIsLoadingMedia(false);
+    }
+  };
+
+  const handleCopyUrl = (id: string, url: string) => {
+    if (!url) return;
+    navigator.clipboard.writeText(url);
+    setCopiedMediaId(id);
+    setTimeout(() => setCopiedMediaId(null), 1800);
+  };
+
+  const handleStartEditMedia = (item: any) => {
+    setEditingMedia({
+      id: item.id,
+      title: item.title || item.name || "",
+      url: item.url || "",
+      category: item.category || "General",
+      country: item.country || "BD",
+      stream_type: item.stream_type || "youtube",
+    });
+  };
+
+  const handleSaveEditMedia = async () => {
+    if (!editingMedia || !editingMedia.id) return;
+    const { id, title, url, category, country, stream_type } = editingMedia;
+
+    setMediaChannels((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, title, url, category, country, stream_type } : c))
+    );
+    setMediaVideos((prev) =>
+      prev.map((v) => (v.id === id ? { ...v, title, url, category, country } : v))
+    );
+    setEditingMedia(null);
+
+    try {
+      await fetch("/api/admin/media-channels", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, title, url, category, country, stream_type }),
+      });
+      fetchMediaSources();
+    } catch (e) {
+      console.error("Save edit media error:", e);
+    }
+  };
+
+  const handleAddChannel = async () => {
+    if (!newChannelName || !newChannelUrl) return;
+    try {
+      const res = await fetch("/api/admin/media-channels", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: newChannelName.trim(),
+          url: newChannelUrl.trim(),
+          type: "iptv",
+          stream_type: newChannelType,
+          country: newChannelCountry,
+          category: newChannelCategory.trim() || "লাইভ টিভি",
+        }),
+      });
+      const json = await res.json();
+      if (json.success && json.item) {
+        setMediaChannels((prev) => [json.item, ...prev]);
+        setNewChannelName("");
+        setNewChannelUrl("");
+      } else {
+        alert(json.error || "Failed to add channel");
+      }
+    } catch (e: any) {
+      alert(e.message);
+    }
+  };
+
+  const handleAddVideo = async () => {
+    if (!newVideoUrl) return;
+    try {
+      const res = await fetch("/api/admin/media-channels", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          url: newVideoUrl.trim(),
+          title: newVideoTitle.trim() || undefined,
+          type: "video",
+          category: newVideoCategory.trim() || "সংবাদ ভিডিও",
+          country: newVideoCountry,
+        }),
+      });
+      const json = await res.json();
+      if (json.success && json.item) {
+        setMediaVideos((prev) => [json.item, ...prev]);
+        setNewVideoUrl("");
+        setNewVideoTitle("");
+      } else {
+        alert(json.error || "Failed to add video");
+      }
+    } catch (e: any) {
+      alert(e.message);
+    }
+  };
+
+  const handleRemoveMedia = async (id: string, isVideo = false) => {
+    if (!confirm("Are you sure you want to remove this media item?")) return;
+    if (isVideo) {
+      setMediaVideos((prev) => prev.filter((v) => v.id !== id));
+    } else {
+      setMediaChannels((prev) => prev.filter((c) => c.id !== id));
+    }
+    try {
+      await fetch(`/api/admin/media-channels?id=${id}`, { method: "DELETE" });
+    } catch (e) {}
+  };
+
+  const handleLoadDefaultChannels = async () => {
+    const defaults = [
+      { title: "Jamuna TV", url: "https://www.youtube.com/watch?v=0Q_IZvp_N5w", country: "BD", type: "iptv", stream_type: "youtube", category: "জাতীয় সংবাদ" },
+      { title: "Somoy TV", url: "https://www.youtube.com/watch?v=i8VSQO6TlFc", country: "BD", type: "iptv", stream_type: "youtube", category: "ব্রেকিং নিউজ" },
+      { title: "Channel 24", url: "https://www.youtube.com/watch?v=LVPgC7LQOw0", country: "BD", type: "iptv", stream_type: "youtube", category: "সংবাদ ২৪" },
+      { title: "Ekattor TV", url: "https://www.youtube.com/watch?v=2lVBzxoof0U", country: "BD", type: "iptv", stream_type: "youtube", category: "জাতীয়" },
+      { title: "Independent TV", url: "https://www.youtube.com/watch?v=qREvoxxG6Nc", country: "BD", type: "iptv", stream_type: "youtube", category: "বাংলাদেশ" },
+      { title: "Al Jazeera English", url: "https://www.youtube.com/watch?v=gCNeDWCI0vo", country: "GLOBAL", type: "iptv", stream_type: "youtube", category: "আন্তর্জাতিক" },
+      { title: "DW News", url: "https://www.youtube.com/watch?v=LuKwFajn37U", country: "GLOBAL", type: "iptv", stream_type: "youtube", category: "বিশ্ব সংবাদ" },
+      { title: "Sky News", url: "https://www.youtube.com/watch?v=xDWQ3LkccY8", country: "UK", type: "iptv", stream_type: "youtube", category: "আন্তর্জাতিক" },
+    ];
+    for (const ch of defaults) {
+      await fetch("/api/admin/media-channels", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(ch),
+      });
+    }
+    fetchMediaSources();
   };
 
   const saveSetting = async (key: string, value: string) => {
@@ -1192,6 +1364,477 @@ export default function AdminScrapingPage() {
               {isSeedingSources ? "Refreshing..." : "Reset to Verified Defaults"}
             </Button>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* 3.5. Live TV Channels & Video Sources Control (Admin Only) */}
+      <Card className="bg-card/50 backdrop-blur-sm border-border mb-6">
+        <CardHeader className="border-b border-border pb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Tv className="w-5 h-5 text-primary" />
+                Live Channels & Video Sources
+              </CardTitle>
+              <CardDescription className="mt-1">
+                Manage live television streams (YouTube Live / IPTV .m3u8) and video news reports for the Media player.
+              </CardDescription>
+            </div>
+
+            {/* Sub-tab Toggle: Live TV vs Video Reports */}
+            <div className="flex items-center p-1 bg-muted rounded-xl border border-border shrink-0">
+              <button
+                type="button"
+                onClick={() => setMediaTypeTab("iptv")}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  mediaTypeTab === "iptv"
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Radio className="w-3.5 h-3.5" />
+                <span>Live TV / IPTV ({mediaChannels.length})</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setMediaTypeTab("video")}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  mediaTypeTab === "video"
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Video className="w-3.5 h-3.5" />
+                <span>Video Reports ({mediaVideos.length})</span>
+              </button>
+            </div>
+          </div>
+        </CardHeader>
+
+        <CardContent className="space-y-4 pt-4">
+          {mediaTypeTab === "iptv" ? (
+            /* TAB 1: LIVE TV / IPTV CHANNELS */
+            <div className="space-y-4">
+              {/* Add Channel Form */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-2.5 bg-muted/20 p-3 rounded-xl border border-border">
+                <div className="md:col-span-2">
+                  <Label className="text-xs font-semibold">Channel Name</Label>
+                  <Input
+                    placeholder="e.g. Jamuna TV"
+                    value={newChannelName}
+                    onChange={(e) => setNewChannelName(e.target.value)}
+                    className="h-8 text-xs mt-1"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <Label className="text-xs font-semibold">Stream URL (YouTube / .m3u8)</Label>
+                  <Input
+                    placeholder="https://www.youtube.com/watch?v=... or .m3u8"
+                    value={newChannelUrl}
+                    onChange={(e) => setNewChannelUrl(e.target.value)}
+                    className="h-8 text-xs mt-1 font-mono"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs font-semibold">Type</Label>
+                  <select
+                    value={newChannelType}
+                    onChange={(e) => setNewChannelType(e.target.value as any)}
+                    className="flex h-8 w-full rounded-md border border-input bg-background px-2 text-xs shadow-sm mt-1 cursor-pointer"
+                  >
+                    <option value="youtube">YouTube Live</option>
+                    <option value="iptv">IPTV (.m3u8)</option>
+                  </select>
+                </div>
+                <div className="flex items-end">
+                  <Button
+                    onClick={handleAddChannel}
+                    disabled={!newChannelName || !newChannelUrl}
+                    size="sm"
+                    className="w-full h-8 bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-bold cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5 mr-1" /> Add Channel
+                  </Button>
+                </div>
+              </div>
+
+              {/* Channels Table */}
+              <div className="border border-border rounded-xl overflow-hidden shadow-sm">
+                <table className="w-full text-xs">
+                  <thead className="bg-muted/60 text-muted-foreground text-left border-b border-border">
+                    <tr>
+                      <th className="px-3 py-2.5 font-semibold">Channel</th>
+                      <th className="px-3 py-2.5 font-semibold">Stream URL</th>
+                      <th className="px-3 py-2.5 font-semibold">Format & Region</th>
+                      <th className="px-3 py-2.5 font-semibold text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {mediaChannels.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="px-3 py-6 text-center text-muted-foreground">
+                          No channels found in database.
+                          <Button
+                            variant="link"
+                            size="sm"
+                            onClick={handleLoadDefaultChannels}
+                            className="text-primary text-xs ml-1 font-bold cursor-pointer"
+                          >
+                            Load Verified Channels
+                          </Button>
+                        </td>
+                      </tr>
+                    ) : (
+                      mediaChannels.map((ch) => {
+                        const isEditing = editingMedia?.id === ch.id;
+                        const isCopied = copiedMediaId === ch.id;
+
+                        if (isEditing && editingMedia) {
+                          const currentEdit = editingMedia;
+                          return (
+                            <tr key={ch.id} className="bg-primary/5 border-t border-primary/20">
+                              <td colSpan={4} className="p-3">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-2 items-center">
+                                  <div>
+                                    <Label className="text-[11px] font-semibold text-muted-foreground">Name</Label>
+                                    <Input
+                                      value={currentEdit.title}
+                                      onChange={(e) => setEditingMedia(prev => prev ? ({ ...prev, title: e.target.value }) : null)}
+                                      className="h-7 text-xs mt-0.5"
+                                    />
+                                  </div>
+                                  <div className="md:col-span-2">
+                                    <Label className="text-[11px] font-semibold text-muted-foreground">Stream URL</Label>
+                                    <Input
+                                      value={currentEdit.url}
+                                      onChange={(e) => setEditingMedia(prev => prev ? ({ ...prev, url: e.target.value }) : null)}
+                                      className="h-7 text-xs font-mono mt-0.5"
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label className="text-[11px] font-semibold text-muted-foreground">Type</Label>
+                                    <select
+                                      value={currentEdit.stream_type || "youtube"}
+                                      onChange={(e) => setEditingMedia(prev => prev ? ({ ...prev, stream_type: e.target.value }) : null)}
+                                      className="flex h-7 w-full rounded-md border border-input bg-background px-2 text-xs mt-0.5"
+                                    >
+                                      <option value="youtube">YouTube Live</option>
+                                      <option value="iptv">IPTV (.m3u8)</option>
+                                    </select>
+                                  </div>
+                                  <div className="flex items-center gap-1.5 pt-4">
+                                    <Button
+                                      size="sm"
+                                      onClick={handleSaveEditMedia}
+                                      className="h-7 px-3 text-xs bg-primary text-primary-foreground font-bold cursor-pointer"
+                                    >
+                                      <Check className="w-3 h-3 mr-1" /> Save
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => setEditingMedia(null)}
+                                      className="h-7 px-2 text-xs text-muted-foreground cursor-pointer"
+                                    >
+                                      <X className="w-3 h-3 mr-1" /> Cancel
+                                    </Button>
+                                  </div>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        }
+
+                        return (
+                          <tr key={ch.id} className="border-t border-border hover:bg-muted/20 transition-colors">
+                            <td className="px-3 py-2 font-semibold">
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-foreground">{ch.title || ch.name}</span>
+                                {ch.category && (
+                                  <span className="text-[10px] px-1.5 py-0.2 rounded bg-muted text-muted-foreground">
+                                    {ch.category}
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-3 py-2">
+                              <div className="flex items-center gap-1.5 max-w-[280px]">
+                                <span className="font-mono text-muted-foreground text-[11px] truncate" title={ch.url}>
+                                  {ch.url}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleCopyUrl(ch.id, ch.url)}
+                                  className={`p-1 rounded transition-colors shrink-0 ${
+                                    isCopied ? "bg-emerald-500/20 text-emerald-500" : "hover:bg-muted text-muted-foreground hover:text-foreground"
+                                  }`}
+                                  title={isCopied ? "কপি হয়েছে!" : "Copy Stream Link"}
+                                >
+                                  {isCopied ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
+                                </button>
+                                <a
+                                  href={ch.url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground shrink-0"
+                                  title="Open Stream"
+                                >
+                                  <ExternalLink className="w-3 h-3" />
+                                </a>
+                              </div>
+                            </td>
+                            <td className="px-3 py-2">
+                              <div className="flex items-center gap-1.5">
+                                <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-bold">
+                                  {ch.stream_type === "iptv" ? "IPTV .m3u8" : "YouTube Live"}
+                                </span>
+                                <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-muted text-muted-foreground">
+                                  {ch.country === "GLOBAL" ? "🌐 Global" : ch.country === "UK" ? "🇬🇧 UK" : ch.country === "SA" ? "🇸🇦 SA" : "🇧🇩 BD"}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="px-3 py-2 text-right">
+                              <div className="flex items-center justify-end gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleStartEditMedia(ch)}
+                                  className="h-7 w-7 text-primary hover:text-primary hover:bg-primary/10 cursor-pointer"
+                                  title="Edit channel"
+                                >
+                                  <Edit2 className="w-3.5 h-3.5" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleRemoveMedia(ch.id, false)}
+                                  className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-500/10 cursor-pointer"
+                                  title="Remove channel"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
+                <span>Showing {mediaChannels.length} channel(s)</span>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleLoadDefaultChannels} 
+                  className="text-xs h-7 border-border hover:bg-muted cursor-pointer"
+                >
+                  <RefreshCw className="w-3 h-3 mr-1.5" /> Reset Default Channels
+                </Button>
+              </div>
+            </div>
+          ) : (
+            /* TAB 2: NEWS VIDEO REPORTS */
+            <div className="space-y-4">
+              {/* Add Video Form */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-2.5 bg-muted/20 p-3 rounded-xl border border-border">
+                <div className="md:col-span-2">
+                  <Label className="text-xs font-semibold">YouTube Video URL</Label>
+                  <Input
+                    placeholder="https://www.youtube.com/watch?v=EZ81qPzajLI"
+                    value={newVideoUrl}
+                    onChange={(e) => setNewVideoUrl(e.target.value)}
+                    className="h-8 text-xs mt-1 font-mono"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <Label className="text-xs font-semibold">Report Title (Optional - auto-derived if blank)</Label>
+                  <Input
+                    placeholder="e.g. বিশেষ সংবাদ প্রতিবেদন"
+                    value={newVideoTitle}
+                    onChange={(e) => setNewVideoTitle(e.target.value)}
+                    className="h-8 text-xs mt-1"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs font-semibold">Category</Label>
+                  <Input
+                    placeholder="জাতীয়"
+                    value={newVideoCategory}
+                    onChange={(e) => setNewVideoCategory(e.target.value)}
+                    className="h-8 text-xs mt-1"
+                  />
+                </div>
+                <div className="flex items-end">
+                  <Button
+                    onClick={handleAddVideo}
+                    disabled={!newVideoUrl}
+                    size="sm"
+                    className="w-full h-8 bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-bold cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5 mr-1" /> Add Video
+                  </Button>
+                </div>
+              </div>
+
+              {/* Videos Table */}
+              <div className="border border-border rounded-xl overflow-hidden shadow-sm">
+                <table className="w-full text-xs">
+                  <thead className="bg-muted/60 text-muted-foreground text-left border-b border-border">
+                    <tr>
+                      <th className="px-3 py-2.5 font-semibold w-16">Preview</th>
+                      <th className="px-3 py-2.5 font-semibold">Title & Category</th>
+                      <th className="px-3 py-2.5 font-semibold">Video Link</th>
+                      <th className="px-3 py-2.5 font-semibold">Region</th>
+                      <th className="px-3 py-2.5 font-semibold text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {mediaVideos.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="px-3 py-6 text-center text-muted-foreground">
+                          No custom video reports added yet.
+                        </td>
+                      </tr>
+                    ) : (
+                      mediaVideos.map((v) => {
+                        const isEditing = editingMedia?.id === v.id;
+                        const isCopied = copiedMediaId === v.id;
+
+                        if (isEditing && editingMedia) {
+                          const currentEdit = editingMedia;
+                          return (
+                            <tr key={v.id} className="bg-primary/5 border-t border-primary/20">
+                              <td colSpan={5} className="p-3">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-2 items-center">
+                                  <div className="md:col-span-2">
+                                    <Label className="text-[11px] font-semibold text-muted-foreground">Title</Label>
+                                    <Input
+                                      value={currentEdit.title}
+                                      onChange={(e) => setEditingMedia(prev => prev ? ({ ...prev, title: e.target.value }) : null)}
+                                      className="h-7 text-xs mt-0.5"
+                                    />
+                                  </div>
+                                  <div className="md:col-span-2">
+                                    <Label className="text-[11px] font-semibold text-muted-foreground">Video URL</Label>
+                                    <Input
+                                      value={currentEdit.url}
+                                      onChange={(e) => setEditingMedia(prev => prev ? ({ ...prev, url: e.target.value }) : null)}
+                                      className="h-7 text-xs font-mono mt-0.5"
+                                    />
+                                  </div>
+                                  <div className="flex items-center gap-1.5 pt-4">
+                                    <Button
+                                      size="sm"
+                                      onClick={handleSaveEditMedia}
+                                      className="h-7 px-3 text-xs bg-primary text-primary-foreground font-bold cursor-pointer"
+                                    >
+                                      <Check className="w-3 h-3 mr-1" /> Save
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => setEditingMedia(null)}
+                                      className="h-7 px-2 text-xs text-muted-foreground cursor-pointer"
+                                    >
+                                      <X className="w-3 h-3 mr-1" /> Cancel
+                                    </Button>
+                                  </div>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        }
+
+                        return (
+                          <tr key={v.id} className="border-t border-border hover:bg-muted/20 transition-colors">
+                            <td className="px-3 py-2 w-16">
+                              {v.thumbnail ? (
+                                <img src={v.thumbnail} alt="" className="w-12 h-7 object-cover rounded shadow-sm" />
+                              ) : (
+                                <div className="w-12 h-7 bg-muted rounded flex items-center justify-center">
+                                  <Video className="w-3 h-3 text-muted-foreground" />
+                                </div>
+                              )}
+                            </td>
+                            <td className="px-3 py-2 font-semibold">
+                              <div className="space-y-0.5">
+                                <span className="font-bold text-foreground line-clamp-1">{v.title}</span>
+                                {v.category && (
+                                  <span className="inline-block text-[9px] px-1.5 py-0.2 rounded bg-muted text-muted-foreground">
+                                    {v.category}
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-3 py-2">
+                              <div className="flex items-center gap-1.5 max-w-[240px]">
+                                <span className="font-mono text-muted-foreground text-[11px] truncate" title={v.url}>
+                                  {v.url}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleCopyUrl(v.id, v.url)}
+                                  className={`p-1 rounded transition-colors shrink-0 ${
+                                    isCopied ? "bg-emerald-500/20 text-emerald-500" : "hover:bg-muted text-muted-foreground hover:text-foreground"
+                                  }`}
+                                  title={isCopied ? "কপি হয়েছে!" : "Copy Video Link"}
+                                >
+                                  {isCopied ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
+                                </button>
+                                <a
+                                  href={v.url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground shrink-0"
+                                  title="Open Video"
+                                >
+                                  <ExternalLink className="w-3 h-3" />
+                                </a>
+                              </div>
+                            </td>
+                            <td className="px-3 py-2">
+                              <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-muted text-muted-foreground">
+                                {v.country === "GLOBAL" ? "🌐 Global" : v.country === "UK" ? "🇬🇧 UK" : v.country === "SA" ? "🇸🇦 SA" : "🇧🇩 BD"}
+                              </span>
+                            </td>
+                            <td className="px-3 py-2 text-right">
+                              <div className="flex items-center justify-end gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleStartEditMedia(v)}
+                                  className="h-7 w-7 text-primary hover:text-primary hover:bg-primary/10 cursor-pointer"
+                                  title="Edit video report"
+                                >
+                                  <Edit2 className="w-3.5 h-3.5" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleRemoveMedia(v.id, true)}
+                                  className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-500/10 cursor-pointer"
+                                  title="Remove video report"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
+                <span>Showing {mediaVideos.length} video report(s)</span>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 

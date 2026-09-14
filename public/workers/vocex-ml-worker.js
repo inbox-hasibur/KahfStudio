@@ -252,14 +252,43 @@ let activeBackend = "wasm";
 const modelBufferCache = new Map();
 
 async function fetchModelBuffer(url, modelName = "AI Model") {
-  const cached = modelBufferCache.get(url);
-  if (cached) return cached;
+  const memoryCached = modelBufferCache.get(url);
+  if (memoryCached) return memoryCached;
+
+  // 1. Try Cache API (Persistent device storage across sessions)
+  try {
+    if (typeof caches !== "undefined") {
+      const cache = await caches.open("kahf-model-cache-v1");
+      const matched = await cache.match(url);
+      if (matched) {
+        self.postMessage({ type: "STATUS", payload: `Loading ${modelName} from device storage...` });
+        self.postMessage({ type: "PROGRESS", payload: { model: modelName, loaded: 100, total: 100, percent: 100 } });
+        const buf = await matched.arrayBuffer();
+        modelBufferCache.set(url, buf);
+        return buf;
+      }
+    }
+  } catch (cacheReadErr) {
+    console.warn("[VocEx ML Worker] Cache API read error, streaming from network:", cacheReadErr);
+  }
+
+  // 2. Network Stream Fetch with chunk progress
+  self.postMessage({ type: "STATUS", payload: `Downloading ${modelName}...` });
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Model fetch failed (${url}): ${res.status}`);
   
+  // Clone for persistent caching
+  let resToCache = null;
+  try {
+    if (typeof caches !== "undefined") {
+      resToCache = res.clone();
+    }
+  } catch (_) {}
+
   const contentLength = res.headers.get('content-length');
   const total = contentLength ? parseInt(contentLength, 10) : 0;
   
+  let arrayBuf;
   if (total && res.body) {
     let loaded = 0;
     const reader = res.body.getReader();
@@ -269,7 +298,7 @@ async function fetchModelBuffer(url, modelName = "AI Model") {
       if (done) break;
       chunks.push(value);
       loaded += value.length;
-      const percent = Math.round((loaded / total) * 100);
+      const percent = Math.min(100, Math.round((loaded / total) * 100));
       self.postMessage({ type: "PROGRESS", payload: { model: modelName, loaded, total, percent } });
     }
     const buf = new Uint8Array(loaded);
@@ -278,14 +307,22 @@ async function fetchModelBuffer(url, modelName = "AI Model") {
       buf.set(chunk, position);
       position += chunk.length;
     }
-    const arrayBuf = buf.buffer;
-    modelBufferCache.set(url, arrayBuf);
-    return arrayBuf;
+    arrayBuf = buf.buffer;
   } else {
-    const buf = await res.arrayBuffer();
-    modelBufferCache.set(url, buf);
-    return buf;
+    arrayBuf = await res.arrayBuffer();
   }
+
+  modelBufferCache.set(url, arrayBuf);
+
+  // Store in persistent Cache API for zero re-download next time
+  if (resToCache && typeof caches !== "undefined") {
+    try {
+      const cache = await caches.open("kahf-model-cache-v1");
+      await cache.put(url, resToCache);
+    } catch (_) {}
+  }
+
+  return arrayBuf;
 }
 
 const me = new Float32Array(2 * R);
@@ -365,44 +402,19 @@ async function initModels() {
       }
     } catch (_) {}
 
-    self.postMessage({ type: "STATUS", payload: "Loading MDX-Net & Bandit-v2 Neural Models..." });
+    self.postMessage({ type: "STATUS", payload: "Initializing Neural Speech Model..." });
     
-    // Action 12A & 12C: Load vocals.onnx & bandit_v2_sfx.onnx in parallel
-    const [vocBuf, banditBuf] = await Promise.all([
-      fetchModelBuffer(VOCALS_MODEL_PATH, "Vocals AI"),
-      fetchModelBuffer(BANDIT_MODEL_PATH, "Nature AI").catch((bErr) => {
-        console.warn("[VocEx ML Worker] Bandit-v2 model fetch notice:", bErr);
-        return null;
-      })
-    ]);
+    // Load ONLY vocals.onnx (~66MB) by default instead of downloading 182MB in parallel
+    const vocBuf = await fetchModelBuffer(VOCALS_MODEL_PATH, "Vocals AI");
 
+    self.postMessage({ type: "STATUS", payload: "Compiling WebGPU / WASM Kernels..." });
     vocalSession = await createSessionWithFallback(vocBuf);
     vocalInputName = vocalSession.inputNames[0];
     vocalOutputName = vocalSession.outputNames[0];
 
-    if (banditBuf) {
-      try {
-        banditSession = await createSessionWithFallback(banditBuf);
-        banditInputName = banditSession.inputNames[0];
-        banditOutputName = banditSession.outputNames[0];
-      } catch (bInitErr) {
-        console.warn("[VocEx ML Worker] Bandit-v2 session init notice:", bInitErr);
-      }
-    }
-
-    // Optional inst3 ensemble model
-    try {
-      const instBuf = await fetchModelBuffer(INST_MODEL_PATH);
-      instSession = await createSessionWithFallback(instBuf);
-      instInputName = instSession.inputNames[0];
-      instOutputName = instSession.outputNames[0];
-    } catch (instErr) {
-      console.warn("[VocEx ML Worker] inst3 ensemble model optional load failed:", instErr);
-    }
-
-    // Action 12C: Report MODEL_READY only after sessions are initialized
+    // Report MODEL_READY with active backend
     self.postMessage({ type: "MODEL_READY", payload: activeBackend });
-    console.log(`[VocEx ML Worker] All neural models initialized with ${activeBackend} backend.`);
+    console.log(`[VocEx ML Worker] Neural model initialized with ${activeBackend} backend.`);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error("[VocEx ML Worker] Failed to init models:", msg);

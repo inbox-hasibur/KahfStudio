@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { FileText, CheckCircle, Trash2, Edit3, XCircle } from "lucide-react";
+import { FileText, CheckCircle, Trash2, Edit3, XCircle, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { SlidingToggle } from "@/components/ui/sliding-toggle";
@@ -12,13 +12,23 @@ import { useSession } from "@/lib/auth-client";
 import { Key } from "lucide-react";
 import Link from "next/link";
 
+const COUNTRIES = [
+  { code: "ALL", label: "All Regions", flag: "🌐" },
+  { code: "BD", label: "Bangladesh", flag: "🇧🇩" },
+  { code: "SA", label: "Saudi Arabia", flag: "🇸🇦" },
+  { code: "UK", label: "United Kingdom", flag: "🇬🇧" },
+  { code: "GLOBAL", label: "Global News", flag: "🌍" },
+];
+
 export default function AdminLibraryPage() {
-  const { data: session } = useSession();
-  const userRole = (session?.user as any)?.role || "user";
-  const userTier = (session?.user as any)?.tier || "free";
+  const { data: session, status } = useSession();
+  const isPending = status === "loading";
+  const userRole = (session?.user as any)?.role || (isPending ? "loading" : "user");
+  const userTier = (session?.user as any)?.tier || (isPending ? "loading" : "free");
   
-  const isLocked = userRole !== "admin" && userTier !== "premium";
+  const isLocked = !isPending && userRole !== "admin" && userTier !== "premium";
   const [activeTab, setActiveTab] = useState("pending");
+  const [selectedCountry, setSelectedCountry] = useState("ALL");
   const [articles, setArticles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [autoApprove, setAutoApprove] = useState(false);
@@ -28,9 +38,12 @@ export default function AdminLibraryPage() {
   const supabase = createClient();
 
   const fetchArticles = async () => {
+    if (userRole === "loading") return;
     setLoading(true);
     try {
-      const res = await fetch(`/api/admin/articles?role=${userRole}`);
+      const res = await fetch(`/api/admin/articles?role=${userRole}`, {
+        cache: 'no-store',
+      });
       if (res.ok) {
         const { data } = await res.json();
         if (data) setArticles(data);
@@ -42,13 +55,29 @@ export default function AdminLibraryPage() {
   };
 
   useEffect(() => {
-    fetchArticles();
-    fetchSettings();
-  }, [userRole]);
+    if (!isPending) {
+      fetchArticles();
+      fetchSettings();
+    }
+  }, [userRole, isPending]);
+
+  // Listen for deletions from other components
+  useEffect(() => {
+    const handleArticleDeleted = (e: CustomEvent) => {
+      const deletedId = e.detail?.id;
+      if (deletedId) {
+        setArticles((prev) => prev.filter((a) => a.id !== deletedId));
+      }
+    };
+    window.addEventListener("article-deleted", handleArticleDeleted as EventListener);
+    return () => {
+      window.removeEventListener("article-deleted", handleArticleDeleted as EventListener);
+    };
+  }, []);
 
   const fetchSettings = async () => {
     try {
-      const res = await fetch("/api/settings");
+      const res = await fetch("/api/settings", { cache: 'no-store' });
       if (res.ok) {
         const { settings } = await res.json();
         const autoSetting = settings?.find((s: any) => s.setting_key === "auto_approve_news");
@@ -67,26 +96,57 @@ export default function AdminLibraryPage() {
     });
   };
 
-  const pendingArticles = articles.filter(a => a.status !== "published");
-  const publishedArticles = articles.filter(a => a.status === "published");
+  const countryFilteredArticles = useMemo(() => {
+    if (selectedCountry === "ALL") return articles;
+    return articles.filter((a) => {
+      const c = (a.country || "BD").toUpperCase();
+      return c === selectedCountry.toUpperCase();
+    });
+  }, [articles, selectedCountry]);
+
+  const pendingArticles = countryFilteredArticles.filter(a => a.status !== "published");
+  const publishedArticles = countryFilteredArticles.filter(a => a.status === "published");
 
   const handleApprove = async (id: string) => {
-    await fetch("/api/admin/articles", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, status: "published" }),
-    });
-    fetchArticles();
+    // Optimistic UI update: immediately move to published
+    setArticles((prev) =>
+      prev.map((a) => (a.id === id ? { ...a, status: "published" } : a))
+    );
+    try {
+      await fetch("/api/admin/articles", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, status: "published" }),
+      });
+    } catch (e) {
+      console.error("Failed to approve article:", e);
+      fetchArticles();
+    }
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to delete this article?")) return;
-    await fetch("/api/admin/articles", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id }),
-    });
-    fetchArticles();
+    // Optimistic UI update: immediately remove card so it disappears
+    setArticles((prev) => prev.filter((a) => a.id !== id));
+
+    try {
+      const res = await fetch("/api/admin/articles", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        throw new Error(data.error || "Delete failed");
+      }
+      // Also notify news feed components to remove it
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("article-deleted", { detail: { id } }));
+      }
+    } catch (e) {
+      console.error("Failed to delete article:", e);
+      fetchArticles();
+    }
   };
 
   const handleEditClick = (article: any) => {
@@ -96,18 +156,24 @@ export default function AdminLibraryPage() {
 
   const handleSaveEdit = async () => {
     if (!editingArticle) return;
+    setArticles((prev) =>
+      prev.map((a) =>
+        a.id === editingArticle.id
+          ? { ...a, headline: editForm.headline, ai_summary: editForm.ai_summary }
+          : a
+      )
+    );
     await fetch("/api/admin/articles", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: editingArticle.id, headline: editForm.headline, ai_summary: editForm.ai_summary }),
     });
     setEditingArticle(null);
-    fetchArticles();
   };
 
   const tabs = [
-    { id: "pending", label: `Pending Review (${pendingArticles.length})`, icon: FileText },
-    { id: "published", label: `Published (${publishedArticles.length})`, icon: CheckCircle },
+    { id: "pending", label: "Pending Review", count: pendingArticles.length, icon: FileText },
+    { id: "published", label: "Published", count: publishedArticles.length, icon: CheckCircle },
   ];
 
   if (isLocked) {
@@ -154,21 +220,42 @@ export default function AdminLibraryPage() {
               onClick={() => setActiveTab(tab.id)}
               className={`flex items-center gap-2 rounded-xl text-xs sm:text-sm font-semibold ${activeTab === tab.id ? "bg-primary text-primary-foreground hover:bg-primary/90" : "text-muted-foreground hover:text-foreground"}`}
             >
-              <tab.icon className="w-4 h-4" />
-              {tab.label}
+              <tab.icon className="w-4 h-4 shrink-0" />
+              <span>{tab.label}</span>
+              <span className="notranslate ml-1 px-2 py-0.5 rounded-full bg-muted/70 text-xs font-mono font-bold" translate="no">
+                ({tab.count})
+              </span>
             </Button>
           ))}
         </div>
         
-        <div className="flex items-center gap-2.5 bg-card/60 px-3 py-1.5 rounded-xl border border-border/60">
-          <SlidingToggle
-            id="switch-auto-approve-lib"
-            checked={autoApprove}
-            onChange={handleToggleAutoApprove}
-          />
-          <Label htmlFor="switch-auto-approve-lib" className="text-xs font-semibold cursor-pointer text-muted-foreground hover:text-foreground transition-colors">
-            Auto-Approve Scraped News
-          </Label>
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Country Selection Filter Dropdown */}
+          <div className="flex items-center gap-2 bg-card/60 px-3 py-1.5 rounded-xl border border-border/60">
+            <Globe className="w-3.5 h-3.5 text-primary" />
+            <select
+              value={selectedCountry}
+              onChange={(e) => setSelectedCountry(e.target.value)}
+              className="bg-transparent text-xs font-semibold text-foreground focus:outline-none cursor-pointer"
+            >
+              {COUNTRIES.map((c) => (
+                <option key={c.code} value={c.code} className="bg-popover text-foreground">
+                  {c.flag} {c.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex items-center gap-2.5 bg-card/60 px-3 py-1.5 rounded-xl border border-border/60">
+            <SlidingToggle
+              id="switch-auto-approve-lib"
+              checked={autoApprove}
+              onChange={handleToggleAutoApprove}
+            />
+            <Label htmlFor="switch-auto-approve-lib" className="text-xs font-semibold cursor-pointer text-muted-foreground hover:text-foreground transition-colors">
+              Auto-Approve Scraped News
+            </Label>
+          </div>
         </div>
       </div>
 
@@ -190,7 +277,7 @@ export default function AdminLibraryPage() {
             <div className="space-y-4">
               {(activeTab === "pending" ? pendingArticles : publishedArticles).length === 0 ? (
                 <div className="text-center py-12 border-2 border-dashed border-border rounded-xl text-muted-foreground">
-                  No {activeTab} articles found.
+                  No {activeTab} articles found for {selectedCountry === "ALL" ? "any region" : selectedCountry}.
                 </div>
               ) : (
                 (activeTab === "pending" ? pendingArticles : publishedArticles).map(article => (
@@ -198,8 +285,12 @@ export default function AdminLibraryPage() {
                     <div className="flex justify-between items-start gap-4">
                       <div className="flex-1">
                         <h3 className="font-bold text-lg mb-1">{article.headline}</h3>
-                        <p className="text-xs text-muted-foreground mb-3 flex items-center gap-2">
+                        <p className="text-xs text-muted-foreground mb-3 flex items-center gap-2 flex-wrap">
+                          <span className="bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 rounded-full text-[10px] font-bold">
+                            {article.country === "SA" ? "🇸🇦 Saudi Arabia" : article.country === "UK" ? "🇬🇧 UK" : article.country === "GLOBAL" ? "🌐 Global" : "🇧🇩 Bangladesh"}
+                          </span>
                           <span className="bg-muted px-2 py-0.5 rounded-full">{article.source || "Unknown Source"}</span>
+                          <span className="bg-muted/60 px-2 py-0.5 rounded-full">{article.category || "General"}</span>
                           <span>{new Date(article.created_at).toLocaleString()}</span>
                         </p>
                         <p className="text-sm text-foreground/80 line-clamp-2">

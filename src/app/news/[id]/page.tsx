@@ -4,8 +4,8 @@ import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { 
-  Clock, Globe, ArrowLeft, Play, Share2, Bookmark, 
+import {
+  Clock, Globe, ArrowLeft, Play, Share2, Bookmark,
   ThumbsUp, MessageCircle, ExternalLink, Tag, Volume2, AlignLeft, Sparkles, Bot, ChevronUp, ChevronDown, ChevronLeft, Settings, Sliders, Headphones, Check
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -50,20 +50,21 @@ export default function NewsDetailPage() {
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      if (
-        document.cookie.includes("googtrans=/bn/ar") ||
-        localStorage.getItem("kahf-language") === "AR" ||
-        localStorage.getItem("kahf_user_country") === "SA"
-      ) {
+      const savedLang = localStorage.getItem("kahf-language");
+      const hasArCookie = document.cookie.includes("googtrans=/bn/ar");
+      const hasEnCookie = document.cookie.includes("googtrans=/bn/en");
+
+      if (savedLang === "AR" || (!savedLang && hasArCookie)) {
         setSiteLang("AR");
-      } else if (
-        document.cookie.includes("googtrans=/bn/en") ||
-        localStorage.getItem("kahf-language") === "EN" ||
-        ["GLOBAL", "UK"].includes(localStorage.getItem("kahf_user_country") || "")
-      ) {
+      } else if (savedLang === "EN" || (!savedLang && hasEnCookie)) {
         setSiteLang("EN");
-      } else {
+      } else if (savedLang === "BN") {
         setSiteLang("BN");
+      } else {
+        const savedCountry = localStorage.getItem("kahf_user_country");
+        if (savedCountry === "SA") setSiteLang("AR");
+        else if (["GLOBAL", "UK"].includes(savedCountry || "")) setSiteLang("EN");
+        else setSiteLang("BN");
       }
     }
   }, []);
@@ -109,7 +110,7 @@ export default function NewsDetailPage() {
   // Auto-collapse sticky bar after 3s, expand on scroll up
   useEffect(() => {
     let timeout: NodeJS.Timeout;
-    
+
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
       if (currentScrollY < lastScrollY) {
@@ -118,7 +119,7 @@ export default function NewsDetailPage() {
         setIsStickyExpanded(false);
       }
       setLastScrollY(currentScrollY);
-      
+
       clearTimeout(timeout);
       timeout = setTimeout(() => {
         setIsStickyExpanded(false);
@@ -126,10 +127,10 @@ export default function NewsDetailPage() {
     };
 
     window.addEventListener("scroll", handleScroll, { passive: true });
-    
+
     // Initial auto-collapse
     timeout = setTimeout(() => setIsStickyExpanded(false), 3000);
-    
+
     return () => {
       window.removeEventListener("scroll", handleScroll);
       clearTimeout(timeout);
@@ -151,15 +152,16 @@ export default function NewsDetailPage() {
             category: item.category || "General",
             source: item.source || "Unknown",
             publishedAt: item.published_at || item.created_at,
+            scrapedAt: item.created_at,
             imageUrl: item.image_url || item.imageUrl || getPlaceholderImage(item.category),
             originalUrl: item.original_url,
             audio_bn_summary: item.audio_bn_summary || item.audioUrls?.bn_summary,
             audio_bn_full: item.audio_bn_full || item.audioUrls?.bn_full,
             audio_en_summary: item.audio_en_summary || item.audioUrls?.en_summary,
             audio_en_full: item.audio_en_full || item.audioUrls?.en_full,
-            author: "KahfNews AI",
+            author: item.author || (item.source ? `${item.source} Desk` : "KahfNews Desk"),
             readTime: "3 min read",
-            tags: [item.category || "News"],
+            tags: Array.isArray(item.tags) && item.tags.length > 0 ? item.tags : [item.category || "News"],
           });
         }
       } catch (err) {
@@ -168,7 +170,7 @@ export default function NewsDetailPage() {
         setLoading(false);
       }
     }
-    
+
     async function fetchRelated() {
       try {
         const res = await fetch(`/api/news?limit=3`);
@@ -193,7 +195,7 @@ export default function NewsDetailPage() {
         console.error("Failed to check saved status:", err);
       }
     }
-    
+
     if (id) {
       fetchArticle();
       fetchRelated();
@@ -226,18 +228,33 @@ export default function NewsDetailPage() {
     );
   }
 
-  const formattedDate = new Date(newsItem.publishedAt).toLocaleDateString("en-US", {
+  const formattedPublishedDate = new Date(newsItem.publishedAt).toLocaleDateString("en-US", {
     day: "numeric",
-    month: "long",
+    month: "short",
     year: "numeric",
   });
 
-  const formattedTime = new Date(newsItem.publishedAt).toLocaleTimeString("en-US", {
+  const formattedPublishedTime = new Date(newsItem.publishedAt).toLocaleTimeString("en-US", {
     hour: "2-digit",
     minute: "2-digit",
   });
 
-  const paragraphs = newsItem.summary.split("\n\n").filter(Boolean);
+  const formattedScrapedDate = newsItem.scrapedAt
+    ? new Date(newsItem.scrapedAt).toLocaleDateString("en-US", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      })
+    : null;
+
+  const formattedScrapedTime = newsItem.scrapedAt
+    ? new Date(newsItem.scrapedAt).toLocaleTimeString("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : null;
+
+  const paragraphs = newsItem.summary ? newsItem.summary.split("\n\n").filter(Boolean) : [];
 
   const handlePlayAudio = (type: "full" | "summary") => {
     const isEnglish = typeof document !== 'undefined' && (document.cookie.includes('googtrans=/bn/en') || localStorage.getItem('kahf-language') === 'EN');
@@ -381,20 +398,36 @@ export default function NewsDetailPage() {
 
       <article>
         {/* Meta Info */}
-        <motion.div variants={itemVariants} className="flex items-center gap-3 mb-6">
-          <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-          <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-primary">
+        <motion.div variants={itemVariants} className="flex items-center gap-2 sm:gap-3 flex-wrap mb-4 sm:mb-6 text-[11px] sm:text-xs">
+          <span className="w-2 h-2 rounded-full bg-primary animate-pulse shrink-0" />
+          <span className="font-bold uppercase tracking-wider text-primary shrink-0">
             {newsItem.category}
           </span>
           <span className="text-border">•</span>
-          <div className="flex items-center gap-1.5 text-muted-foreground">
-            <Clock className="w-3.5 h-3.5" />
-            <span className="text-[11px] font-medium">
-              {formattedDate} · {formattedTime}
+
+          {/* Published Time */}
+          <div className="flex items-center gap-1.5 text-muted-foreground" title="মূল প্রকাশের সময় (Original Publication Time)">
+            <Clock className="w-3.5 h-3.5 text-primary/80 shrink-0" />
+            <span className="font-medium">
+              {isArabic ? "نُشر:" : isGlobal ? "Published:" : "প্রকাশিত:"} {formattedPublishedDate} · {formattedPublishedTime}
             </span>
           </div>
+
+          {/* Scraped Time */}
+          {formattedScrapedDate && (
+            <>
+              <span className="text-border">•</span>
+              <div className="flex items-center gap-1.5 text-muted-foreground" title="সংগ্রহের সময় (Scraped / Indexed Time)">
+                <Sparkles className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                <span className="font-medium">
+                  {isArabic ? "تم الجمع:" : isGlobal ? "Scraped:" : "সংগৃহীত:"} {formattedScrapedDate} · {formattedScrapedTime}
+                </span>
+              </div>
+            </>
+          )}
+
           <span className="text-border">•</span>
-          <span className="text-[11px] font-medium text-muted-foreground">{newsItem.readTime}</span>
+          <span className="font-medium text-muted-foreground">{newsItem.readTime}</span>
         </motion.div>
 
         {/* Title */}
@@ -416,18 +449,16 @@ export default function NewsDetailPage() {
             />
             <button
               onClick={() => setActiveView("summary")}
-              className={`relative flex-1 flex items-center justify-center gap-1.5 py-1 text-xs font-bold z-10 transition-colors ${
-                activeView === "summary" ? "text-primary-foreground" : "text-muted-foreground hover:text-foreground"
-              }`}
+              className={`relative flex-1 flex items-center justify-center gap-1.5 py-1 text-xs font-bold z-10 transition-colors ${activeView === "summary" ? "text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                }`}
             >
               <Sparkles className="w-3 h-3" />
               {isArabic ? "الملخص" : isGlobal ? "Summary" : "সারসংক্ষেপ"}
             </button>
             <button
               onClick={() => setActiveView("full")}
-              className={`relative flex-1 flex items-center justify-center gap-1.5 py-1 text-xs font-bold z-10 transition-colors ${
-                activeView === "full" ? "text-primary-foreground" : "text-muted-foreground hover:text-foreground"
-              }`}
+              className={`relative flex-1 flex items-center justify-center gap-1.5 py-1 text-xs font-bold z-10 transition-colors ${activeView === "full" ? "text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                }`}
             >
               <AlignLeft className="w-3 h-3" />
               {isArabic ? "الخبر الكامل" : isGlobal ? "Full News" : "সম্পূর্ণ খবর"}
@@ -436,12 +467,12 @@ export default function NewsDetailPage() {
 
           {/* Audio Play Button */}
           <div className="flex items-center gap-2 w-full sm:w-auto">
-            <Button 
+            <Button
               className="flex-1 sm:flex-none h-8 text-xs rounded-lg gap-1.5 font-bold bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm"
               onClick={() => handlePlayAudio(activeView)}
             >
               <Play className="w-3 h-3 fill-current" />
-              {activeView === "full" 
+              {activeView === "full"
                 ? (isArabic ? "استمع للخبر الكامل" : isGlobal ? "Listen Full News" : "সম্পূর্ণ সংবাদ শুনুন")
                 : (isArabic ? "استمع للموجز" : isGlobal ? "Listen Summary" : "সারসংক্ষেপ শুনুন")}
             </Button>
@@ -618,7 +649,7 @@ export default function NewsDetailPage() {
       </article>
 
       {/* Sticky Bottom Actions Bar (Synced with Home Design System) */}
-      <div 
+      <div
         className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 transition-all duration-300"
         onMouseEnter={() => setIsStickyExpanded(true)}
       >
@@ -691,7 +722,7 @@ export default function NewsDetailPage() {
           </button>
         </div>
       </div>
-      
+
       <AudioPlayer newsItems={newsItem ? [newsItem] : []} />
     </motion.main>
   );

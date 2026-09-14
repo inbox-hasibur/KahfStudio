@@ -84,4 +84,12 @@ next-env.d.ts
 graphify-out/
 scratch/
 
+# Practicum Academic Report & Figures (local work only, not pushed to GitHub)
+/documentation/Report/
+/documentation/figures/
+/documentation/vocex-v1.0.2/
+/documentation/vocex*/
+
+
+
 

@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import HeadlineSlider from "@/components/HeadlineSlider";
 import MainFeed from "@/components/MainFeed";
 import NewsCard from "@/components/NewsCard";
+import LiveRssFeed from "@/components/LiveRssFeed";
 import AudioPlayer from "@/components/AudioPlayer";
 import BreakingNewsTicker from "@/components/BreakingNewsTicker";
 import { useNews, useWeather } from "@/hooks/useNews";
@@ -102,8 +103,28 @@ export default function Home() {
   // Country state for location-based news (BD, GLOBAL, UK, SA)
   const [selectedCountry, setSelectedCountry] = useState(COUNTRIES[0]);
   const [isLocationDropdownOpen, setIsLocationDropdownOpen] = useState(false);
-  const isArabic = selectedCountry.code === "SA";
-  const isGlobal = selectedCountry.code === "GLOBAL" || selectedCountry.code === "UK" || selectedCountry.code === "SA";
+  const [siteLang, setSiteLang] = useState<"BN" | "EN" | "AR">("BN");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const savedLang = localStorage.getItem("kahf-language");
+      const hasArCookie = document.cookie.includes("googtrans=/bn/ar");
+      const hasEnCookie = document.cookie.includes("googtrans=/bn/en");
+
+      if (savedLang === "AR" || (!savedLang && hasArCookie)) {
+        setSiteLang("AR");
+      } else if (savedLang === "EN" || (!savedLang && hasEnCookie)) {
+        setSiteLang("EN");
+      } else if (savedLang === "BN") {
+        setSiteLang("BN");
+      } else {
+        setSiteLang((selectedCountry.defaultLang as any) || "BN");
+      }
+    }
+  }, [selectedCountry]);
+
+  const isArabic = siteLang === "AR";
+  const isGlobal = siteLang === "EN" || siteLang === "AR";
 
   const { news, loading: newsLoading } = useNews({
     country: selectedCountry.code,
@@ -659,6 +680,15 @@ export default function Home() {
       {/* 5. Main News Feed Section */}
       <motion.section variants={itemVariants}>
         <MainFeed newsItems={feedItems} isGlobal={isGlobal} isArabic={isArabic} />
+      </motion.section>
+
+      {/* 6. Live RSS Stream Section (All Sources & News with Native TTS) */}
+      <motion.section variants={itemVariants}>
+        <LiveRssFeed
+          isGlobal={isGlobal}
+          isArabic={isArabic}
+          selectedCountry={selectedCountry}
+        />
       </motion.section>
 
       {/* Floating Audio Player Component */}

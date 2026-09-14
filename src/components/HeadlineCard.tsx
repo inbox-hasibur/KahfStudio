@@ -3,7 +3,8 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
-import { Play, ExternalLink, Headphones } from "lucide-react";
+import { Play, ExternalLink, Headphones, Trash2 } from "lucide-react";
+import { useSession } from "@/lib/auth-client";
 
 import Link from "next/link";
 
@@ -24,11 +25,38 @@ interface HeadlineCardProps {
 }
 
 const HeadlineCard = ({ news, index = 0 }: HeadlineCardProps) => {
+  const { data: sessionData } = useSession();
+  const isAdmin = (sessionData?.user as any)?.role === "admin";
+  const [isDeleted, setIsDeleted] = React.useState(false);
+
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!news.id) return;
+    if (!confirm("Are you sure you want to permanently delete this headline?")) return;
+
+    setIsDeleted(true);
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("article-deleted", { detail: { id: news.id } }));
+    }
+
+    try {
+      const res = await fetch(`/api/news?id=${news.id}`, { method: "DELETE" });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        setIsDeleted(false);
+        alert(json.error || "Failed to delete headline");
+      }
+    } catch (err) {
+      setIsDeleted(false);
+    }
+  };
   const handlePlayAudio = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    const isArabic = typeof document !== 'undefined' && (document.cookie.includes('googtrans=/bn/ar') || localStorage.getItem('kahf-language') === 'AR');
     const isEnglish = typeof document !== 'undefined' && (document.cookie.includes('googtrans=/bn/en') || localStorage.getItem('kahf-language') === 'EN');
-    const preferredLang = isEnglish ? 'EN' : 'BN';
+    const preferredLang = isArabic ? 'AR' : isEnglish ? 'EN' : 'BN';
 
     const event = new CustomEvent('play-audio', {
       detail: {
@@ -50,6 +78,8 @@ const HeadlineCard = ({ news, index = 0 }: HeadlineCardProps) => {
     });
     window.dispatchEvent(event);
   };
+
+  if (isDeleted) return null;
 
   return (
     <Link href={`/news/${news.id || ''}`}>
@@ -95,13 +125,27 @@ const HeadlineCard = ({ news, index = 0 }: HeadlineCardProps) => {
               <span>Listen</span>
             </motion.button>
             
-            <motion.button
-              className="p-1 sm:p-1.5 text-muted-foreground hover:text-foreground transition-colors rounded-full hover:bg-muted"
-              whileHover={{ scale: 1.1, rotate: 15 }}
-              whileTap={{ scale: 0.9 }}
-            >
-              <ExternalLink className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            </motion.button>
+            <div className="flex items-center gap-1">
+              {isAdmin && news.id && (
+                <motion.button
+                  onClick={handleDelete}
+                  className="p-1 sm:p-1.5 text-muted-foreground hover:text-red-500 hover:bg-red-500/15 transition-colors rounded-full cursor-pointer"
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  title="সংবাদ মুছে ফেলুন (Admin Delete)"
+                  aria-label="Delete Headline Article"
+                >
+                  <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                </motion.button>
+              )}
+              <motion.button
+                className="p-1 sm:p-1.5 text-muted-foreground hover:text-foreground transition-colors rounded-full hover:bg-muted"
+                whileHover={{ scale: 1.1, rotate: 15 }}
+                whileTap={{ scale: 0.9 }}
+              >
+                <ExternalLink className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              </motion.button>
+            </div>
           </div>
         </div>
 

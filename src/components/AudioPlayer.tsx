@@ -88,7 +88,7 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
   // Settings
   const [ttsSettings, setTtsSettings] = useState<TTSSettings>({
     model: "gemini-3.1-flash-tts",
-    voiceGender: "female",
+    voiceGender: "male",
     voiceStyle: "radio-host",
     speed: 1.0,
     languagePreference: "auto",
@@ -108,20 +108,17 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
   // Helper for language detection
   const getSiteLanguage = useCallback((): "EN" | "BN" | "AR" => {
     if (typeof window === "undefined") return "BN";
-    if (
-      document.cookie.includes("googtrans=/bn/ar") ||
-      localStorage.getItem("kahf-language") === "AR" ||
-      localStorage.getItem("kahf_user_country") === "SA"
-    ) {
-      return "AR";
-    }
-    if (
-      document.cookie.includes("googtrans=/bn/en") ||
-      localStorage.getItem("kahf-language") === "EN" ||
-      ["GLOBAL", "UK"].includes(localStorage.getItem("kahf_user_country") || "")
-    ) {
-      return "EN";
-    }
+    const savedLang = localStorage.getItem("kahf-language");
+    const hasArCookie = document.cookie.includes("googtrans=/bn/ar");
+    const hasEnCookie = document.cookie.includes("googtrans=/bn/en");
+
+    if (savedLang === "AR" || (!savedLang && hasArCookie)) return "AR";
+    if (savedLang === "EN" || (!savedLang && hasEnCookie)) return "EN";
+    if (savedLang === "BN") return "BN";
+
+    const savedCountry = localStorage.getItem("kahf_user_country");
+    if (savedCountry === "SA") return "AR";
+    if (["GLOBAL", "UK"].includes(savedCountry || "")) return "EN";
     return "BN";
   }, []);
 

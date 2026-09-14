@@ -87,13 +87,8 @@ export function useWienerFilter({
         throw new Error("Web Audio API is not supported in this browser.");
       }
 
-      // Check if video element changed to safely disconnect previous node reference
-      if (sourceNodeRef.current && lastVideoElRef.current !== videoEl) {
-        try {
-          sourceNodeRef.current.disconnect();
-        } catch (_) {}
-        sourceNodeRef.current = null;
-      }
+      // Detect if the video element changed
+      const videoChanged = lastVideoElRef.current !== videoEl;
       lastVideoElRef.current = videoEl;
 
       let ctx = audioCtxRef.current;
@@ -122,7 +117,7 @@ export function useWienerFilter({
         setIsContextSuspended(false);
       }
 
-      // Load vocex-worklet.js
+      // ── Create worklet chain ONCE (worklet -> gainNode -> analyser -> dest, bypass -> dest) ──
       if (!workletNodeRef.current) {
         await ctx.audioWorklet.addModule("/worklets/vocex-worklet.js");
         setIsWorkletLoaded(true);
@@ -133,21 +128,6 @@ export function useWienerFilter({
         analyser.smoothingTimeConstant = 0.6;
         analyserRef.current = analyser;
         freqDataRef.current = new Uint8Array(analyser.frequencyBinCount);
-
-        // Create or retrieve cached MediaElementSourceNode
-        let source = sourceNodeCache.get(videoEl);
-        if (!source) {
-          try {
-            source = ctx.createMediaElementSource(videoEl);
-            sourceNodeCache.set(videoEl, source);
-          } catch (e: any) {
-            console.warn("[useWienerFilter] MediaElementSource creation warning:", e);
-          }
-        }
-        sourceNodeRef.current = source || null;
-
-        const activeSourceNode = sourceNodeRef.current;
-        if (!activeSourceNode) throw new Error("Could not create MediaElementSourceNode.");
 
         // Create Worklet Node
         const workletNode = new AudioWorkletNode(ctx, "vocex-processor", {
@@ -181,16 +161,44 @@ export function useWienerFilter({
         bypassGain.gain.value = 0.0;
         bypassGainRef.current = bypassGain;
 
-        // Routing:
-        // Filtered: activeSourceNode -> worklet -> gainNode -> analyser -> destination
-        activeSourceNode.connect(workletNode);
+        // Connect the fixed downstream chain (source node connected separately below)
+        // worklet -> gainNode -> analyser -> destination
         workletNode.connect(gainNode);
         gainNode.connect(analyser);
         analyser.connect(ctx.destination);
-
-        // Bypass: activeSourceNode -> bypassGain -> destination
-        activeSourceNode.connect(bypassGain);
+        // bypass -> destination
         bypassGain.connect(ctx.destination);
+      }
+
+      // ── Always reconnect source node (handles channel/video element switches) ──
+      const workletNode = workletNodeRef.current;
+      const bypassGain = bypassGainRef.current;
+      if (workletNode && bypassGain) {
+        // Disconnect old source if video element changed
+        if (videoChanged && sourceNodeRef.current) {
+          try { sourceNodeRef.current.disconnect(); } catch (_) {}
+          sourceNodeRef.current = null;
+        }
+
+        // Create or retrieve cached MediaElementSourceNode
+        let source = sourceNodeCache.get(videoEl);
+        if (!source) {
+          try {
+            source = ctx.createMediaElementSource(videoEl);
+            sourceNodeCache.set(videoEl, source);
+          } catch (e: any) {
+            console.warn("[useWienerFilter] MediaElementSource creation warning:", e);
+          }
+        }
+        sourceNodeRef.current = source || null;
+
+        const activeSourceNode = sourceNodeRef.current;
+        if (!activeSourceNode) throw new Error("Could not create MediaElementSourceNode.");
+
+        // Reconnect source into both branches (safe to re-connect)
+        try { activeSourceNode.disconnect(); } catch (_) {}
+        activeSourceNode.connect(workletNode);
+        activeSourceNode.connect(bypassGain);
       }
 
       return true;

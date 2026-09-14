@@ -6,7 +6,8 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Play, Clock, Bookmark, Share2, Check, ExternalLink } from "lucide-react";
+import { Play, Clock, Bookmark, Share2, Check, ExternalLink, Trash2 } from "lucide-react";
+import { useSession } from "@/lib/auth-client";
 
 interface NewsCardProps {
   news: {
@@ -26,6 +27,7 @@ interface NewsCardProps {
   };
   isSaved?: boolean;
   onToggleSave?: () => void;
+  onDelete?: (id: string) => void;
 }
 
 // Fallback image helper
@@ -46,19 +48,56 @@ const cleanMarkdown = (text: string) => {
     .trim();
 };
 
-const NewsCard = ({ news, isSaved = false, onToggleSave }: NewsCardProps) => {
+const NewsCard = ({ news, isSaved = false, onToggleSave, onDelete }: NewsCardProps) => {
   const router = useRouter();
+  const { data: sessionData } = useSession();
+  const isAdmin = (sessionData?.user as any)?.role === "admin";
+
   const [isCopied, setIsCopied] = React.useState(false);
+  const [isDeleting, setIsDeleting] = React.useState(false);
+  const [isDeleted, setIsDeleted] = React.useState(false);
+
   const cardImage = news.imageUrl || (news as any).image_url || getPlaceholderImage(news.category);
+
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!confirm("Are you sure you want to permanently delete this news article?")) return;
+
+    // 1. Optimistic UI update: vanish instantly from DOM
+    setIsDeleted(true);
+    onDelete?.(news.id);
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("article-deleted", { detail: { id: news.id } }));
+    }
+
+    try {
+      const res = await fetch(`/api/news?id=${news.id}`, { method: "DELETE" });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        console.error("Delete failed:", json.error);
+        setIsDeleted(false);
+        alert(json.error || "Failed to delete article");
+      }
+    } catch (err) {
+      console.error("Delete failed:", err);
+      setIsDeleted(false);
+    }
+  };
+
+  if (isDeleted) return null;
 
   const handlePlayAudio = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
 
+    const isArabic =
+      typeof document !== "undefined" &&
+      (document.cookie.includes("googtrans=/bn/ar") || localStorage.getItem("kahf-language") === "AR");
     const isEnglish =
       typeof document !== "undefined" &&
       (document.cookie.includes("googtrans=/bn/en") || localStorage.getItem("kahf-language") === "EN");
-    const preferredLang = isEnglish ? "EN" : "BN";
+    const preferredLang = isArabic ? "AR" : isEnglish ? "EN" : "BN";
 
     const event = new CustomEvent("play-audio", {
       detail: {
@@ -227,6 +266,19 @@ const NewsCard = ({ news, isSaved = false, onToggleSave }: NewsCardProps) => {
               >
                 {isCopied ? <Check className="w-4 h-4 text-primary" /> : <Share2 className="w-4 h-4" />}
               </motion.button>
+              {isAdmin && (
+                <motion.button
+                  className="p-2 transition-colors rounded-full hover:bg-red-500/15 text-muted-foreground hover:text-red-500 cursor-pointer"
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  aria-label="Delete News Article"
+                  title="সংবাদ মুছে ফেলুন (Admin Delete)"
+                  onClick={handleDelete}
+                  disabled={isDeleting}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </motion.button>
+              )}
             </div>
           </div>
         </div>
