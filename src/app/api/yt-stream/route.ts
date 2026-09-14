@@ -15,8 +15,8 @@ export async function GET(request: NextRequest) {
   }
 
   if (!videoId) {
-    return NextResponse.json({ 
-      error: "Missing 'v' (YouTube Video ID) or 'url' parameter" 
+    return NextResponse.json({
+      error: "Missing 'v' (YouTube Video ID) or 'url' parameter"
     }, { status: 400 });
   }
 
@@ -77,22 +77,22 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Real 24/7 Live News stream fallback if live video is restricted by YouTube region/bot block
     return NextResponse.json({
       success: true,
-      isLive: true,
-      streamUrl: "https://tvsen5.aynaott.com/somoytv/index.m3u8",
-      type: "hls",
-      note: "Live TV stream active"
+      isYouTube: true,
+      videoId,
+      embedUrl: `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&enablejsapi=1&playsinline=1&rel=0`,
+      type: "youtube"
     });
 
   } catch (error: any) {
     console.error("[yt-stream] Error:", error);
     return NextResponse.json({
       success: true,
-      streamUrl: "https://tvsen5.aynaott.com/somoytv/index.m3u8",
-      type: "hls",
-      note: "Live TV stream active"
+      isYouTube: true,
+      videoId,
+      embedUrl: `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&enablejsapi=1&playsinline=1&rel=0`,
+      type: "youtube"
     });
   }
 }

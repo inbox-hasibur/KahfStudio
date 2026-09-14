@@ -476,20 +476,29 @@ export async function GET(req: NextRequest) {
         return;
       }
 
-      // If Country is "All", interleave BD and Global candidates so both Bangladeshi and international news are proportionally scraped
+      // If Country is "All", interleave candidates across ALL countries (BD, GLOBAL, UK, SA) so all regions are proportionally scraped
       if (targetCountry === "All") {
-        const bdCandidates = newCandidates.filter((c) => (c.country || "BD") === "BD");
-        const globalCandidates = newCandidates.filter((c) => c.country === "GLOBAL");
+        const countryGroups: Record<string, typeof newCandidates> = {};
+        for (const c of newCandidates) {
+          const cCode = (c.country || "BD").toUpperCase();
+          if (!countryGroups[cCode]) countryGroups[cCode] = [];
+          countryGroups[cCode].push(c);
+        }
 
-        if (bdCandidates.length > 0 && globalCandidates.length > 0) {
+        const distinctCountries = Object.keys(countryGroups);
+        if (distinctCountries.length > 1) {
           const balancedList: typeof newCandidates = [];
-          const maxCount = Math.max(bdCandidates.length, globalCandidates.length);
+          const maxCount = Math.max(...distinctCountries.map((k) => countryGroups[k].length));
           for (let i = 0; i < maxCount; i++) {
-            if (i < bdCandidates.length) balancedList.push(bdCandidates[i]);
-            if (i < globalCandidates.length) balancedList.push(globalCandidates[i]);
+            for (const cCode of distinctCountries) {
+              if (i < countryGroups[cCode].length) {
+                balancedList.push(countryGroups[cCode][i]);
+              }
+            }
           }
           newCandidates = balancedList;
-          await sendLog(`  ⚖️ Balanced candidate pool: ${bdCandidates.length} BD + ${globalCandidates.length} Global candidates interleaved.`);
+          const summary = distinctCountries.map((k) => `${countryGroups[k].length} ${k}`).join(" + ");
+          await sendLog(`  ⚖️ Balanced candidate pool: Round-robin interleaved across all countries (${summary}).`);
         }
       }
 
@@ -582,6 +591,31 @@ Return valid JSON:
               return null;
             })
             .filter(Boolean) as typeof newCandidates;
+
+          // If Country is "All", round-robin interleave the approved candidates by country so every country is ingested
+          if (targetCountry === "All" && candidateQueue.length > 1) {
+            const approvedByCountry: Record<string, typeof candidateQueue> = {};
+            for (const c of candidateQueue) {
+              const cCode = (c.country || "BD").toUpperCase();
+              if (!approvedByCountry[cCode]) approvedByCountry[cCode] = [];
+              approvedByCountry[cCode].push(c);
+            }
+            const activeCountries = Object.keys(approvedByCountry);
+            if (activeCountries.length > 1) {
+              const reordered: typeof candidateQueue = [];
+              const maxC = Math.max(...activeCountries.map((k) => approvedByCountry[k].length));
+              for (let i = 0; i < maxC; i++) {
+                for (const cCode of activeCountries) {
+                  if (i < approvedByCountry[cCode].length) {
+                    reordered.push(approvedByCountry[cCode][i]);
+                  }
+                }
+              }
+              candidateQueue = reordered;
+              const reorderSummary = activeCountries.map((k) => `${approvedByCountry[k].length} ${k}`).join(", ");
+              await sendLog(`  ⚖️ Ingestion Queue Reordered: Multi-country round-robin distribution (${reorderSummary}).`);
+            }
+          }
 
           await sendLog(`✅ Gemini Halal Gatekeeper: ${candidateQueue.length} approved candidate(s) queued for ingestion.`);
         } else {

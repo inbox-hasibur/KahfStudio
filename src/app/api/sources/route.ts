@@ -74,13 +74,18 @@ export async function POST(req: Request) {
       ];
 
       const globalSources = [
+        // 8 Common Global News RSS Feeds
         { name: "BBC News (World)", url: "https://feeds.bbci.co.uk/news/world/rss.xml", category: "World", country: "GLOBAL", is_active: true },
         { name: "Al Jazeera English", url: "https://www.aljazeera.com/xml/rss/all.xml", category: "World", country: "GLOBAL", is_active: true },
-        { name: "Reuters (World News)", url: "https://reutersagency.com", category: "World", country: "GLOBAL", is_active: true },
+        { name: "The Guardian (World)", url: "https://www.theguardian.com/world/rss", category: "World", country: "GLOBAL", is_active: true },
         { name: "CNN (World)", url: "http://rss.cnn.com/rss/edition_world.rss", category: "World", country: "GLOBAL", is_active: true },
         { name: "The New York Times (World)", url: "https://rss.nytimes.com/services/xml/rss/nyt/World.xml", category: "World", country: "GLOBAL", is_active: true },
-        { name: "Deutsche Welle (DW World)", url: "https://rss.dw.com/rdf/rss-en-world", category: "World", country: "GLOBAL", is_active: true },
-        { name: "NPR News (World)", url: "https://feeds.npr.org/1004/rss.xml", category: "World", country: "GLOBAL", is_active: true }
+        { name: "Deutsche Welle (DW World)", url: "https://rss.dw.com/xml/rss-en-world", category: "World", country: "GLOBAL", is_active: true },
+        { name: "France 24 (World)", url: "https://www.france24.com/en/rss", category: "World", country: "GLOBAL", is_active: true },
+        { name: "NPR News (World)", url: "https://feeds.npr.org/1004/rss.xml", category: "World", country: "GLOBAL", is_active: true },
+        // 2 Global News Web Sources without direct RSS (HTML / Jina extraction fallback)
+        { name: "Reuters (World News - Web)", url: "https://www.reuters.com/world/", category: "World", country: "GLOBAL", is_active: true },
+        { name: "Associated Press (AP News - Web)", url: "https://apnews.com/world-news", category: "World", country: "GLOBAL", is_active: true }
       ];
 
       const ukSources = [

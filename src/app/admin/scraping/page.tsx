@@ -1597,19 +1597,21 @@ export default function AdminScrapingPage() {
                               <div className="flex items-center justify-end gap-1">
                                 <Button
                                   variant="ghost"
-                                  size="sm"
+                                  size="icon"
                                   onClick={() => handleStartEditMedia(ch)}
-                                  className="h-6 px-2 text-primary hover:text-primary hover:bg-primary/10 text-[11px] cursor-pointer"
+                                  className="h-7 w-7 text-primary hover:text-primary hover:bg-primary/10 cursor-pointer"
+                                  title="Edit channel"
                                 >
-                                  <Edit2 className="w-3 h-3 mr-1" /> Edit
+                                  <Edit2 className="w-3.5 h-3.5" />
                                 </Button>
                                 <Button
                                   variant="ghost"
-                                  size="sm"
+                                  size="icon"
                                   onClick={() => handleRemoveMedia(ch.id, false)}
-                                  className="h-6 px-2 text-red-500 hover:text-red-600 hover:bg-red-500/10 text-[11px] cursor-pointer"
+                                  className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-500/10 cursor-pointer"
+                                  title="Remove channel"
                                 >
-                                  <Trash2 className="w-3 h-3 mr-1" /> Remove
+                                  <Trash2 className="w-3.5 h-3.5" />
                                 </Button>
                               </div>
                             </td>
@@ -1802,19 +1804,21 @@ export default function AdminScrapingPage() {
                               <div className="flex items-center justify-end gap-1">
                                 <Button
                                   variant="ghost"
-                                  size="sm"
+                                  size="icon"
                                   onClick={() => handleStartEditMedia(v)}
-                                  className="h-6 px-2 text-primary hover:text-primary hover:bg-primary/10 text-[11px] cursor-pointer"
+                                  className="h-7 w-7 text-primary hover:text-primary hover:bg-primary/10 cursor-pointer"
+                                  title="Edit video report"
                                 >
-                                  <Edit2 className="w-3 h-3 mr-1" /> Edit
+                                  <Edit2 className="w-3.5 h-3.5" />
                                 </Button>
                                 <Button
                                   variant="ghost"
-                                  size="sm"
+                                  size="icon"
                                   onClick={() => handleRemoveMedia(v.id, true)}
-                                  className="h-6 px-2 text-red-500 hover:text-red-600 hover:bg-red-500/10 text-[11px] cursor-pointer"
+                                  className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-500/10 cursor-pointer"
+                                  title="Remove video report"
                                 >
-                                  <Trash2 className="w-3 h-3 mr-1" /> Remove
+                                  <Trash2 className="w-3.5 h-3.5" />
                                 </Button>
                               </div>
                             </td>

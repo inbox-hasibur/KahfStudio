@@ -11,11 +11,15 @@ export interface UseHalalMLEngineOptions {
 export interface UseHalalMLEngineReturn {
   isModelLoading: boolean;
   isModelReady: boolean;
+  isModelCached: boolean;
   mlPrimed: boolean;
+  mlBufferedSeconds: number;
+  mlPreprocessPercent: number;
   modelStatus: string;
   modelError: string | null;
   backend: string;
   modelProgress: number;
+  prepareModel: () => Promise<void>;
   initEngine: () => Promise<void>;
 }
 
@@ -25,8 +29,11 @@ export function useHalalMLEngine({
 }: UseHalalMLEngineOptions): UseHalalMLEngineReturn {
   const [isModelLoading, setIsModelLoading] = useState<boolean>(false);
   const [isModelReady, setIsModelReady] = useState<boolean>(false);
+  const [isModelCached, setIsModelCached] = useState<boolean>(false);
   const [mlPrimed, setMlPrimed] = useState<boolean>(false);
-  const [modelStatus, setModelStatus] = useState<string>("Standby");
+  const [mlBufferedSeconds, setMlBufferedSeconds] = useState<number>(0);
+  const [mlPreprocessPercent, setMlPreprocessPercent] = useState<number>(0);
+  const [modelStatus, setModelStatus] = useState<string>("Not Downloaded");
   const [modelError, setModelError] = useState<string | null>(null);
   const [backend, setBackend] = useState<string>("webgpu / wasm");
   const [modelProgress, setModelProgress] = useState<number>(0);
@@ -34,6 +41,29 @@ export function useHalalMLEngine({
   const workerRef = useRef<Worker | null>(null);
   const workletNodeRef = useRef<AudioWorkletNode | null>(workletNode);
   const watchdogTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Check if model exists in device Cache API on mount
+  useEffect(() => {
+    let isMounted = true;
+    const checkCache = async () => {
+      try {
+        if (typeof window !== "undefined" && typeof caches !== "undefined") {
+          const cache = await caches.open("kahf-model-cache-v1");
+          const matched = await cache.match("/models/vocals.onnx");
+          if (matched && isMounted) {
+            setIsModelCached(true);
+            setModelStatus("Cached on Device");
+            return;
+          }
+        }
+      } catch (_) {}
+      if (isMounted) {
+        setIsModelCached(false);
+      }
+    };
+    checkCache();
+    return () => { isMounted = false; };
+  }, []);
 
   // Clear watchdog timer helper
   const resetWatchdogTimer = useCallback(() => {
@@ -73,6 +103,7 @@ export function useHalalMLEngine({
         } else if (type === "MODEL_READY") {
           setIsModelLoading(false);
           setIsModelReady(true);
+          setIsModelCached(true);
           setBackend(payload);
           setModelStatus(`Ready (${payload})`);
           console.log("[Halal ML Engine] ONNX Model Ready:", payload);
@@ -176,6 +207,14 @@ export function useHalalMLEngine({
         if (workletNode) {
           workletNode.port.postMessage({ type: "ML_ALIGN_FORWARD" });
         }
+      } else if (data.type === "VOCEX_ML_BUFFER_PROGRESS") {
+        const bufSec = typeof data.bufferedSeconds === "number" ? data.bufferedSeconds : 0;
+        const pct = typeof data.percent === "number" ? data.percent : 0;
+        setMlBufferedSeconds(bufSec);
+        setMlPreprocessPercent(pct);
+        if (bufSec >= 2.0) {
+          setMlPrimed(true);
+        }
       } else if (data.type === "ML_CHUNK") {
         if (workerRef.current && isModelReady) {
           startWatchdogTimer();
@@ -237,12 +276,19 @@ export function useHalalMLEngine({
     };
   }, [workletNode, isModelReady]);
 
-  // Auto-init when enabled
+  // Prepare model on demand (user clicks 'Prepare Model for this Device')
+  const prepareModel = useCallback(async () => {
+    if (!workerRef.current) {
+      await initEngine();
+    }
+  }, [initEngine]);
+
+  // Auto-init only when enabled AND already cached on device
   useEffect(() => {
-    if (enabled && !workerRef.current) {
+    if (enabled && isModelCached && !workerRef.current) {
       initEngine();
     }
-  }, [enabled, initEngine]);
+  }, [enabled, isModelCached, initEngine]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -257,11 +303,15 @@ export function useHalalMLEngine({
   return {
     isModelLoading,
     isModelReady,
+    isModelCached,
     mlPrimed,
+    mlBufferedSeconds,
+    mlPreprocessPercent,
     modelStatus,
     modelError,
     backend,
     modelProgress,
+    prepareModel,
     initEngine
   };
 }

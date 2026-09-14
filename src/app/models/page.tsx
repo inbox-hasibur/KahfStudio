@@ -231,8 +231,17 @@ export default function AIModelsPage() {
                 </div>
               </CardContent>
               <CardFooter className="p-0 pt-2">
-                <Button className="w-full h-8 sm:h-9 text-xs sm:text-sm gap-2 font-bold bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl shadow-sm cursor-pointer">
-                  <Download className="w-3.5 h-3.5" /> Request Model Access
+                <Button 
+                  asChild
+                  className="w-full h-8 sm:h-9 text-xs sm:text-sm gap-2 font-bold bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl shadow-sm cursor-pointer"
+                >
+                  <a
+                    href="https://drive.google.com/drive/folders/1FPW1eXpQht-fWM3QsmvICc52d_TlU37W?usp=sharing"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <Download className="w-3.5 h-3.5" /> Download Model Weights (Google Drive)
+                  </a>
                 </Button>
               </CardFooter>
             </Card>
@@ -276,13 +285,16 @@ export default function AIModelsPage() {
               </CardContent>
               <CardFooter className="p-0 pt-2 flex gap-2">
                 <Button
-                  className="flex-1 h-8 sm:h-9 text-xs sm:text-sm font-semibold border-border hover:bg-muted text-foreground rounded-xl cursor-pointer"
-                  variant="outline"
+                  asChild
+                  className="w-full h-8 sm:h-9 text-xs sm:text-sm gap-1.5 font-bold bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl shadow-sm cursor-pointer"
                 >
-                  Demo Data
-                </Button>
-                <Button className="flex-1 h-8 sm:h-9 text-xs sm:text-sm gap-1.5 font-bold bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl shadow-sm cursor-pointer">
-                  <Download className="w-3.5 h-3.5" /> Get Dataset
+                  <a
+                    href="https://www.kaggle.com/datasets/inboxhasibur/natsep-audio-dataset-part-01"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <Database className="w-3.5 h-3.5" /> Get Kaggle Dataset (Part 01)
+                  </a>
                 </Button>
               </CardFooter>
             </Card>

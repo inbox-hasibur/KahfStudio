@@ -6,42 +6,48 @@
 class VocexProcessor extends AudioWorkletProcessor {
   constructor(options) {
     super();
-    
+
     const opts = options.processorOptions || {};
     this.mode = opts.mode || 'dsp'; // 'dsp' | 'ml' | 'bypass'
     this.mlVariant = opts.mlVariant || 'voice'; // 'voice' | 'nature'
     this.gainLinear = typeof opts.gainLinear === 'number' ? opts.gainLinear : 0.75;
-    
+
     // Sample Rate Calibration
     this.targetSampleRate = sampleRate || 48000;
-    
+
     // Exact ONNX Frame Length: N_FFT=7680, HOP=1024, DIM_T=256 -> j = 1024 * 255 = 261,120 samples
     this.chunkLen = 261120;
     this.hopLen = Math.round(this.targetSampleRate * 2.0); // 2.0s overlap-save hop
-    
+
+    // MDX-Net edge trim constants (from Vocex extension)
+    this.ML_EDGE = 3840; // N_FFT / 2 = 7680 / 2
+    this.ML_KEEP = this.chunkLen - 2 * this.ML_EDGE; // 253,440 clean center samples
+
     this.inputLeftAcc = new Float32Array(this.chunkLen);
     this.inputRightAcc = new Float32Array(this.chunkLen);
     this.accIndex = 0;
     this.chunkTag = 0;
-    
+    this.isFirstChunk = true;
+
     // Cushion Ring-Buffer for ML clean output
-    this.cushionCapacity = this.targetSampleRate * 15; // 15 seconds buffer
+    this.cushionCapacity = this.targetSampleRate * 30; // 30 seconds buffer
     this.cushionLeft = new Float32Array(this.cushionCapacity);
     this.cushionRight = new Float32Array(this.cushionCapacity);
     this.writePtr = 0;
     this.readPtr = 0;
     this.bufferedSamples = 0;
-    
+
     this.isMlReadySent = false;
     this.videoStartTime = 0;
     this.mlAlignMode = 'forward';
     this.statsFrameCount = 0;
+    this.progressFrameCount = 0;
 
     // Setup Port Message Receiver
     this.port.onmessage = (e) => {
       const data = e.data;
       if (!data) return;
-      
+
       if (data.type === 'ML_RESULT') {
         this.receiveCleanChunk(data.left, data.right, data.gen, data.adv, data.pos, data.abs, data.cg);
       } else if (data.type === 'UPDATE_SETTINGS' || data.type === 'SET_CONFIG') {
@@ -65,6 +71,8 @@ class VocexProcessor extends AudioWorkletProcessor {
       } else if (data.type === 'ML_FULL_RESET') {
         this.accIndex = 0;
         this.chunkTag = 0;
+        this.isFirstChunk = true;
+        this.isMlReadySent = false;
         this.writePtr = 0;
         this.readPtr = 0;
         this.bufferedSamples = 0;
@@ -75,24 +83,55 @@ class VocexProcessor extends AudioWorkletProcessor {
       }
     };
   }
-  
+
   receiveCleanChunk(leftPCM, rightPCM, gen, adv, pos, abs, cg) {
     if (!leftPCM || !rightPCM) return;
-    
-    const len = leftPCM.length;
-    for (let i = 0; i < len; i++) {
-      this.cushionLeft[this.writePtr] = leftPCM[i];
-      this.cushionRight[this.writePtr] = rightPCM[i];
-      this.writePtr = (this.writePtr + 1) % this.cushionCapacity;
+
+    const left = leftPCM instanceof Float32Array ? leftPCM : new Float32Array(leftPCM);
+    const right = rightPCM instanceof Float32Array ? rightPCM : new Float32Array(rightPCM);
+
+    let start = 0;
+    let take = 0;
+
+    if (this.isFirstChunk) {
+      // First chunk: write the clean center (skipping degraded window edges)
+      start = this.ML_EDGE;
+      take = Math.min(this.ML_KEEP, left.length - this.ML_EDGE * 2);
+      this.isFirstChunk = false;
+    } else {
+      // Subsequent chunks: take exactly the newly advanced samples (contiguous, no overlap)
+      const requestedAdv = (typeof adv === 'number' && adv > 0) ? adv : this.hopLen;
+      take = Math.min(requestedAdv, this.ML_KEEP, left.length - this.ML_EDGE);
+      start = this.chunkLen - this.ML_EDGE - take;
     }
-    this.bufferedSamples = Math.min(this.cushionCapacity, this.bufferedSamples + len);
+
+    if (take > 0 && start >= 0) {
+      for (let i = 0; i < take; i++) {
+        this.cushionLeft[this.writePtr] = left[start + i];
+        this.cushionRight[this.writePtr] = right[start + i];
+        this.writePtr = (this.writePtr + 1) % this.cushionCapacity;
+      }
+      this.bufferedSamples = Math.min(this.cushionCapacity, this.bufferedSamples + take);
+    }
+
     if (typeof gen !== 'undefined') this.lastGen = gen;
     if (typeof adv !== 'undefined') this.lastAdv = adv;
     if (typeof pos !== 'undefined') this.lastPos = pos;
     if (typeof abs !== 'undefined') this.lastAbs = abs;
     if (typeof cg !== 'undefined') this.lastCg = cg;
 
-    if (!this.isMlReadySent) {
+    // Report immediate buffer progress
+    const bufferedSec = this.bufferedSamples / this.targetSampleRate;
+    const pct = Math.min(100, Math.round((bufferedSec / 5.0) * 100));
+    this.port.postMessage({
+      type: 'VOCEX_ML_BUFFER_PROGRESS',
+      bufferedSamples: this.bufferedSamples,
+      bufferedSeconds: bufferedSec,
+      percent: pct
+    });
+
+    // Ready signal when buffer has at least 2.0s clean audio cushion
+    if (!this.isMlReadySent && bufferedSec >= 2.0) {
       this.isMlReadySent = true;
       this.port.postMessage({ type: 'VOCEX_ML_READY' });
     }
@@ -139,7 +178,7 @@ class VocexProcessor extends AudioWorkletProcessor {
         right: this.inputRightAcc.slice(),
         tag: this.chunkTag,
         gen: this.lastGen || 0,
-        adv: this.lastAdv || 0,
+        adv: this.hopLen,
         pos: this.lastPos || 0,
         abs: this.lastAbs || 0,
         cg: this.lastCg || 0,
@@ -154,7 +193,7 @@ class VocexProcessor extends AudioWorkletProcessor {
       this.accIndex = shift;
     }
 
-    // Mode 2: ML Deep Learning Mode (MDX-Net / Bandit-v2 separated stream)
+    // Mode 2: ML Deep Learning Mode (MDX-Net / Bandit-v2 clean stream)
     if (this.mode === 'ml' && this.bufferedSamples >= numSamples) {
       for (let i = 0; i < numSamples; i++) {
         outL[i] = this.cushionLeft[this.readPtr] * this.gainLinear;
@@ -163,7 +202,8 @@ class VocexProcessor extends AudioWorkletProcessor {
       }
       this.bufferedSamples -= numSamples;
     } else {
-      // Mode 3: 0ms Real-Time Mid/Side Wiener Filter (DSP Mode or ML Warmup Fallback)
+      // Mode 3 (or ML buffering fallback): 0ms Real-Time Mid/Side Wiener Filter (DSP Mode)
+      // Guarantees speech clarity, suppresses stereo background music, and prevents any audio leak!
       for (let i = 0; i < numSamples; i++) {
         const left = inL[i];
         const right = inR[i];
@@ -182,7 +222,21 @@ class VocexProcessor extends AudioWorkletProcessor {
       }
     }
 
-    // Action 25B: Periodically post VOCEX_STATS with voice RMS level for nature bed gain ducking
+    // Periodically post buffer progress for YouTube-style white buffer bar
+    this.progressFrameCount++;
+    if (this.progressFrameCount >= 25) {
+      this.progressFrameCount = 0;
+      const bufferedSec = this.bufferedSamples / this.targetSampleRate;
+      const pct = Math.min(100, Math.round((bufferedSec / 5.0) * 100));
+      this.port.postMessage({
+        type: 'VOCEX_ML_BUFFER_PROGRESS',
+        bufferedSamples: this.bufferedSamples,
+        bufferedSeconds: bufferedSec,
+        percent: pct
+      });
+    }
+
+    // Periodically post VOCEX_STATS with voice RMS level for nature bed gain ducking
     this.statsFrameCount++;
     if (this.statsFrameCount >= 25) {
       this.statsFrameCount = 0;
