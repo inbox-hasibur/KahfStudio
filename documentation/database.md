@@ -109,18 +109,38 @@ Manages user membership tier status and transaction logs.
   - Fields: `transaction_id`, `amount`, `status`, `payment_provider` (`'bkash'`, `'stripe'`, etc.).
 
 #### 7. `media_channels`
-IPTV channels catalogue for Kahf Media streaming module.
+IPTV and streaming video channels catalogue for Kahf Media module.
 - Primary Key: `id` (`uuid`, default `gen_random_uuid()`)
-- Fields: `title`, `url` (m3u8/stream link), `thumbnail`, `category`, `duration`, `description`, `created_at`.
+- Fields:
+  - `title` (`text`, required): Channel / Video display name.
+  - `url` (`text`, required): Stream URL (M3U8 HLS link or YouTube watch/embed URL).
+  - `thumbnail` (`text`, required): Channel banner / preview thumbnail URL.
+  - `category` (`text`): Media category (`'News'`, `'Entertainment'`, `'Sports'`, etc.).
+  - `duration` (`text`): Runtime duration or `'LIVE'`.
+  - `description` (`text`): Channel synopsis / metadata.
+  - `type` (`text`, default `'iptv'`): Media type classification (`'iptv'`, `'video'`).
+  - `stream_type` (`text`, default `'youtube'`): Stream format (`'youtube'`, `'hls'`).
+  - `country` (`text`, default `'BD'`): Country origin code (`'BD'`, `'GLOBAL'`).
+  - `is_active` (`boolean`, default `true`): Availability flag.
+  - `created_at` (`timestamptz`, default `now()`): Record creation timestamp.
 
 #### 8. `vod_library`
 Video-on-Demand items prepared for Halal Mode (vocal extraction / background music removal).
 - Primary Key: `id` (`uuid`, default `gen_random_uuid()`), FK: `admin_id` -> `profiles(id)`
 - Fields: `title`, `original_video_url`, `clean_audio_url`, `processing_status` (`'pending'`, `'completed'`, `'failed'`), `created_at`.
 
-#### 9. `scraping_logs` & `saved_articles`
-- `scraping_logs`: Internal log table capturing scraper events and error tracebacks (`id`, `message`, `created_at`).
-- `saved_articles`: User bookmarking join table (`id`, `user_id` + `news_id`, `created_at`).
+#### 9. `saved_articles`
+User bookmarking join table for saving news articles to personal reading lists.
+- Primary Key: `id` (`uuid`, default `gen_random_uuid()`)
+- Foreign Keys: `user_id` -> `profiles(id)`, `news_id` -> `news_articles(id)`
+- Fields: `created_at` (`timestamptz`, default `now()`).
+
+#### 10. `scraping_logs`
+System execution log table capturing scraper cron events, background fetch status, and error tracebacks.
+- Primary Key: `id` (`uuid`, default `gen_random_uuid()`)
+- Fields:
+  - `message` (`text`, required): Scraper execution status or error traceback.
+  - `created_at` (`timestamptz`, default `now()`): Ingestion log timestamp.
 
 ---
 
@@ -242,6 +262,10 @@ CREATE TABLE public.media_channels (
   duration text,
   description text,
   created_at timestamp with time zone DEFAULT now(),
+  type text DEFAULT 'iptv'::text,
+  stream_type text DEFAULT 'youtube'::text,
+  country text DEFAULT 'BD'::text,
+  is_active boolean DEFAULT true,
   CONSTRAINT media_channels_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.scraping_logs (
