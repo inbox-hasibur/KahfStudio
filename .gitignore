@@ -89,6 +89,8 @@ scratch/
 /documentation/figures/
 /documentation/vocex-v1.0.2/
 /documentation/vocex*/
+/documentation/halal_mode_implementation.md
+*.bak
 
 
 
