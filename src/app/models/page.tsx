@@ -7,7 +7,6 @@ import {
   Download,
   Database,
   Chrome,
-  Monitor,
   Terminal,
   Layers,
   ArrowRight,
@@ -24,41 +23,6 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
-const WindowsIcon = () => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="20"
-    height="20"
-    viewBox="0 0 24 24"
-    fill="currentColor"
-  >
-    <path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.9-1.801" />
-  </svg>
-);
-
-const MacIcon = () => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="20"
-    height="20"
-    viewBox="0 0 24 24"
-    fill="currentColor"
-  >
-    <path d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.56-1.702z" />
-  </svg>
-);
-
-const LinuxIcon = () => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="20"
-    height="20"
-    viewBox="0 0 24 24"
-    fill="currentColor"
-  >
-    <path d="M11.97 22.036c-1.897 0-3.153-1.054-4.04-1.708-.475-.353-.615-.472-.615-.472s-.42.062-.835.347c-.896.61-2.158 1.47-3.376.602-1.396-.995.143-3.61.143-3.61s-2.008-1.547-2.03-3.882c-.015-1.57.945-2.585 1.614-3.179-.537-2.154-1.442-5.748 1.03-8.291 1.848-1.898 4.417-1.83 5.46-1.83 1.042 0 3.611-.067 5.46 1.83 2.472 2.543 1.566 6.137 1.03 8.29.667.595 1.628 1.61 1.613 3.18-.023 2.335-2.03 3.881-2.03 3.881s1.538 2.615.143 3.61c-1.218.868-2.48.008-3.376-.602-.415-.285-.835-.347-.835-.347s-.14.12-.615.472c-.887.654-2.143 1.708-4.04 1.708" />
-  </svg>
-);
 
 export default function AIModelsPage() {
   return (
@@ -193,7 +157,7 @@ export default function AIModelsPage() {
         </h2>
 
         {/* Downloads Grid (Synced Proportions and Spacing) */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 lg:gap-5 relative z-10">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 lg:gap-5 relative z-10">
           {/* Raw Model */}
           <div>
             <Card className="h-full bg-card border-border hover:border-primary/40 transition-all shadow-sm hover:shadow-md rounded-2xl flex flex-col justify-between p-4 sm:p-5">
@@ -317,76 +281,24 @@ export default function AIModelsPage() {
               <CardContent className="p-0 mb-4">
                 <p className="text-muted-foreground text-xs sm:text-sm leading-relaxed">
                   Seamlessly integrates with your browser. Uses our lightweight
-                  WebAssembly model to process audio locally, ensuring privacy
-                  and zero latency on YouTube, Spotify, and more.
+                  neural audio model to eliminate background music while keeping human vocals intact,
+                  ensuring clean and Halal audio playback on YouTube, news feeds, and video players.
                 </p>
               </CardContent>
               <CardFooter className="p-0 pt-2">
-                <Button className="w-full h-8 sm:h-9 text-xs sm:text-sm gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-xl shadow-sm cursor-pointer">
-                  <Chrome className="w-3.5 h-3.5" /> Add to Chrome (Free)
+                <Button
+                  asChild
+                  className="w-full h-8 sm:h-9 text-xs sm:text-sm gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-xl shadow-sm cursor-pointer"
+                >
+                  <a
+                    href="https://drive.google.com/file/d/1ByDT0MjRrhl4acrN6CNd9Y9iDULcHYOm/view?usp=sharing"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <Chrome className="w-3.5 h-3.5" /> Download Extension (.zip)
+                  </a>
                 </Button>
               </CardFooter>
-            </Card>
-          </div>
-
-          {/* Desktop App */}
-          <div>
-            <Card className="h-full bg-card border-border hover:border-primary/40 transition-all shadow-sm hover:shadow-md rounded-2xl flex flex-col justify-between p-4 sm:p-5">
-              <CardHeader className="p-0 mb-3">
-                <div className="w-9 h-9 sm:w-10 sm:h-10 bg-purple-500/10 text-purple-500 rounded-xl flex items-center justify-center mb-2.5 sm:mb-3">
-                  <Monitor className="w-4 h-4 sm:w-5 sm:h-5" />
-                </div>
-                <CardTitle className="text-sm sm:text-base md:text-lg font-bold text-foreground">
-                  Kahf Sound Remover App
-                </CardTitle>
-                <CardDescription className="text-xs sm:text-[13px] text-muted-foreground mt-0.5">
-                  Native desktop application for bulk audio processing.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="p-0 mb-4">
-                <p className="text-muted-foreground text-xs sm:text-sm leading-relaxed mb-3">
-                  Available for Windows, macOS, and Linux. Process gigabytes of
-                  audio using your system's GPU for maximum performance.
-                </p>
-                <div className="grid grid-cols-3 gap-2 sm:gap-2.5">
-                  <Button
-                    variant="outline"
-                    className="group flex flex-col h-auto py-2 px-1 gap-1.5 border-border hover:bg-primary/10 hover:border-primary/30 hover:text-primary transition-all rounded-xl cursor-pointer"
-                  >
-                    <WindowsIcon />
-                    <div className="flex flex-col items-center">
-                      <span className="font-bold text-[11px] sm:text-xs">Windows</span>
-                      <span className="text-[9px] text-muted-foreground group-hover:text-primary/70 transition-colors">
-                        .exe
-                      </span>
-                    </div>
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="group flex flex-col h-auto py-2 px-1 gap-1.5 border-border hover:bg-primary/10 hover:border-primary/30 hover:text-primary transition-all rounded-xl cursor-pointer"
-                  >
-                    <MacIcon />
-                    <div className="flex flex-col items-center">
-                      <span className="font-bold text-[11px] sm:text-xs">Mac</span>
-                      <span className="text-[9px] text-muted-foreground group-hover:text-primary/70 transition-colors">
-                        .dmg
-                      </span>
-                    </div>
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="group flex flex-col h-auto py-2 px-1 gap-1.5 border-border hover:bg-primary/10 hover:border-primary/30 hover:text-primary transition-all rounded-xl cursor-pointer"
-                  >
-                    <LinuxIcon />
-                    <div className="flex flex-col items-center">
-                      <span className="font-bold text-[11px] sm:text-xs">Linux</span>
-                      <span className="text-[9px] text-muted-foreground group-hover:text-primary/70 transition-colors">
-                        .AppImage
-                      </span>
-                    </div>
-                  </Button>
-                </div>
-              </CardContent>
             </Card>
           </div>
         </div>
