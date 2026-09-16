@@ -43,7 +43,7 @@ export async function POST(req: Request) {
       // We don't fail here since payment was successful, maybe just log it
     }
     
-    // Also update public profiles table if it exists (assuming it does since admin/users queries it)
+    // Also update public profiles table if it exists
     const { error: profileError } = await supabase
       .from('profiles')
       .update({ tier: 'premium' })
@@ -51,6 +51,36 @@ export async function POST(req: Request) {
       
     if (profileError) {
        console.error('Error updating profile tier:', profileError);
+    }
+
+    // Insert active subscription record
+    const isAnnual = (session.amount_total || 0) >= 1000;
+    const plan_type = isAnnual ? 'premium_yearly' : 'premium_monthly';
+    const valid_until = new Date();
+    if (isAnnual) valid_until.setFullYear(valid_until.getFullYear() + 1);
+    else valid_until.setMonth(valid_until.getMonth() + 1);
+
+    const { data: subData } = await supabase.from('subscriptions').insert({
+      user_id: userId,
+      plan_type: plan_type,
+      status: 'active',
+      auto_renew: true,
+      valid_until: valid_until.toISOString()
+    }).select('id').maybeSingle();
+
+    // Record invoice in payment_invoices
+    try {
+      const transactionId = (typeof session.payment_intent === 'string' ? session.payment_intent : session.id) || `STRIPE_${Date.now()}`;
+      await supabase.from('payment_invoices').insert({
+        user_id: userId,
+        subscription_id: subData?.id || null,
+        transaction_id: transactionId,
+        amount: (session.amount_total || 100) / 100,
+        status: 'paid',
+        payment_provider: 'stripe',
+      });
+    } catch (invErr) {
+      console.warn("Failed to insert Stripe payment invoice record:", invErr);
     }
 
     const invoice = session.invoice as Stripe.Invoice | null;

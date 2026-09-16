@@ -40,18 +40,51 @@ const NOISE_PATTERNS = [
 ];
 
 /**
- * Decodes standard HTML entities to plain characters
+ * Decodes standard, hex, and decimal HTML entities to plain characters (multi-pass for double-encoding)
  */
-function decodeHtmlEntities(text: string): string {
-  return text
-    .replace(/&nbsp;/gi, ' ')
-    .replace(/&amp;/gi, '&')
-    .replace(/&quot;/gi, '"')
-    .replace(/&#39;/gi, "'")
-    .replace(/&apos;/gi, "'")
-    .replace(/&lt;/gi, '<')
-    .replace(/&gt;/gi, '>')
-    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)));
+export function decodeHtmlEntities(text: string): string {
+  if (!text) return '';
+  let decoded = text;
+  // Multi-pass to handle double-escaped entities like &amp;#x99C;
+  for (let pass = 0; pass < 3; pass++) {
+    if (!decoded.includes('&')) break;
+    const prev = decoded;
+    decoded = decoded
+      .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => {
+        try {
+          return String.fromCodePoint(parseInt(hex, 16));
+        } catch {
+          return _;
+        }
+      })
+      .replace(/&#([0-9]+);/g, (_, dec) => {
+        try {
+          return String.fromCodePoint(parseInt(dec, 10));
+        } catch {
+          return _;
+        }
+      })
+      .replace(/&nbsp;/gi, ' ')
+      .replace(/&amp;/gi, '&')
+      .replace(/&quot;/gi, '"')
+      .replace(/&#39;/gi, "'")
+      .replace(/&apos;/gi, "'")
+      .replace(/&lt;/gi, '<')
+      .replace(/&gt;/gi, '>')
+      .replace(/&copy;/gi, '©')
+      .replace(/&reg;/gi, '®')
+      .replace(/&trade;/gi, '™')
+      .replace(/&ndash;/gi, '–')
+      .replace(/&mdash;/gi, '—')
+      .replace(/&lsquo;/gi, '‘')
+      .replace(/&rsquo;/gi, '’')
+      .replace(/&ldquo;/gi, '“')
+      .replace(/&rdquo;/gi, '”')
+      .replace(/&hellip;/gi, '…');
+
+    if (decoded === prev) break;
+  }
+  return decoded;
 }
 
 /**
@@ -59,9 +92,9 @@ function decodeHtmlEntities(text: string): string {
  * 1. Strips Jina metadata headers (Title:, URL Source:, Markdown Content:)
  * 2. Strips CDATA and RSS XML wrappers
  * 3. Strips HTML script/style/nav tags and comments
- * 4. Unescapes HTML entities
+ * 4. Unescapes HTML entities (hex, decimal, named)
  * 5. Removes markdown images, headings, empty links, and bold/italic markup
- * 6. Truncates text at section boundaries (comments, footer)
+ * 6. Truncates text at genuine end-of-article boundaries without cutting off on early captions
  * 7. Filters out advertisements, social buttons, and navigation fragments
  * 8. Reconstructs clean narrative body paragraphs
  */
@@ -88,15 +121,17 @@ export function cleanJinaMarkdown(rawContent: string): string {
     .replace(/<!--[\s\S]*?-->/g, ' ')
     .replace(/<[^>]+>/g, ' ');
 
-  // 2. Decode HTML entities
+  // 3. Decode HTML entities (handles &#x... hex, &#... decimal, &amp; etc.)
   text = decodeHtmlEntities(text);
 
-  // 3. Process line-by-line
+  // 4. Process line-by-line
   const lines = text.split('\n');
   const cleanParagraphs: string[] = [];
   const seenParagraphs = new Set<string>();
+  const totalLines = lines.length;
 
-  for (let line of lines) {
+  for (let lineIdx = 0; lineIdx < totalLines; lineIdx++) {
+    let line = lines[lineIdx];
     let trimmed = line.trim();
     if (!trimmed) continue;
 
@@ -134,8 +169,10 @@ export function cleanJinaMarkdown(rawContent: string): string {
     if (!trimmed) continue;
 
     // Check if this line marks the true end of the main article (comments, footer, copyright, tags)
+    // CRITICAL FIX: Only break if we are past 70% of the document or already have 5+ substantial paragraphs,
+    // otherwise inline copyright captions (like "ছবি: কপিরাইট গেটি ইমেজ") would terminate the whole article prematurely!
     if (SECTION_CUTOFF_PATTERNS.some((pattern) => pattern.test(trimmed))) {
-      if (cleanParagraphs.length > 2) {
+      if (cleanParagraphs.length >= 5 && lineIdx > totalLines * 0.6) {
         break;
       }
       continue;
@@ -151,8 +188,8 @@ export function cleanJinaMarkdown(rawContent: string): string {
       continue;
     }
 
-    // Ignore short fragments (< 18 chars) that do not end in sentence punctuation
-    if (trimmed.length < 18 && !/[।?!.]$/.test(trimmed)) {
+    // Ignore very short noise fragments (< 14 chars) unless ending with sentence punctuation
+    if (trimmed.length < 14 && !/[।?!."')\]]$/.test(trimmed)) {
       continue;
     }
 

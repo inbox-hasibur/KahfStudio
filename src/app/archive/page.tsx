@@ -1,40 +1,69 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import { useSession } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Archive as ArchiveIcon, ArrowLeft, Clock, Search, Calendar, Filter, Sparkles, Lock, LayoutGrid, List, Bookmark } from "lucide-react";
+import { 
+  Archive as ArchiveIcon, 
+  ArrowLeft, 
+  Search, 
+  Globe, 
+  Tag, 
+  Radio, 
+  Calendar, 
+  Sparkles, 
+  Lock, 
+  LayoutGrid, 
+  List, 
+  Bookmark, 
+  RotateCcw,
+  SlidersHorizontal
+} from "lucide-react";
 import NewsCard from "@/components/NewsCard";
 
 const getPlaceholderImage = (category: string) => {
   const cat = category?.toLowerCase() || 'news';
-  return `https://source.unsplash.com/800x600/?${cat},bangladesh`;
+  return `https://source.unsplash.com/800x600/?${cat},news`;
 };
 
 const containerVariants = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
-    transition: { staggerChildren: 0.1, delayChildren: 0.2 },
+    transition: { staggerChildren: 0.05, delayChildren: 0.1 },
   },
 };
 
 const itemVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.16, 1, 0.3, 1] } },
+  hidden: { opacity: 0, y: 15 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.16, 1, 0.3, 1] } },
 };
+
+function detectLanguage(headline: string, rawContent: string, country?: string): "bn" | "ar" | "en" {
+  const sample = `${headline || ""} ${rawContent?.slice(0, 300) || ""}`;
+  if (/[\u0600-\u06FF]/.test(sample)) return "ar";
+  if (/[\u0980-\u09FF]/.test(sample) || country?.toUpperCase() === "BD") return "bn";
+  return "en";
+}
 
 export default function ArchivePage() {
   const { data: session, status } = useSession();
   const userId = session?.user?.id;
   const isPremium = (session?.user as any)?.tier === "premium" || (session?.user as any)?.role === "admin";
   const router = useRouter();
+
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState<"general" | "personalized" | "saved">("general");
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
   const [savedIds, setSavedIds] = useState<string[]>([]);
+
+  // 4 Dedicated Filter Dropdowns
+  const [selectedLanguage, setSelectedLanguage] = useState<string>("all");
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [selectedSource, setSelectedSource] = useState<string>("all");
+  const [selectedDateRange, setSelectedDateRange] = useState<string>("all");
 
   const [articles, setArticles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,25 +71,30 @@ export default function ArchivePage() {
   React.useEffect(() => {
     async function fetchArchive() {
       try {
-        const res = await fetch("/api/news?limit=100");
+        const res = await fetch("/api/news?limit=200");
         const data = await res.json();
         if (data.success && data.data) {
-          const mapped = data.data.map((item: any) => ({
-            id: item.id,
-            title: item.headline,
-            summary: item.ai_summary || item.raw_content,
-            category: item.category || "General",
-            source: item.source || "KahfNews",
-            priority: "medium",
-            publishedAt: new Date(item.published_at || item.created_at).toLocaleDateString(),
-            imageUrl: item.image_url || getPlaceholderImage(item.category),
-            rawDate: new Date(item.published_at || item.created_at),
-            isPersonalized: item.is_personalized || item.type === 'personalized' || false,
-            audio_bn_full: item.audio_bn_full,
-            audio_bn_summary: item.audio_bn_summary,
-            audio_en_full: item.audio_en_full,
-            audio_en_summary: item.audio_en_summary,
-          }));
+          const mapped = data.data.map((item: any) => {
+            const lang = detectLanguage(item.headline, item.raw_content, item.country);
+            return {
+              id: item.id,
+              title: item.headline,
+              summary: item.ai_summary || item.raw_content,
+              category: item.category || "General",
+              source: item.source || "KahfNews",
+              country: item.country || "GLOBAL",
+              language: lang,
+              priority: "medium",
+              publishedAt: new Date(item.published_at || item.created_at).toLocaleDateString(),
+              imageUrl: item.image_url || getPlaceholderImage(item.category),
+              rawDate: new Date(item.published_at || item.created_at),
+              isPersonalized: item.is_personalized || item.type === 'personalized' || false,
+              audio_bn_full: item.audio_bn_full,
+              audio_bn_summary: item.audio_bn_summary,
+              audio_en_full: item.audio_en_full,
+              audio_en_summary: item.audio_en_summary,
+            };
+          });
           setArticles(mapped);
         }
       } catch (error) {
@@ -90,28 +124,28 @@ export default function ArchivePage() {
 
   React.useEffect(() => {
     if (status === "unauthenticated") {
-      router.push("/register"); // Or /login if it exists
+      router.push("/register");
     }
   }, [status, router]);
 
   const toggleSave = async (id: string) => {
     const isCurrentlySaved = savedIds.includes(id);
-    setSavedIds(prev => 
-      isCurrentlySaved ? prev.filter(savedId => savedId !== id) : [...prev, id]
+    setSavedIds((prev) =>
+      isCurrentlySaved ? prev.filter((savedId) => savedId !== id) : [...prev, id]
     );
 
     if (!userId) return;
 
     try {
       if (!isCurrentlySaved) {
-        await fetch('/api/bookmarks', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+        await fetch("/api/bookmarks", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ userId, newsId: id }),
         });
       } else {
         await fetch(`/api/bookmarks?userId=${userId}&newsId=${id}`, {
-          method: 'DELETE',
+          method: "DELETE",
         });
       }
     } catch (e) {
@@ -119,21 +153,97 @@ export default function ArchivePage() {
     }
   };
 
-  const filteredArchive = articles.filter(
-    (item) => {
-      const matchesSearch = item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                            item.category.toLowerCase().includes(searchQuery.toLowerCase());
-      if (!matchesSearch) return false;
+  // Distinct categories and sources from loaded articles
+  const availableCategories = useMemo(() => {
+    const set = new Set<string>();
+    articles.forEach((a) => {
+      if (a.category) set.add(a.category.trim());
+    });
+    return Array.from(set).sort();
+  }, [articles]);
 
+  const availableSources = useMemo(() => {
+    const set = new Set<string>();
+    articles.forEach((a) => {
+      if (a.source) set.add(a.source.trim());
+    });
+    return Array.from(set).sort();
+  }, [articles]);
+
+  const resetFilters = () => {
+    setSelectedLanguage("all");
+    setSelectedCategory("all");
+    setSelectedSource("all");
+    setSelectedDateRange("all");
+    setSearchQuery("");
+  };
+
+  const hasActiveFilters = 
+    selectedLanguage !== "all" || 
+    selectedCategory !== "all" || 
+    selectedSource !== "all" || 
+    selectedDateRange !== "all" || 
+    searchQuery.trim().length > 0;
+
+  // Filtered Archive
+  const filteredArchive = useMemo(() => {
+    const now = new Date().getTime();
+
+    return articles.filter((item) => {
+      // 1. Tab filter
       if (activeTab === "saved") {
-        return savedIds.includes(item.id);
+        if (!savedIds.includes(item.id)) return false;
       } else if (activeTab === "personalized") {
-        return !!item.isPersonalized;
+        if (!item.isPersonalized) return false;
       } else {
-        return !item.isPersonalized;
+        if (item.isPersonalized) return false;
       }
-    }
-  );
+
+      // 2. Search query
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const matches = 
+          item.title?.toLowerCase().includes(q) ||
+          item.category?.toLowerCase().includes(q) ||
+          item.source?.toLowerCase().includes(q) ||
+          item.summary?.toLowerCase().includes(q);
+        if (!matches) return false;
+      }
+
+      // 3. Language filter
+      if (selectedLanguage !== "all") {
+        if (item.language !== selectedLanguage) return false;
+      }
+
+      // 4. Category filter
+      if (selectedCategory !== "all") {
+        if (item.category?.toLowerCase() !== selectedCategory.toLowerCase()) return false;
+      }
+
+      // 5. Source filter
+      if (selectedSource !== "all") {
+        if (item.source?.toLowerCase() !== selectedSource.toLowerCase()) return false;
+      }
+
+      // 6. Date Range filter
+      if (selectedDateRange !== "all" && item.rawDate) {
+        const itemTime = new Date(item.rawDate).getTime();
+        const diffHours = (now - itemTime) / (1000 * 60 * 60);
+
+        if (selectedDateRange === "today") {
+          if (diffHours > 24) return false;
+        } else if (selectedDateRange === "week") {
+          if (diffHours > 24 * 7) return false;
+        } else if (selectedDateRange === "month") {
+          if (diffHours > 24 * 30) return false;
+        } else if (selectedDateRange === "older") {
+          if (diffHours <= 24 * 30) return false;
+        }
+      }
+
+      return true;
+    });
+  }, [articles, activeTab, savedIds, searchQuery, selectedLanguage, selectedCategory, selectedSource, selectedDateRange]);
 
   if (status === "loading" || status === "unauthenticated") {
     return (
@@ -145,7 +255,7 @@ export default function ArchivePage() {
 
   return (
     <motion.main
-      className="max-w-[1200px] mx-auto px-2.5 sm:px-6 pt-[72px] sm:pt-[84px] md:pt-[96px] pb-20 md:pb-28"
+      className="max-w-[1240px] mx-auto px-3 sm:px-6 pt-[72px] sm:pt-[84px] md:pt-[96px] pb-20 md:pb-28"
       initial="hidden"
       animate="visible"
       variants={containerVariants}
@@ -154,51 +264,63 @@ export default function ArchivePage() {
       <motion.div variants={itemVariants}>
         <Link
           href="/"
-          className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors mb-2.5 sm:mb-3.5 group"
+          className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors mb-3 sm:mb-4 group"
         >
           <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-1 transition-transform" />
           <span className="text-xs sm:text-[13px] font-semibold uppercase tracking-wider">Back to Feed</span>
         </Link>
       </motion.div>
 
-      {/* Header & Controls */}
-      <motion.div variants={itemVariants} className="mb-3 sm:mb-4 flex flex-col lg:flex-row lg:items-start justify-between gap-3 sm:gap-4">
+      {/* Header & View Controls */}
+      <motion.div variants={itemVariants} className="mb-4 sm:mb-6 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2.5 sm:gap-3 mb-2 sm:mb-3">
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/20 shrink-0">
-              <ArchiveIcon className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/20 shrink-0">
+              <ArchiveIcon className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-foreground">Archive</h1>
+              <h1 className="text-xl sm:text-2xl font-bold text-foreground">Archive Explorer</h1>
               <p className="text-muted-foreground text-xs sm:text-[13px]">
-                {articles.length} stories saved
+                {articles.length} total curated stories across Bangladesh, Global & Middle East
               </p>
             </div>
           </div>
-          <p className="text-xs sm:text-sm text-muted-foreground max-w-[500px] leading-relaxed">
-            Browse through our history of news coverage. Every story we've curated, saved for your reference.
+          <p className="text-xs sm:text-sm text-muted-foreground max-w-[600px] leading-relaxed">
+            Filter articles by language, category, news agency, and date to easily locate past coverage.
           </p>
         </div>
 
-        <div className="flex items-center justify-between sm:justify-start gap-2 sm:gap-3 w-full sm:w-auto">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           {/* Tabs */}
-          <div className="flex-1 sm:flex-initial flex items-center gap-1 p-1 bg-card border border-border rounded-xl">
+          <div className="flex items-center gap-1 p-1 bg-card border border-border rounded-xl shadow-xs">
             <button
               onClick={() => setActiveTab("general")}
-              className={`flex-1 sm:flex-initial px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-all ${activeTab === "general" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}
+              className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all ${
+                activeTab === "general" 
+                  ? "bg-primary text-primary-foreground shadow-sm" 
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
+              }`}
             >
               General
             </button>
             <button
               onClick={() => setActiveTab("personalized")}
-              className={`flex-1 sm:flex-initial px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-all flex items-center justify-center gap-1.5 ${activeTab === "personalized" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}
+              className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all flex items-center gap-1.5 ${
+                activeTab === "personalized" 
+                  ? "bg-primary text-primary-foreground shadow-sm" 
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
+              }`}
             >
               <Sparkles className="w-3.5 h-3.5" />
               Personalized
             </button>
             <button
               onClick={() => setActiveTab("saved")}
-              className={`flex-1 sm:flex-initial px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-all flex items-center justify-center gap-1.5 ${activeTab === "saved" ? "bg-amber-500 text-white shadow-sm font-bold" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}
+              className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all flex items-center gap-1.5 ${
+                activeTab === "saved" 
+                  ? "bg-amber-500 text-white shadow-sm font-semibold" 
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
+              }`}
             >
               <Bookmark className="w-3.5 h-3.5" fill={activeTab === "saved" ? "currentColor" : "none"} />
               Saved ({savedIds.length})
@@ -206,40 +328,173 @@ export default function ArchivePage() {
           </div>
 
           {/* View Toggles */}
-          <div className="flex items-center gap-1 p-1 bg-card border border-border rounded-xl">
+          <div className="flex items-center gap-1 p-1 bg-card border border-border rounded-xl shadow-xs">
             <button
               onClick={() => setViewMode("list")}
               className={`p-1.5 sm:p-2 rounded-lg transition-all ${viewMode === "list" ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}
               title="List View"
             >
-              <List className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <List className="w-4 h-4" />
             </button>
             <button
               onClick={() => setViewMode("grid")}
               className={`p-1.5 sm:p-2 rounded-lg transition-all ${viewMode === "grid" ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}
               title="Grid View"
             >
-              <LayoutGrid className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <LayoutGrid className="w-4 h-4" />
             </button>
           </div>
         </div>
       </motion.div>
 
-      {/* Search */}
-      <motion.div variants={itemVariants} className="mb-3 sm:mb-4">
+      {/* 4 Dedicated Dropdowns + Search Bar */}
+      <motion.div variants={itemVariants} className="mb-6 p-4 rounded-2xl bg-card/60 backdrop-blur-md border border-border shadow-xs space-y-3">
+        {/* Search Bar */}
         <div className="relative">
-          <Search className="absolute left-3.5 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input
             type="text"
-            placeholder="Search archive..."
-            className="w-full bg-card border border-border rounded-xl py-2.5 sm:py-3 pl-10 sm:pl-11 pr-4 text-xs sm:text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/40 transition-all shadow-sm"
+            placeholder="Search archive by headline, topic, or source..."
+            className="w-full bg-background border border-border rounded-xl py-2.5 pl-10 pr-4 text-xs sm:text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
+
+        {/* 4 Dropdown Filters Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {/* 1. Language / Edition Dropdown */}
+          <div className="space-y-1">
+            <label className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1.5">
+              <Globe className="w-3 h-3 text-primary" />
+              Language / Edition
+            </label>
+            <div className="relative">
+              <select
+                value={selectedLanguage}
+                onChange={(e) => setSelectedLanguage(e.target.value)}
+                className="w-full bg-background border border-border rounded-xl px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 appearance-none font-medium"
+              >
+                <option value="all">🌍 All Languages</option>
+                <option value="bn">🇧🇩 বাংলা (Bangladesh)</option>
+                <option value="en">🌐 English (Global & UK)</option>
+                <option value="ar">🇸🇦 العربية (Arabic)</option>
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5 text-muted-foreground text-xs">
+                ▼
+              </div>
+            </div>
+          </div>
+
+          {/* 2. Category Dropdown */}
+          <div className="space-y-1">
+            <label className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1.5">
+              <Tag className="w-3 h-3 text-primary" />
+              Category / Topic
+            </label>
+            <div className="relative">
+              <select
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                className="w-full bg-background border border-border rounded-xl px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 appearance-none font-medium capitalize"
+              >
+                <option value="all">📁 All Categories</option>
+                {availableCategories.map((cat) => (
+                  <option key={cat} value={cat}>
+                    {cat}
+                  </option>
+                ))}
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5 text-muted-foreground text-xs">
+                ▼
+              </div>
+            </div>
+          </div>
+
+          {/* 3. News Source Dropdown */}
+          <div className="space-y-1">
+            <label className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1.5">
+              <Radio className="w-3 h-3 text-primary" />
+              News Source
+            </label>
+            <div className="relative">
+              <select
+                value={selectedSource}
+                onChange={(e) => setSelectedSource(e.target.value)}
+                className="w-full bg-background border border-border rounded-xl px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 appearance-none font-medium"
+              >
+                <option value="all">📡 All Sources</option>
+                {availableSources.map((src) => (
+                  <option key={src} value={src}>
+                    {src}
+                  </option>
+                ))}
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5 text-muted-foreground text-xs">
+                ▼
+              </div>
+            </div>
+          </div>
+
+          {/* 4. Date Range Dropdown */}
+          <div className="space-y-1">
+            <label className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1.5">
+              <Calendar className="w-3 h-3 text-primary" />
+              Date Published
+            </label>
+            <div className="relative">
+              <select
+                value={selectedDateRange}
+                onChange={(e) => setSelectedDateRange(e.target.value)}
+                className="w-full bg-background border border-border rounded-xl px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 appearance-none font-medium"
+              >
+                <option value="all">🗓️ All Time</option>
+                <option value="today">⚡ Last 24 Hours</option>
+                <option value="week">📅 Past 7 Days</option>
+                <option value="month">📆 Past 30 Days</option>
+                <option value="older">⌛ Older than 1 Month</option>
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5 text-muted-foreground text-xs">
+                ▼
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Filter Summary & Reset Action */}
+        <div className="flex items-center justify-between pt-1 border-t border-border/40 text-xs text-muted-foreground">
+          <div>
+            Showing <span className="font-semibold text-foreground">{filteredArchive.length}</span> of {articles.length} articles
+            {selectedLanguage !== 'all' && (
+              <span className="ml-2 px-2 py-0.5 rounded-md bg-primary/10 text-primary font-semibold text-[11px]">
+                {selectedLanguage === 'bn' ? 'বাংলা' : selectedLanguage === 'en' ? 'English' : 'العربية'}
+              </span>
+            )}
+            {selectedCategory !== 'all' && (
+              <span className="ml-1.5 px-2 py-0.5 rounded-md bg-muted text-foreground font-semibold text-[11px] capitalize">
+                {selectedCategory}
+              </span>
+            )}
+            {selectedSource !== 'all' && (
+              <span className="ml-1.5 px-2 py-0.5 rounded-md bg-muted text-foreground font-semibold text-[11px]">
+                {selectedSource}
+              </span>
+            )}
+          </div>
+
+          {hasActiveFilters && (
+            <button
+              onClick={resetFilters}
+              className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors cursor-pointer"
+            >
+              <RotateCcw className="w-3 h-3" />
+              Reset Filters
+            </button>
+          )}
+        </div>
       </motion.div>
 
-      {/* Archive List / Grid (Synced Tight Spacing) */}
+      {/* Archive List / Grid */}
       <motion.div variants={containerVariants} className="space-y-4 relative">
         {activeTab === "personalized" && !isPremium ? (
           <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-background/60 backdrop-blur-sm rounded-xl py-20 border border-border/50">
@@ -258,7 +513,12 @@ export default function ArchivePage() {
 
         <div className={activeTab === "personalized" && !isPremium ? "opacity-30 pointer-events-none select-none blur-sm" : ""}>
           <div className={viewMode === "grid" ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-5" : "space-y-3 sm:space-y-3.5"}>
-            {filteredArchive.length > 0 ? (
+            {loading ? (
+              <div className="py-20 text-center col-span-full text-muted-foreground">
+                <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+                Loading archive articles...
+              </div>
+            ) : filteredArchive.length > 0 ? (
               filteredArchive.map((item) => (
                 <motion.div key={item.id} variants={itemVariants}>
                   <NewsCard 
@@ -273,10 +533,18 @@ export default function ArchivePage() {
                 <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-3">
                   <ArchiveIcon className="w-7 h-7 text-muted-foreground" />
                 </div>
-                <p className="text-foreground font-semibold mb-1 text-sm">No stories found</p>
-                <p className="text-muted-foreground text-xs">
-                  Try adjusting your search to find what you're looking for.
+                <p className="text-foreground font-semibold mb-1 text-sm">No stories match your criteria</p>
+                <p className="text-muted-foreground text-xs max-w-sm mx-auto mb-4">
+                  Try adjusting or clearing your filters (Language, Category, Source, or Date) to explore more archived stories.
                 </p>
+                {hasActiveFilters && (
+                  <button
+                    onClick={resetFilters}
+                    className="px-4 py-2 text-xs font-semibold bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity"
+                  >
+                    Reset All Filters
+                  </button>
+                )}
               </motion.div>
             )}
           </div>

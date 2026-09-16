@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import AudioPlayer from "@/components/AudioPlayer";
 import { useSession } from "@/lib/auth-client";
+import { decodeHtmlEntities } from "@/lib/scraper/cleaner";
 
 // Reliable fallback image when article has no cover image
 const getPlaceholderImage = (category?: string) => {
@@ -146,9 +147,9 @@ export default function NewsDetailPage() {
           const item = data.data;
           setNewsItem({
             id: item.id,
-            title: item.headline || item.title,
-            summary: item.ai_summary || item.summary || item.raw_content,
-            raw_content: item.raw_content || item.content,
+            title: decodeHtmlEntities(item.headline || item.title || ""),
+            summary: decodeHtmlEntities(item.ai_summary || item.summary || item.raw_content || ""),
+            raw_content: decodeHtmlEntities(item.raw_content || item.content || ""),
             category: item.category || "General",
             source: item.source || "Unknown",
             publishedAt: item.published_at || item.created_at,

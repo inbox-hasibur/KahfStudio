@@ -137,8 +137,8 @@ export default function Home() {
   const { data: sessionData } = useSession();
 
   const isPremium =
-    (sessionData?.user as any)?.tier === "premium" ||
-    (sessionData?.user as any)?.role === "admin";
+    (sessionData?.user as any)?.tier?.toLowerCase() === "premium" ||
+    (sessionData?.user as any)?.role?.toLowerCase() === "admin";
 
   useEffect(() => {
     setMounted(true);
@@ -435,13 +435,14 @@ export default function Home() {
           <div className="flex items-center justify-between sm:justify-end gap-1.5 sm:gap-2.5 text-xs sm:text-xs w-full sm:w-auto">
             {/* 1. Upgrade to Premium */}
             {!isPremium && (
-              <Link href="/pricing" className="flex-1 sm:flex-initial group">
-                <div className="flex items-center justify-center gap-1 px-2.5 sm:px-3 py-1.5 sm:py-1.5 bg-gradient-to-r from-emerald-500/15 via-primary/20 to-emerald-500/15 hover:from-primary/30 hover:to-emerald-500/30 text-emerald-400 border border-emerald-500/30 rounded-lg sm:rounded-xl shadow-sm transition-all cursor-pointer">
-                  <Sparkles className="w-3.5 h-3.5 sm:w-3.5 sm:h-3.5 text-primary shrink-0" />
-                  <span className="font-bold tracking-tight whitespace-nowrap">
-                    Upgrade to Premium
-                  </span>
-                </div>
+              <Link 
+                href="/pricing" 
+                className="flex-1 sm:flex-initial flex items-center justify-center gap-1 px-2.5 sm:px-3 py-1.5 sm:py-1.5 bg-gradient-to-r from-emerald-500/15 via-primary/20 to-emerald-500/15 hover:from-primary/30 hover:to-emerald-500/30 text-emerald-400 border border-emerald-500/30 rounded-lg sm:rounded-xl shadow-sm transition-all cursor-pointer group"
+              >
+                <Sparkles className="w-3.5 h-3.5 sm:w-3.5 sm:h-3.5 text-primary shrink-0" />
+                <span className="font-bold tracking-tight whitespace-nowrap">
+                  Upgrade to Premium
+                </span>
               </Link>
             )}
 

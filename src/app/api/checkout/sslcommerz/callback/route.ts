@@ -1,62 +1,103 @@
 import { NextResponse } from 'next/server';
-
 import { createClient } from '@supabase/supabase-js';
 
-export async function POST(req: Request) {
+async function handleCallback(req: Request) {
   try {
     const url = new URL(req.url);
     const statusParam = url.searchParams.get('status');
-    const origin = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+
+    // Dynamic origin resolution from forwarded headers
+    const host = req.headers.get('x-forwarded-host') || req.headers.get('host');
+    const protocol = req.headers.get('x-forwarded-proto') || (host?.includes('localhost') ? 'http' : 'https');
+    const origin = (host ? `${protocol}://${host}` : null) || 
+                   process.env.NEXT_PUBLIC_APP_URL || 
+                   url.origin || 
+                   'http://localhost:3000';
 
     if (statusParam === 'cancel') {
-      return NextResponse.redirect(`${origin}/pricing/cancel`);
+      return NextResponse.redirect(`${origin}/pricing/cancel`, 303);
     }
 
     if (statusParam === 'fail') {
-      return NextResponse.redirect(`${origin}/pricing/cancel?error=payment_failed`);
+      return NextResponse.redirect(`${origin}/pricing/cancel?error=payment_failed`, 303);
     }
 
-    const formData = await req.formData().catch(() => new FormData());
-    const status = formData.get('status') as string;
-    const value_a = formData.get('value_a') as string; // userId
-    const value_b = formData.get('value_b') as string; // plan
+    let formData: FormData | null = null;
+    try {
+      if (req.method === 'POST') {
+        formData = await req.formData();
+      }
+    } catch (_) {
+      formData = new FormData();
+    }
+
+    const status = formData?.get('status') as string;
+    const value_a = (formData?.get('value_a') as string) || url.searchParams.get('userId') || ''; // userId
+    const value_b = (formData?.get('value_b') as string) || url.searchParams.get('plan') || 'monthly'; // plan
+    const tran_id = (formData?.get('tran_id') as string) || (formData?.get('bank_tran_id') as string) || `SSL_${Date.now()}`;
+    const amount = Number(formData?.get('amount')) || (value_b === 'yearly' ? 1000 : value_b === 'weekly' ? 30 : 100);
 
     if (statusParam === 'success' || status === 'VALID' || status === 'VALIDATED' || status === 'SUCCESS') {
       if (value_a) {
         const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
         
-        // Update user tier in profiles
+        // 1. Update user tier in profiles
         await supabase.from('profiles').update({ tier: 'premium' }).eq('id', value_a);
         
-        // Update auth metadata
+        // 2. Update auth metadata
         await supabase.auth.admin.updateUserById(value_a, {
           user_metadata: { tier: 'premium' }
         });
         
-        // Insert subscription record with recurring auto_renew status
+        // 3. Insert subscription record with recurring auto_renew status
         const plan_type = value_b === 'yearly' ? 'premium_yearly' : value_b === 'weekly' ? 'premium_weekly' : 'premium_monthly';
         const valid_until = new Date();
         if (value_b === 'yearly') valid_until.setFullYear(valid_until.getFullYear() + 1);
         else if (value_b === 'weekly') valid_until.setDate(valid_until.getDate() + 7);
         else valid_until.setMonth(valid_until.getMonth() + 1);
 
-        await supabase.from('subscriptions').insert({
+        const { data: subData } = await supabase.from('subscriptions').insert({
           user_id: value_a,
           plan_type: plan_type,
           status: 'active',
           auto_renew: true,
           valid_until: valid_until.toISOString()
-        });
+        }).select('id').maybeSingle();
+
+        // 4. Record invoice in payment_invoices
+        try {
+          await supabase.from('payment_invoices').insert({
+            user_id: value_a,
+            subscription_id: subData?.id || null,
+            transaction_id: tran_id,
+            amount: amount,
+            status: 'paid',
+            payment_provider: 'sslcommerz',
+          });
+        } catch (invErr) {
+          console.warn("Failed to insert payment invoice record:", invErr);
+        }
       }
 
-      return NextResponse.redirect(`${origin}/pricing/success?gateway=sslcommerz`);
+      // CRITICAL: Must use HTTP 303 (See Other) so browser converts SSLCommerz POST to a GET request
+      return NextResponse.redirect(`${origin}/pricing/success?gateway=sslcommerz&tran_id=${tran_id}`, 303);
     }
 
     // Default to cancel if anything else
-    return NextResponse.redirect(`${origin}/pricing/cancel?error=invalid_status`);
+    return NextResponse.redirect(`${origin}/pricing/cancel?error=invalid_status`, 303);
   } catch (err) {
     console.error("SSLCommerz callback error:", err);
-    const origin = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-    return NextResponse.redirect(`${origin}/pricing/cancel?error=server_error`);
+    const host = req.headers.get('x-forwarded-host') || req.headers.get('host');
+    const protocol = req.headers.get('x-forwarded-proto') || 'https';
+    const origin = (host ? `${protocol}://${host}` : null) || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    return NextResponse.redirect(`${origin}/pricing/cancel?error=server_error`, 303);
   }
+}
+
+export async function POST(req: Request) {
+  return handleCallback(req);
+}
+
+export async function GET(req: Request) {
+  return handleCallback(req);
 }

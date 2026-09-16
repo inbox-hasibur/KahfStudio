@@ -12,8 +12,8 @@ export function useSession(options?: any) {
       ...user,
       name: user.user_metadata?.full_name || user.email?.split('@')[0],
       image: user.user_metadata?.avatar_url,
-      role: user.user_metadata?.role || "user",
-      tier: user.user_metadata?.tier || "free",
+      role: (user.user_metadata?.role || "user").toLowerCase(),
+      tier: (user.user_metadata?.tier || "free").toLowerCase(),
       trial_days_left: user.user_metadata?.trial_days_left
     });
     const fetchSession = async () => {
@@ -24,8 +24,8 @@ export function useSession(options?: any) {
         if (profile) {
           activeSession.user.user_metadata = {
             ...activeSession.user.user_metadata,
-            tier: profile.tier,
-            role: profile.role
+            tier: (profile.tier || "free").toLowerCase(),
+            role: (profile.role || "user").toLowerCase()
           };
         }
 
@@ -74,8 +74,8 @@ export function useSession(options?: any) {
         if (profile) {
           activeSession.user.user_metadata = {
             ...activeSession.user.user_metadata,
-            tier: profile.tier,
-            role: profile.role
+            tier: (profile.tier || "free").toLowerCase(),
+            role: (profile.role || "user").toLowerCase()
           };
         }
         // Check trial expiration

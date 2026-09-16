@@ -86,6 +86,38 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       );
     }
 
+    // On-the-fly full content enrichment if raw_content was saved as a short RSS snippet (< 250 chars)
+    if (data.original_url && (!data.raw_content || data.raw_content.trim().length < 250)) {
+      try {
+        const { extractArticleContent } = await import('@/lib/scraper/universal-extractor');
+        const extracted = await extractArticleContent(data.original_url, data.headline);
+        if (extracted && extracted.bodyText && extracted.bodyText.trim().length >= 250) {
+          const fullContent = extracted.bodyText;
+          data.raw_content = fullContent;
+          if (extracted.ogImage && !data.image_url) {
+            data.image_url = extracted.ogImage;
+          }
+          // Asynchronously update DB row so future fetches are already full
+          await supabase
+            .from('news_articles')
+            .update({
+              raw_content: fullContent,
+              image_url: data.image_url || extracted.ogImage || null,
+            })
+            .eq('id', id);
+        }
+      } catch (extractErr) {
+        console.warn(`[NewsDetail API] Full content enrichment fallback error:`, extractErr);
+      }
+    }
+
+    const { decodeHtmlEntities } = await import('@/lib/scraper/cleaner');
+    data.headline = decodeHtmlEntities(data.headline || '');
+    data.raw_content = decodeHtmlEntities(data.raw_content || '');
+    if (data.ai_summary) {
+      data.ai_summary = decodeHtmlEntities(data.ai_summary);
+    }
+
     return NextResponse.json({ success: true, data });
   } catch (error: any) {
     return NextResponse.json(

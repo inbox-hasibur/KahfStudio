@@ -7,6 +7,7 @@ import { extractArticleContent } from "@/lib/scraper/universal-extractor";
 import { discoverRssFeed, enrichRssItemsWithOgImage } from "@/lib/scraper/rss-discovery";
 import { generateSeamlessGeminiAudio, uploadAudioToCloudinary } from "@/lib/audio/gemini-tts";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { decodeHtmlEntities } from "@/lib/scraper/cleaner";
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -132,7 +133,7 @@ export function isValidArticleCandidate(title: string, url: string): boolean {
 
 export function sanitizeArticleContent(content: string): string {
   if (!content) return "";
-  let text = content;
+  let text = decodeHtmlEntities(content);
   // 1. Strip Jina AI reader metadata headers
   text = text.replace(/^(Title|URL Source|Markdown Content|Author|Published Time|Description):\s*.*$/gim, '');
   // 2. Strip CDATA wrappers and raw HTML/XML tags
@@ -150,17 +151,17 @@ export function sanitizeArticleContent(content: string): string {
     .map(line => line.trim())
     .filter(line => line.length > 0 && !/^(Title|URL Source|Markdown Content):\s*/i.test(line))
     .join('\n\n');
-  return text.trim();
+  return decodeHtmlEntities(text.trim());
 }
 
 export function sanitizeSummary(summary: string): string {
   if (!summary) return "";
-  let text = summary;
+  let text = decodeHtmlEntities(summary);
   text = text.replace(/^(Title|URL Source|Markdown Content|Author|Published Time):\s*.*$/gim, '');
   text = text.replace(/^(সারসংক্ষেপ|সংক্ষেপ|মূল কথা|Summary|AI Summary|Key Points|Brief):\s*/gim, '');
   text = text.replace(/\[([^\]]+)\]\(https?:\/\/[^\s)]+\)/g, '$1');
   text = text.replace(/https?:\/\/\S+/gi, '');
-  return text.replace(/\s+/g, ' ').trim();
+  return decodeHtmlEntities(text.replace(/\s+/g, ' ').trim());
 }
 
 // Jina-First / HTML Link Extractor when RSS feed is invalid or blocked by Cloudflare/Datacenter IP
@@ -381,9 +382,10 @@ export async function GET(req: NextRequest) {
           if (feed && feed.items && feed.items.length > 0) {
             const topItems = feed.items.slice(0, 30);
             for (const item of topItems) {
-              const itemTitle = typeof item.title === 'string'
+              const rawTitle = typeof item.title === 'string'
                 ? item.title.trim()
                 : (item.title as any)?._ || (item.title as any)?.value || (item.title ? String(item.title) : '');
+              const itemTitle = decodeHtmlEntities(rawTitle);
 
               // Image extraction from enclosure or media tags
               let imgUrl: string | null = null;
@@ -395,11 +397,16 @@ export async function GET(req: NextRequest) {
                 imgUrl = (item as any)['media:thumbnail'].$.url;
               }
 
-              // Description extraction
+              // Description extraction with entity decoding
               const itemDesc = item.contentSnippet || item.summary || item.content || (item as any)['content:encoded'] || '';
               const cleanDesc = typeof itemDesc === 'string'
-                ? itemDesc.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+                ? decodeHtmlEntities(itemDesc.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim())
                 : '';
+
+              // Check language: if source is BD but the title has 0 Bengali letters (e.g. Daily Star, Dhaka Tribune in English),
+              // tag it as GLOBAL so English news does not mix into Bangladesh's Bengali feed!
+              const hasBengali = /[\u0980-\u09FF]/.test(itemTitle);
+              const effectiveCountry = (source.country === 'BD' && !hasBengali) ? 'GLOBAL' : (source.country || 'BD');
 
               if (item.link && itemTitle) {
                 feedCandidates.push({
@@ -407,7 +414,7 @@ export async function GET(req: NextRequest) {
                   title: itemTitle,
                   sourceName: source.name,
                   category: source.category || "General",
-                  country: source.country || "BD",
+                  country: effectiveCountry,
                   description: cleanDesc.slice(0, 800),
                   imageUrl: imgUrl,
                   pubDate: item.isoDate || item.pubDate || new Date().toISOString(),
@@ -762,8 +769,10 @@ YOUR RESPONSE MUST STRICTLY BE A VALID JSON OBJECT WITH THESE KEYS ONLY.`;
           };
         }
 
-        const isGeminiShortened = aiResult?.clean_content && extracted.bodyText.length > 500 && (aiResult.clean_content.length < extracted.bodyText.length * 0.55);
-        const rawBodyCandidate = (!isGeminiShortened && aiResult?.clean_content && aiResult.clean_content.length >= 150)
+        // Full News Body Retention: Always preserve the real unabridged extracted article
+        // if Gemini shortened it or if extracted body is longer
+        const isGeminiShortened = aiResult?.clean_content && extracted.bodyText.length > 300 && (aiResult.clean_content.length < extracted.bodyText.length * 0.7);
+        const rawBodyCandidate = (!isGeminiShortened && aiResult?.clean_content && aiResult.clean_content.length >= 200)
           ? aiResult.clean_content
           : extracted.bodyText;
 

@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { decodeHtmlEntities } from '@/lib/scraper/cleaner';
 
 // GET — Fetch news with multi-tier sorting & country filtering
 export async function GET(req: NextRequest) {
@@ -45,12 +46,13 @@ export async function GET(req: NextRequest) {
     }
 
     if (country && country.toUpperCase() !== 'ALL') {
-      if (country.toUpperCase() === 'GLOBAL') {
+      const cUpper = country.toUpperCase();
+      if (cUpper === 'GLOBAL') {
         query = query.eq('country', 'GLOBAL');
-      } else if (country.toUpperCase() === 'BD') {
-        query = query.or('country.eq.BD,country.is.null');
+      } else if (cUpper === 'BD') {
+        query = query.eq('country', 'BD');
       } else {
-        query = query.eq('country', country);
+        query = query.eq('country', cUpper);
       }
     }
 
@@ -71,7 +73,20 @@ export async function GET(req: NextRequest) {
 
     if (error) throw error;
 
-    let processedNews = news || [];
+    let processedNews = (news || []).map((item: any) => ({
+      ...item,
+      headline: decodeHtmlEntities(item.headline || ''),
+      ai_summary: item.ai_summary ? decodeHtmlEntities(item.ai_summary) : item.ai_summary,
+      raw_content: item.raw_content ? decodeHtmlEntities(item.raw_content) : item.raw_content,
+    }));
+
+    // If country is BD, filter out purely English articles from intruding
+    if (country && country.toUpperCase() === 'BD') {
+      processedNews = processedNews.filter((item: any) => {
+        // Must contain at least some Bengali characters
+        return /[\u0980-\u09FF]/.test(item.headline || '') || /[\u0980-\u09FF]/.test(item.raw_content || '');
+      });
+    }
 
     // Multi-tier Smart Sorting:
     // 1. Primary: Freshness (Date on top)

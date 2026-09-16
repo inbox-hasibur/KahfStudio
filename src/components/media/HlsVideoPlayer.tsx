@@ -3,9 +3,19 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import Hls from "hls.js";
 import {
-  Play, Pause, Volume2, VolumeX, Maximize, Minimize, AlertCircle,
-  Settings, Check, Loader2, Sparkles, PictureInPicture,
-  RotateCcw, RotateCw, Gauge
+  Play,
+  Pause,
+  Volume2,
+  VolumeX,
+  Maximize,
+  Minimize,
+  AlertCircle,
+  Settings,
+  Check,
+  Loader2,
+  PictureInPicture,
+  RotateCcw,
+  RotateCw,
 } from "lucide-react";
 
 export interface HlsVideoPlayerProps {
@@ -16,15 +26,6 @@ export interface HlsVideoPlayerProps {
   onVideoElementReady?: (videoEl: HTMLVideoElement | null) => void;
   onPlayStateChange?: (playing: boolean) => void;
   className?: string;
-  halalActive?: boolean;
-  onToggleHalal?: () => void;
-  mode?: string;
-  mlStatus?: string;
-  isModelReady?: boolean;
-  modelProgress?: number;
-  mlPrimed?: boolean;
-  mlBufferedSeconds?: number;
-  mlPreprocessPercent?: number;
 }
 
 export interface QualityLevel {
@@ -34,8 +35,8 @@ export interface QualityLevel {
   bitrate?: number;
 }
 
-// Safe max audio multiplier (prevents loud ear-hurting sound bursts)
-const SAFE_MAX_VOLUME = 0.65;
+// Safe maximum volume ceiling to prevent sudden bursts
+const SAFE_MAX_VOLUME = 0.85;
 
 export const HlsVideoPlayer: React.FC<HlsVideoPlayerProps> = ({
   src,
@@ -45,15 +46,6 @@ export const HlsVideoPlayer: React.FC<HlsVideoPlayerProps> = ({
   onVideoElementReady,
   onPlayStateChange,
   className = "",
-  halalActive = false,
-  onToggleHalal,
-  mode = "dsp",
-  mlStatus = "",
-  isModelReady = false,
-  modelProgress = 0,
-  mlPrimed = false,
-  mlBufferedSeconds = 0,
-  mlPreprocessPercent = 0
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -65,10 +57,7 @@ export const HlsVideoPlayer: React.FC<HlsVideoPlayerProps> = ({
   const [resolvedSrc, setResolvedSrc] = useState<string>("");
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [isMuted, setIsMuted] = useState<boolean>(false);
-  const [isScrolledOutOfView, setIsScrolledOutOfView] = useState<boolean>(false);
-
-  // Displayed volume 0.0 to 1.0 (default 0.35 = safe pleasant listening)
-  const [userVolume, setUserVolume] = useState<number>(0.35);
+  const [userVolume, setUserVolume] = useState<number>(0.6);
 
   const [currentTime, setCurrentTime] = useState<number>(0);
   const [duration, setDuration] = useState<number>(0);
@@ -81,7 +70,6 @@ export const HlsVideoPlayer: React.FC<HlsVideoPlayerProps> = ({
 
   // Settings Menu state
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
-  const [settingsTab, setSettingsTab] = useState<"main" | "quality" | "speed">("main");
   const [qualities, setQualities] = useState<QualityLevel[]>([]);
   const [selectedQuality, setSelectedQuality] = useState<number>(-1); // -1 = Auto
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1.0);
@@ -89,24 +77,22 @@ export const HlsVideoPlayer: React.FC<HlsVideoPlayerProps> = ({
   const speeds = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
 
   // Helper to postMessage commands to YouTube embed iframe
-  const sendIframeCommand = useCallback((func: string, args: any[] = []) => {
+  const sendIframeCommand = useCallback((func: string, args: any = "") => {
     if (iframeRef.current && iframeRef.current.contentWindow) {
       try {
-        if (func === "listening") {
-          iframeRef.current.contentWindow.postMessage(JSON.stringify({ event: "listening" }), "*");
-        } else {
-          iframeRef.current.contentWindow.postMessage(
-            JSON.stringify({ event: "command", func, args }),
-            "*"
-          );
-        }
+        const payload = JSON.stringify({
+          event: "command",
+          func: func,
+          args: args === "" ? [] : Array.isArray(args) ? args : [args],
+        });
+        iframeRef.current.contentWindow.postMessage(payload, "*");
       } catch (err) {
-        console.warn("[HlsVideoPlayer] iframe postMessage warning:", err);
+        console.warn("[HlsVideoPlayer] iframe postMessage error:", err);
       }
     }
   }, []);
 
-  // Synchronize YouTube Iframe Player status with our custom controls
+  // Synchronize YouTube Iframe Player status with custom controls
   useEffect(() => {
     if (!youtubeId) return;
 
@@ -114,7 +100,11 @@ export const HlsVideoPlayer: React.FC<HlsVideoPlayerProps> = ({
       try {
         let data = event.data;
         if (typeof data === "string") {
-          data = JSON.parse(data);
+          try {
+            data = JSON.parse(data);
+          } catch {
+            return;
+          }
         }
         if (!data) return;
 
@@ -152,14 +142,21 @@ export const HlsVideoPlayer: React.FC<HlsVideoPlayerProps> = ({
 
     // Initial handshake to start listening to YouTube API messages
     const pingTimer = setInterval(() => {
-      sendIframeCommand("listening");
-    }, 800);
+      if (iframeRef.current && iframeRef.current.contentWindow) {
+        try {
+          iframeRef.current.contentWindow.postMessage(
+            JSON.stringify({ event: "listening" }),
+            "*"
+          );
+        } catch (_) {}
+      }
+    }, 1000);
 
     return () => {
       window.removeEventListener("message", handleMessage);
       clearInterval(pingTimer);
     };
-  }, [youtubeId, onPlayStateChange, sendIframeCommand]);
+  }, [youtubeId, onPlayStateChange]);
 
   // Apply safe scaled volume to video element
   const applySafeVolume = useCallback((val: number, muted: boolean) => {
@@ -193,8 +190,15 @@ export const HlsVideoPlayer: React.FC<HlsVideoPlayerProps> = ({
 
       // Extract YouTube Video ID from videoId or src
       const ytCandidate = videoId || src || "";
-      const ytMatch = ytCandidate.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|live\/))([a-zA-Z0-9_-]{11})/);
-      const directYtId = (!ytMatch && /^[a-zA-Z0-9_-]{11}$/.test(ytCandidate.trim())) ? ytCandidate.trim() : (ytMatch ? ytMatch[1] : null);
+      const ytMatch = ytCandidate.match(
+        /(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|live\/))([a-zA-Z0-9_-]{11})/
+      );
+      const directYtId =
+        !ytMatch && /^[a-zA-Z0-9_-]{11}$/.test(ytCandidate.trim())
+          ? ytCandidate.trim()
+          : ytMatch
+          ? ytMatch[1]
+          : null;
 
       if (directYtId) {
         if (!isCancelled) {
@@ -219,55 +223,19 @@ export const HlsVideoPlayer: React.FC<HlsVideoPlayerProps> = ({
     }
 
     resolve();
-    return () => { isCancelled = true; };
+    return () => {
+      isCancelled = true;
+    };
   }, [src, videoId, onPlayStateChange]);
 
-  // Auto-pause when player is scrolled out of viewport (prevents double media playing)
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container || typeof IntersectionObserver === "undefined") return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const entry = entries[0];
-        if (!entry) return;
-
-        // When out of viewport or less than 20% visible
-        if (!entry.isIntersecting || entry.intersectionRatio < 0.20) {
-          let wasActive = false;
-          if (videoRef.current && !videoRef.current.paused) {
-            videoRef.current.pause();
-            wasActive = true;
-          }
-          if (iframeRef.current && iframeRef.current.contentWindow) {
-            sendIframeCommand("pauseVideo");
-            wasActive = true;
-          }
-          if (wasActive) {
-            setIsPlaying(false);
-            onPlayStateChange?.(false);
-            setIsScrolledOutOfView(true);
-          }
-        } else {
-          // Visible again: reset the indicator, but keep paused per user requirement!
-          setIsScrolledOutOfView(false);
-        }
-      },
-      { threshold: [0, 0.2, 0.5] }
-    );
-
-    observer.observe(container);
-    return () => observer.disconnect();
-  }, [onPlayStateChange, sendIframeCommand]);
-
-  // Apply safe scaled volume to video element when user changes volume slider or mutes
+  // Apply safe scaled volume when user changes volume slider or mutes
   useEffect(() => {
     applySafeVolume(userVolume, isMuted);
   }, [userVolume, isMuted, applySafeVolume]);
 
-  // 2. Attach HLS.js or HTML5 Video with Low-Latency Buffer Configuration
+  // 2. Attach HLS.js or HTML5 Video
   useEffect(() => {
-    if (youtubeId) return; // In YouTube mode, YouTube Embed handles media playback
+    if (youtubeId) return;
 
     const video = videoRef.current;
     if (!video || !resolvedSrc) return;
@@ -293,9 +261,8 @@ export const HlsVideoPlayer: React.FC<HlsVideoPlayerProps> = ({
         lowLatencyMode: true,
         backBufferLength: 10,
         maxBufferLength: 10,
-        maxMaxBufferLength: 20,
         liveSyncDurationCount: 3,
-        liveMaxLatencyDurationCount: 6
+        liveMaxLatencyDurationCount: 6,
       });
       hlsRef.current = hls;
 
@@ -311,13 +278,19 @@ export const HlsVideoPlayer: React.FC<HlsVideoPlayerProps> = ({
           id: index,
           label: `${lvl.height}p`,
           height: lvl.height,
-          bitrate: lvl.bitrate
+          bitrate: lvl.bitrate,
         }));
         setQualities(levels);
 
-        video.play()
-          .then(() => setIsPlaying(true))
-          .catch((e) => console.log("Autoplay waiting:", e));
+        if (autoPlay) {
+          video
+            .play()
+            .then(() => {
+              setIsPlaying(true);
+              onPlayStateChange?.(true);
+            })
+            .catch((e) => console.log("Autoplay paused by policy:", e));
+        }
       });
 
       hls.on(Hls.Events.LEVEL_SWITCHED, (_event, data) => {
@@ -349,15 +322,21 @@ export const HlsVideoPlayer: React.FC<HlsVideoPlayerProps> = ({
     } else {
       video.src = resolvedSrc;
       video.load();
-      setStatusMsg("1080p MP4");
+      setStatusMsg("Video Player");
       setQualities([
         { id: 0, label: "1080p Full HD", height: 1080 },
         { id: 1, label: "720p HD", height: 720 },
-        { id: 2, label: "480p SD", height: 480 }
+        { id: 2, label: "480p SD", height: 480 },
       ]);
-      video.play()
-        .then(() => setIsPlaying(true))
-        .catch(() => { });
+      if (autoPlay) {
+        video
+          .play()
+          .then(() => {
+            setIsPlaying(true);
+            onPlayStateChange?.(true);
+          })
+          .catch(() => {});
+      }
     }
 
     return () => {
@@ -366,7 +345,7 @@ export const HlsVideoPlayer: React.FC<HlsVideoPlayerProps> = ({
         hlsRef.current = null;
       }
     };
-  }, [resolvedSrc, youtubeId, onVideoElementReady, applySafeVolume]);
+  }, [resolvedSrc, youtubeId, onVideoElementReady, applySafeVolume, autoPlay, onPlayStateChange]);
 
   // Autohide controls on idle
   const resetControlsTimer = useCallback(() => {
@@ -404,6 +383,7 @@ export const HlsVideoPlayer: React.FC<HlsVideoPlayerProps> = ({
     }
   };
 
+  // Dedicated, 100% Reliable Play/Pause Toggle
   const togglePlay = () => {
     if (youtubeId) {
       if (isPlaying) {
@@ -418,14 +398,20 @@ export const HlsVideoPlayer: React.FC<HlsVideoPlayerProps> = ({
       resetControlsTimer();
       return;
     }
+
     if (!videoRef.current) return;
     if (videoRef.current.paused) {
-      videoRef.current.play()
-        .then(() => setIsPlaying(true))
+      videoRef.current
+        .play()
+        .then(() => {
+          setIsPlaying(true);
+          onPlayStateChange?.(true);
+        })
         .catch((e) => console.warn("Play error:", e));
     } else {
       videoRef.current.pause();
       setIsPlaying(false);
+      onPlayStateChange?.(false);
     }
     resetControlsTimer();
   };
@@ -481,9 +467,9 @@ export const HlsVideoPlayer: React.FC<HlsVideoPlayerProps> = ({
   const toggleFullscreen = () => {
     if (!containerRef.current) return;
     if (!document.fullscreenElement) {
-      containerRef.current.requestFullscreen().catch(() => { });
+      containerRef.current.requestFullscreen().catch(() => {});
     } else {
-      document.exitFullscreen().catch(() => { });
+      document.exitFullscreen().catch(() => {});
     }
     resetControlsTimer();
   };
@@ -526,6 +512,8 @@ export const HlsVideoPlayer: React.FC<HlsVideoPlayerProps> = ({
     return `${m < 10 ? "0" : ""}${m}:${s < 10 ? "0" : ""}${s}`;
   };
 
+  const originUrl = typeof window !== "undefined" ? window.location.origin : "";
+
   return (
     <div
       ref={containerRef}
@@ -533,7 +521,7 @@ export const HlsVideoPlayer: React.FC<HlsVideoPlayerProps> = ({
       onMouseLeave={() => isPlaying && !isSettingsOpen && setControlsVisible(false)}
       className={`relative rounded-2xl overflow-hidden bg-black border border-border shadow-2xl group select-none ${className}`}
     >
-      {/* Viewport (Unified Click to Play/Pause on Both IPTV and YouTube) */}
+      {/* Viewport (Click on entire screen toggles play/pause smoothly) */}
       <div
         onClick={togglePlay}
         onDoubleClick={toggleFullscreen}
@@ -543,7 +531,7 @@ export const HlsVideoPlayer: React.FC<HlsVideoPlayerProps> = ({
           <iframe
             ref={iframeRef}
             key={youtubeId}
-            src={`https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=1&enablejsapi=1&controls=0&modestbranding=1&rel=0&playsinline=1&iv_load_policy=3&disablekb=1&fs=0&origin=${typeof window !== 'undefined' ? window.location.origin : ''}`}
+            src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&enablejsapi=1&controls=0&modestbranding=1&rel=0&playsinline=1&iv_load_policy=3&disablekb=1&fs=0&origin=${originUrl}`}
             title={title}
             onLoad={() => {
               sendIframeCommand("listening");
@@ -581,102 +569,42 @@ export const HlsVideoPlayer: React.FC<HlsVideoPlayerProps> = ({
           />
         )}
 
-        {/* Loading Spinner for IPTV & YouTube buffering */}
+        {/* Loading Spinner for buffering */}
         {isLoading && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 backdrop-blur-xs gap-3 z-10">
-            <Loader2 className="w-10 h-10 text-emerald-400 animate-spin" />
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 backdrop-blur-xs gap-3 z-10 pointer-events-none">
+            <Loader2 className="w-10 h-10 text-primary animate-spin" />
             <span className="text-xs text-zinc-200 font-mono tracking-wider">{statusMsg}</span>
           </div>
         )}
 
-        {/* Center Play Button (Shown for BOTH IPTV and YouTube) */}
+        {/* Center Play Button Overlay (Shown when paused) */}
         {!isPlaying && !isLoading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-[2px] transition-all duration-300 z-10">
-            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-emerald-500 hover:bg-emerald-400 text-black flex items-center justify-center shadow-[0_0_35px_rgba(16,185,129,0.5)] transform group-hover:scale-110 transition-all duration-300">
-              <Play className="w-8 h-8 fill-black ml-1" />
+          <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-[2px] transition-all duration-300 z-10 pointer-events-none">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground flex items-center justify-center shadow-xl transform group-hover:scale-110 transition-all duration-300">
+              <Play className="w-8 h-8 fill-current ml-1" />
             </div>
           </div>
         )}
 
-        {/* Top Header Badge */}
-        <div className={`absolute top-0 left-0 right-0 p-3 sm:p-4 bg-gradient-to-b from-black/80 via-black/40 to-transparent flex items-center justify-between transition-opacity duration-300 z-20 ${controlsVisible ? "opacity-100" : "opacity-0 pointer-events-none"}`}>
+        {/* Top Header Row with Title */}
+        <div
+          className={`absolute top-0 left-0 right-0 p-3 sm:p-4 bg-gradient-to-b from-black/80 via-black/40 to-transparent flex items-center justify-between transition-opacity duration-300 z-20 ${
+            controlsVisible ? "opacity-100" : "opacity-0 pointer-events-none"
+          }`}
+        >
           <div className="flex items-center gap-2">
-            <span className="text-xs sm:text-sm font-bold text-white drop-shadow truncate max-w-[160px] sm:max-w-xs">
+            <span className="text-xs sm:text-sm font-bold text-white drop-shadow truncate max-w-[220px] sm:max-w-md">
               {title}
             </span>
-
-            {/* Neural ML Status Overlay Pill */}
-            {halalActive && mode === "ml" && (
-              !isModelReady ? (
-                <div className="px-2 py-0.5 rounded-full bg-amber-950/80 border border-amber-500/50 text-amber-300 text-[9px] sm:text-[10px] font-mono font-semibold flex items-center gap-1 shadow-md backdrop-blur-md">
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-                  <span>DSP Active (0ms) • AI Downloading {modelProgress > 0 ? `(${modelProgress}%)` : ""}</span>
-                </div>
-              ) : !mlPrimed ? (
-                <div className="px-2 py-0.5 rounded-full bg-teal-950/80 border border-teal-500/50 text-teal-300 text-[9px] sm:text-[10px] font-mono font-semibold flex items-center gap-1 shadow-md backdrop-blur-md animate-pulse">
-                  <span className="w-1.5 h-1.5 rounded-full bg-teal-400" />
-                  <span>AI Preprocessing 2s Cushion...</span>
-                </div>
-              ) : (
-                <div className="px-2 py-0.5 rounded-full bg-teal-950/80 border border-teal-500/50 text-teal-300 text-[9px] sm:text-[10px] font-mono font-semibold flex items-center gap-1 shadow-md backdrop-blur-md">
-                  <span className="w-1.5 h-1.5 rounded-full bg-teal-400 animate-pulse" />
-                  <span>Neural AI: Pure Voice ✓</span>
-                </div>
-              )
-            )}
           </div>
 
           <div className="flex items-center gap-2">
-            {halalActive ? (
-              <div
-                onClick={(e) => { e.stopPropagation(); onToggleHalal?.(); }}
-                className="px-2.5 py-1 rounded-full bg-emerald-950/90 border border-emerald-500/60 text-emerald-300 text-[10px] sm:text-xs font-bold flex items-center gap-1.5 shadow-lg backdrop-blur-md cursor-pointer hover:bg-emerald-900 transition-all animate-pulse"
-              >
-                <Sparkles className="w-3 h-3 text-emerald-400" />
-                <span>HALAL AUDIO ON</span>
-              </div>
-            ) : (
-              <button
-                onClick={(e) => { e.stopPropagation(); onToggleHalal?.(); }}
-                className="px-2.5 py-1 rounded-full bg-zinc-900/80 border border-zinc-700 text-zinc-400 text-[10px] sm:text-xs font-medium flex items-center gap-1.5 shadow-lg backdrop-blur-md cursor-pointer hover:text-white hover:border-emerald-500/60 transition-all"
-              >
-                <Sparkles className="w-3 h-3" />
-                <span>HALAL OFF</span>
-              </button>
-            )}
+            <span className="px-2 py-0.5 rounded-full bg-red-600/90 text-white text-[10px] font-bold flex items-center gap-1 shadow-sm uppercase">
+              <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+              {duration > 0 ? "Video" : "Live"}
+            </span>
           </div>
         </div>
-
-        {/* Neural AI Priming Overlay (Zero Sound Leak Cushion) - Only shown when model is ready and filling 2.0s buffer */}
-        {halalActive && mode === "ml" && isPlaying && isModelReady && !mlPrimed && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/75 backdrop-blur-xs gap-3 z-15 select-none pointer-events-none">
-            <div className="p-3.5 sm:p-4 rounded-2xl bg-zinc-900/90 border border-teal-500/40 shadow-2xl flex flex-col items-center gap-2 max-w-xs text-center">
-              <Loader2 className="w-8 h-8 text-teal-400 animate-spin" />
-              <div>
-                <h4 className="text-xs sm:text-sm font-bold text-white tracking-wide">Removing Background Music...</h4>
-                <p className="text-[10px] text-zinc-400 mt-0.5">AI is preprocessing 2s audio cushion (Zero sound leak)</p>
-              </div>
-              {/* White progress bar inside the priming overlay */}
-              <div className="w-full bg-zinc-800 rounded-full h-1.5 overflow-hidden mt-1 border border-zinc-700">
-                <div
-                  className="bg-white h-full rounded-full transition-all duration-200 shadow-[0_0_8px_rgba(255,255,255,0.8)]"
-                  style={{ width: `${mlPreprocessPercent || 15}%` }}
-                />
-              </div>
-              <span className="text-[9px] font-mono font-bold text-teal-300">
-                {mlPreprocessPercent}% ({(mlBufferedSeconds || 0).toFixed(1)}s preprocessed)
-              </span>
-            </div>
-          </div>
-        )}
-
-        {/* Auto-paused badge if out of view */}
-        {isScrolledOutOfView && (
-          <div className="absolute top-3 left-1/2 -translate-x-1/2 px-2.5 py-1 rounded-full bg-black/85 border border-amber-500/50 text-amber-300 text-[10px] font-mono z-25 shadow-lg backdrop-blur-xs flex items-center gap-1.5 pointer-events-none animate-in fade-in">
-            <Pause className="w-3 h-3 text-amber-400 fill-amber-400" />
-            <span>Paused while out of view</span>
-          </div>
-        )}
 
         {/* Error Overlay */}
         {errorMsg && (
@@ -684,7 +612,10 @@ export const HlsVideoPlayer: React.FC<HlsVideoPlayerProps> = ({
             <AlertCircle className="w-8 h-8 text-rose-500" />
             <p className="text-xs text-rose-300 font-medium">{errorMsg}</p>
             <button
-              onClick={(e) => { e.stopPropagation(); setResolvedSrc(src || ""); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                setResolvedSrc(src || "");
+              }}
               className="px-3 py-1 bg-zinc-800 hover:bg-zinc-700 text-xs text-zinc-200 rounded-xl border border-zinc-700 transition"
             >
               Retry
@@ -693,19 +624,20 @@ export const HlsVideoPlayer: React.FC<HlsVideoPlayerProps> = ({
         )}
       </div>
 
-      {/* ── SLEEK BOTTOM OVERLAY CONTROLS (Unified for BOTH IPTV and YouTube) ── */}
+      {/* ── SLEEK BOTTOM CONTROLS (Unified for BOTH IPTV and YouTube) ── */}
       <div
         onClick={(e) => e.stopPropagation()}
-        className={`absolute bottom-0 left-0 right-0 p-3 sm:p-4 bg-gradient-to-t from-black/95 via-black/80 to-transparent flex flex-col gap-2.5 transition-opacity duration-300 z-20 ${controlsVisible ? "opacity-100" : "opacity-0 pointer-events-none"}`}
+        className={`absolute bottom-0 left-0 right-0 p-3 sm:p-4 bg-gradient-to-t from-black/95 via-black/80 to-transparent flex flex-col gap-2.5 transition-opacity duration-300 z-20 ${
+          controlsVisible ? "opacity-100" : "opacity-0 pointer-events-none"
+        }`}
       >
-        {/* Scrubber Row: Video Progress Time Display + Seek Bar in Same Row */}
+        {/* Scrubber Row: Video Progress + Seek Bar */}
         <div className="flex items-center gap-2.5">
-          {/* Video Progress Number (Left of Scrubber) */}
           <span className="text-[10px] sm:text-xs font-mono font-semibold text-zinc-200 shrink-0">
-            {formatTime(currentTime)} <span className="text-zinc-500">/</span> {duration > 0 ? formatTime(duration) : "LIVE"}
+            {formatTime(currentTime)} <span className="text-zinc-500">/</span>{" "}
+            {duration > 0 ? formatTime(duration) : "LIVE"}
           </span>
 
-          {/* Scrubber Bar */}
           <div className="relative flex-1 flex items-center group/scrubber cursor-pointer h-3">
             {duration > 0 && (
               <div
@@ -714,22 +646,9 @@ export const HlsVideoPlayer: React.FC<HlsVideoPlayerProps> = ({
               />
             )}
 
-            {/* YouTube-style White Preprocessed Buffer Bar */}
             {duration > 0 && (
               <div
-                className="absolute left-0 top-1/2 -translate-y-1/2 h-1 bg-white/70 rounded-full pointer-events-none transition-all duration-300 shadow-[0_0_6px_rgba(255,255,255,0.7)]"
-                style={{
-                  width: `${Math.min(100, mode === "ml"
-                    ? ((currentTime + (mlBufferedSeconds || 0)) / duration) * 100
-                    : (buffered / duration) * 100)}%`
-                }}
-                title={mode === "ml" ? `Neural AI Preprocessed Cushion: +${(mlBufferedSeconds || 0).toFixed(1)}s ahead` : "Buffered"}
-              />
-            )}
-
-            {duration > 0 && (
-              <div
-                className="absolute left-0 top-1/2 -translate-y-1/2 h-1 bg-emerald-400 rounded-full pointer-events-none transition-all shadow-[0_0_8px_rgba(52,211,153,0.8)]"
+                className="absolute left-0 top-1/2 -translate-y-1/2 h-1 bg-primary rounded-full pointer-events-none transition-all"
                 style={{ width: `${Math.min(100, (currentTime / duration) * 100)}%` }}
               />
             )}
@@ -741,47 +660,59 @@ export const HlsVideoPlayer: React.FC<HlsVideoPlayerProps> = ({
               step="0.1"
               value={currentTime}
               onChange={handleSeek}
-              className="w-full h-1 bg-zinc-800/80 rounded-full appearance-none cursor-pointer accent-emerald-400 group-hover/scrubber:h-2 transition-all opacity-0 group-hover/scrubber:opacity-100"
+              className="w-full h-1 bg-zinc-800/80 rounded-full appearance-none cursor-pointer accent-primary group-hover/scrubber:h-2 transition-all opacity-0 group-hover/scrubber:opacity-100"
             />
           </div>
         </div>
 
-        {/* Controls Row */}
+        {/* Action Controls Row */}
         <div className="flex items-center justify-between gap-2">
-          {/* Left Controls */}
+          {/* Left Controls: Play/Pause, Rewind, Forward, Volume */}
           <div className="flex items-center gap-2 sm:gap-3">
             <button
               onClick={togglePlay}
               className="p-1.5 sm:p-2 rounded-full hover:bg-white/20 text-white transition-all cursor-pointer"
               title={isPlaying ? "Pause" : "Play"}
             >
-              {isPlaying ? <Pause className="w-4 h-4 sm:w-5 sm:h-5 fill-white" /> : <Play className="w-4 h-4 sm:w-5 sm:h-5 fill-white ml-0.5" />}
+              {isPlaying ? (
+                <Pause className="w-5 h-5 fill-white" />
+              ) : (
+                <Play className="w-5 h-5 fill-white ml-0.5" />
+              )}
             </button>
 
-            <button
-              onClick={() => skipTime(-10)}
-              className="p-1.5 rounded-full hover:bg-white/15 text-zinc-300 hover:text-white transition-all cursor-pointer hidden sm:block"
-              title="Replay 10s"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-            </button>
+            {duration > 0 && (
+              <>
+                <button
+                  onClick={() => skipTime(-10)}
+                  className="p-1.5 rounded-full hover:bg-white/15 text-zinc-300 hover:text-white transition-all cursor-pointer hidden sm:block"
+                  title="Replay 10s"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                </button>
 
-            <button
-              onClick={() => skipTime(10)}
-              className="p-1.5 rounded-full hover:bg-white/15 text-zinc-300 hover:text-white transition-all cursor-pointer hidden sm:block"
-              title="Forward 10s"
-            >
-              <RotateCw className="w-3.5 h-3.5" />
-            </button>
+                <button
+                  onClick={() => skipTime(10)}
+                  className="p-1.5 rounded-full hover:bg-white/15 text-zinc-300 hover:text-white transition-all cursor-pointer hidden sm:block"
+                  title="Forward 10s"
+                >
+                  <RotateCw className="w-4 h-4" />
+                </button>
+              </>
+            )}
 
-            {/* Volume Control with Sound % Display */}
+            {/* Volume Control */}
             <div className="flex items-center gap-1.5 group/volume">
               <button
                 onClick={toggleMute}
                 className="p-1.5 rounded-full hover:bg-white/15 text-white transition-all cursor-pointer"
                 title={isMuted ? "Unmute" : "Mute"}
               >
-                {isMuted || userVolume === 0 ? <VolumeX className="w-4 h-4 text-rose-400" /> : <Volume2 className="w-4 h-4" />}
+                {isMuted || userVolume === 0 ? (
+                  <VolumeX className="w-4 h-4 text-rose-400" />
+                ) : (
+                  <Volume2 className="w-4 h-4" />
+                )}
               </button>
 
               <input
@@ -791,124 +722,107 @@ export const HlsVideoPlayer: React.FC<HlsVideoPlayerProps> = ({
                 step="0.05"
                 value={isMuted ? 0 : userVolume}
                 onChange={handleVolumeChange}
-                className="w-14 sm:w-20 h-1 bg-zinc-700 accent-emerald-400 rounded-full cursor-pointer transition-all"
+                className="w-14 sm:w-20 h-1 bg-zinc-700 accent-primary rounded-full cursor-pointer transition-all"
               />
 
-              {/* Sound Percentage Number (Beside Volume Slider) */}
-              <span className="text-[10px] font-mono font-bold text-emerald-400 min-w-[28px]">
+              <span className="text-[10px] font-mono font-bold text-primary min-w-[28px]">
                 {isMuted ? "0%" : `${Math.round(userVolume * 100)}%`}
               </span>
             </div>
           </div>
 
-          {/* Right Controls */}
-          <div className="flex items-center gap-1.5 sm:gap-2 relative">
-            <span className="px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] font-mono font-bold bg-zinc-800/80 text-emerald-400 border border-zinc-700">
-              {selectedQuality === -1 ? "AUTO" : qualities.find(q => q.id === selectedQuality)?.label || "HD"}
-            </span>
-
-            {/* Settings */}
-            <div className="relative">
-              <button
-                onClick={() => {
-                  setIsSettingsOpen(!isSettingsOpen);
-                  setSettingsTab("main");
-                }}
-                className={`p-1.5 sm:p-2 rounded-full hover:bg-white/20 text-white transition-all cursor-pointer ${isSettingsOpen ? "bg-white/20 text-emerald-400 rotate-45" : ""}`}
-                title="Settings"
-              >
-                <Settings className="w-4 h-4" />
-              </button>
-
-              {isSettingsOpen && (
-                <div className="absolute bottom-12 right-0 w-56 sm:w-64 rounded-2xl bg-zinc-900/95 border border-zinc-700 shadow-2xl backdrop-blur-2xl p-2.5 text-xs text-zinc-200 z-50">
-                  {settingsTab === "main" && (
-                    <div className="space-y-1">
-                      <button
-                        onClick={() => setSettingsTab("quality")}
-                        className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-zinc-800 transition cursor-pointer"
-                      >
-                        <span className="flex items-center gap-1.5 text-zinc-300">
-                          <Gauge className="w-3.5 h-3.5 text-emerald-400" /> Resolution
-                        </span>
-                        <span className="font-mono text-emerald-400 font-bold">
-                          {selectedQuality === -1 ? "Auto" : qualities.find(q => q.id === selectedQuality)?.label || "Auto"} →
-                        </span>
-                      </button>
-
-                      <button
-                        onClick={() => setSettingsTab("speed")}
-                        className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-zinc-800 transition cursor-pointer"
-                      >
-                        <span className="flex items-center gap-1.5 text-zinc-300">
-                          <RotateCw className="w-3.5 h-3.5 text-teal-400" /> Speed
-                        </span>
-                        <span className="font-mono text-teal-400 font-bold">
-                          {playbackSpeed === 1.0 ? "Normal" : `${playbackSpeed}x`} →
-                        </span>
-                      </button>
-                    </div>
-                  )}
-
-                  {settingsTab === "quality" && (
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-between px-2 py-1 border-b border-zinc-800 mb-1">
-                        <button onClick={() => setSettingsTab("main")} className="text-[10px] text-zinc-400 hover:text-white">← Back</button>
-                        <span className="text-[10px] font-bold text-emerald-400">Resolution</span>
-                      </div>
-                      <button
-                        onClick={() => handleQualityChange(-1)}
-                        className={`w-full flex items-center justify-between px-2 py-1 rounded transition ${selectedQuality === -1 ? "bg-emerald-500/20 text-emerald-300 font-bold" : "hover:bg-zinc-800"}`}
-                      >
-                        <span>Auto (Adaptive)</span>
-                        {selectedQuality === -1 && <Check className="w-3 h-3 text-emerald-400" />}
-                      </button>
-                      {qualities.map((q) => (
-                        <button
-                          key={q.id}
-                          onClick={() => handleQualityChange(q.id)}
-                          className={`w-full flex items-center justify-between px-2 py-1 rounded transition ${selectedQuality === q.id ? "bg-emerald-500/20 text-emerald-300 font-bold" : "hover:bg-zinc-800"}`}
-                        >
-                          <span>{q.label}</span>
-                          {selectedQuality === q.id && <Check className="w-3 h-3 text-emerald-400" />}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-
-                  {settingsTab === "speed" && (
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-between px-2 py-1 border-b border-zinc-800 mb-1">
-                        <button onClick={() => setSettingsTab("main")} className="text-[10px] text-zinc-400 hover:text-white">← Back</button>
-                        <span className="text-[10px] font-bold text-teal-400">Speed</span>
-                      </div>
-                      {speeds.map((spd) => (
-                        <button
-                          key={spd}
-                          onClick={() => handleSpeedChange(spd)}
-                          className={`w-full flex items-center justify-between px-2 py-1 rounded transition ${playbackSpeed === spd ? "bg-teal-500/20 text-teal-300 font-bold" : "hover:bg-zinc-800"}`}
-                        >
-                          <span>{spd === 1.0 ? "Normal" : `${spd}x`}</span>
-                          {playbackSpeed === spd && <Check className="w-3 h-3 text-teal-400" />}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
+          {/* Right Controls: Settings, PiP, Fullscreen */}
+          <div className="flex items-center gap-1 sm:gap-2 relative">
+            {/* Settings Popup Trigger */}
             <button
-              onClick={togglePiP}
-              className="p-1.5 rounded-full hover:bg-white/20 text-white transition-all cursor-pointer hidden sm:block"
-              title="Picture in Picture"
+              onClick={() => setIsSettingsOpen(!isSettingsOpen)}
+              className={`p-1.5 sm:p-2 rounded-full hover:bg-white/15 transition cursor-pointer ${
+                isSettingsOpen ? "text-primary bg-white/10" : "text-zinc-300"
+              }`}
+              title="Settings"
             >
-              <PictureInPicture className="w-4 h-4" />
+              <Settings className="w-4 h-4" />
             </button>
 
+            {/* Settings Popup Menu */}
+            {isSettingsOpen && (
+              <div
+                onClick={(e) => e.stopPropagation()}
+                className="absolute bottom-10 right-0 w-48 bg-zinc-900/95 border border-zinc-700/80 rounded-xl p-2 shadow-2xl backdrop-blur-md z-30 text-xs text-zinc-200"
+              >
+                {/* Speed Controls */}
+                <div className="mb-2 pb-2 border-b border-zinc-800">
+                  <span className="text-[10px] uppercase font-bold text-zinc-400 block mb-1">
+                    Playback Speed
+                  </span>
+                  <div className="grid grid-cols-3 gap-1">
+                    {speeds.map((spd) => (
+                      <button
+                        key={spd}
+                        onClick={() => handleSpeedChange(spd)}
+                        className={`px-1.5 py-1 rounded text-center font-mono ${
+                          playbackSpeed === spd
+                            ? "bg-primary text-primary-foreground font-bold"
+                            : "bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300"
+                        }`}
+                      >
+                        {spd}x
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Quality Controls for HLS */}
+                {qualities.length > 0 && (
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-zinc-400 block mb-1">
+                      Quality
+                    </span>
+                    <button
+                      onClick={() => handleQualityChange(-1)}
+                      className={`w-full text-left px-2 py-1 rounded mb-1 flex items-center justify-between ${
+                        selectedQuality === -1
+                          ? "bg-primary/20 text-primary font-bold"
+                          : "hover:bg-zinc-800 text-zinc-300"
+                      }`}
+                    >
+                      <span>Auto</span>
+                      {selectedQuality === -1 && <Check className="w-3 h-3" />}
+                    </button>
+                    {qualities.map((q) => (
+                      <button
+                        key={q.id}
+                        onClick={() => handleQualityChange(q.id)}
+                        className={`w-full text-left px-2 py-1 rounded flex items-center justify-between ${
+                          selectedQuality === q.id
+                            ? "bg-primary/20 text-primary font-bold"
+                            : "hover:bg-zinc-800 text-zinc-300"
+                        }`}
+                      >
+                        <span>{q.label}</span>
+                        {selectedQuality === q.id && <Check className="w-3 h-3" />}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* PiP Button (Only for native video) */}
+            {!youtubeId && (
+              <button
+                onClick={togglePiP}
+                className="p-1.5 sm:p-2 rounded-full hover:bg-white/15 text-zinc-300 hover:text-white transition cursor-pointer hidden sm:block"
+                title="Picture in Picture"
+              >
+                <PictureInPicture className="w-4 h-4" />
+              </button>
+            )}
+
+            {/* Fullscreen Button */}
             <button
               onClick={toggleFullscreen}
-              className="p-1.5 rounded-full hover:bg-white/20 text-white transition-all cursor-pointer"
+              className="p-1.5 sm:p-2 rounded-full hover:bg-white/15 text-white transition cursor-pointer"
               title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
             >
               {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}

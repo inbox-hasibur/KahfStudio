@@ -5,6 +5,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import axios from "axios";
 import { generateSeamlessGeminiAudio, uploadAudioToCloudinary } from "@/lib/audio/gemini-tts";
 import { extractArticleContent } from "@/lib/scraper/universal-extractor";
+import { decodeHtmlEntities } from "@/lib/scraper/cleaner";
 
 export const processArticle = inngest.createFunction(
   { id: "process-article", event: "app/process-article" },
@@ -134,15 +135,15 @@ YOUR RESPONSE MUST STRICTLY FOLLOW THIS JSON SCHEMA:
     // 5. Save to Supabase (news_articles)
     await step.run("save-to-db", async () => {
       // Full News Body Retention Safeguard:
-      const isGeminiShortened = aiResult.clean_content && cleanedMarkdown.length > 500 && (aiResult.clean_content.length < cleanedMarkdown.length * 0.55);
-      const finalFullContent = (!isGeminiShortened && aiResult.clean_content && aiResult.clean_content.length >= 150)
+      const isGeminiShortened = aiResult.clean_content && cleanedMarkdown.length > 300 && (aiResult.clean_content.length < cleanedMarkdown.length * 0.7);
+      const finalFullContent = (!isGeminiShortened && aiResult.clean_content && aiResult.clean_content.length >= 200)
         ? aiResult.clean_content
         : cleanedMarkdown;
 
       const insertPayload: any = {
-        headline: aiResult.clean_headline || title,
-        raw_content: finalFullContent,
-        ai_summary: aiResult.ai_summary,
+        headline: decodeHtmlEntities(aiResult.clean_headline || title),
+        raw_content: decodeHtmlEntities(finalFullContent),
+        ai_summary: aiResult.ai_summary ? decodeHtmlEntities(aiResult.ai_summary) : null,
         status: autoApprove ? "published" : "draft",
         original_url: url,
         source: sourceName || url,

@@ -1,304 +1,202 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { 
-  Play, Pause, Music, Video, SkipBack, SkipForward, Rewind, FastForward, 
-  Volume2, VolumeX, Settings, Maximize, Lock, Star, ChevronDown, ChevronLeft, ChevronRight, Flame, Tv, Sparkles, Clock
+  Tv, Video, Clock, ChevronDown, ChevronUp, Radio, Flame, Sparkles
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
-import { useSession } from "@/lib/auth-client";
-import { HalalExperimentSection } from "@/components/media/HalalExperimentSection";
 import { HlsVideoPlayer } from "@/components/media/HlsVideoPlayer";
 
-export interface IPTVChannel {
+export interface MediaItem {
   id: string;
+  type: "channel" | "video";
   name: string;
   category: string;
-  videoId: string;
-  streamUrl: string;
-  color: string;
-  text: string;
+  videoId?: string;
+  streamUrl?: string;
+  thumbnail?: string;
+  duration?: string;
   source: string;
-  isLive?: boolean;
-  isIptvStream?: boolean;
-  country?: string;
+  description?: string;
+  logoColor?: string;
+  logoText?: string;
 }
 
-export interface NewsVideo {
-  id: string;
-  title: string;
-  videoId: string;
-  thumbnail: string;
-  category: string;
-  duration: string;
-  description: string;
-  source?: string;
-  originalUrl?: string;
-}
-
-const toBengaliDigits = (num: number | string) => {
-  const banglaDigits = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
-  return num.toString().replace(/\d/g, (digit) => banglaDigits[parseInt(digit)]);
-};
-
-const ChannelLogo = ({ channelId, name }: { channelId: string; name: string }) => {
-  const n = (name || "").toLowerCase();
-  if (channelId === "c1" || n.includes("jamuna") || n.includes("যমুনা")) {
-    return (
-      <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center text-white font-black text-[9px] tracking-tighter shrink-0 shadow-sm border border-red-500/40">
-        <span className="text-red-400">J</span><span className="text-white">TV</span>
-      </div>
-    );
-  }
-  if (channelId === "c2" || n.includes("somoy") || n.includes("সময়")) {
-    return (
-      <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-orange-500 to-orange-700 flex items-center justify-center text-white font-black text-[9px] shrink-0 shadow-sm border border-orange-400/30">
-        <span>সময়</span>
-      </div>
-    );
-  }
-  if (channelId === "c3" || n.includes("channel 24") || n.includes("২৪")) {
-    return (
-      <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-emerald-600 to-teal-800 flex items-center justify-center text-white font-black text-[10px] shrink-0 shadow-sm border border-emerald-400/40">
-        <span>24</span>
-      </div>
-    );
-  }
-  if (channelId === "c4" || n.includes("news24") || n.includes("নিউজ ২৪")) {
-    return (
-      <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-red-600 to-rose-800 flex items-center justify-center text-white font-black text-[9px] shrink-0 shadow-sm border border-red-400/30">
-        <span>N24</span>
-      </div>
-    );
-  }
-  if (channelId === "c5" || n.includes("ekattor") || n.includes("একাত্তর")) {
-    return (
-      <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-green-700 to-green-900 flex items-center justify-center text-red-300 font-black text-[10px] shrink-0 shadow-sm border border-red-500/50">
-        <span>৭১</span>
-      </div>
-    );
-  }
-  if (channelId === "c6" || n.includes("independent") || n.includes("ইন্ডিপেনডেন্ট")) {
-    return (
-      <div className="w-6 h-6 rounded-lg bg-zinc-900 border border-amber-400/60 flex items-center justify-center text-amber-400 font-black text-[11px] shrink-0 shadow-sm">
-        <span>i</span>
-      </div>
-    );
-  }
-  if (channelId === "c7" || n.includes("rtv") || n.includes("আরটিভি")) {
-    return (
-      <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-red-600 to-red-800 flex items-center justify-center text-white font-black text-[8px] tracking-tight shrink-0 shadow-sm border border-red-400/30">
-        <span>rtv</span>
-      </div>
-    );
-  }
-  if (channelId === "c8" || n.includes("banglavision") || n.includes("বাংলাভিশন")) {
-    return (
-      <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-sky-500 to-sky-700 flex items-center justify-center text-white font-black text-[9px] shrink-0 shadow-sm border border-sky-400/30">
-        <span>BV</span>
-      </div>
-    );
-  }
-  if (channelId === "c9" || n.includes("desh") || n.includes("দেশ")) {
-    return (
-      <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-teal-600 to-teal-800 flex items-center justify-center text-white font-bold text-[8px] shrink-0 shadow-sm border border-teal-400/30">
-        <span>দেশ</span>
-      </div>
-    );
-  }
-  if (channelId === "c10" || n.includes("al jazeera") || n.includes("জাজিরা")) {
-    return (
-      <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-amber-600 to-amber-800 flex items-center justify-center text-white font-black text-[9px] tracking-tight shrink-0 shadow-sm border border-amber-400/40">
-        <span>AJ</span>
-      </div>
-    );
-  }
-  if (channelId === "c11" || n.includes("dw")) {
-    return (
-      <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-sky-600 to-blue-800 flex items-center justify-center text-white font-black text-[8px] tracking-tight shrink-0 shadow-sm border border-sky-400/30">
-        <span>DW</span>
-      </div>
-    );
-  }
-  if (channelId === "c12" || n.includes("sky")) {
-    return (
-      <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-rose-600 to-red-700 flex items-center justify-center text-white font-bold text-[8px] tracking-tight shrink-0 shadow-sm border border-rose-400/30">
-        <span>sky</span>
-      </div>
-    );
-  }
-  if (channelId === "c13" || n.includes("dbc")) {
-    return (
-      <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-purple-600 to-indigo-800 flex items-center justify-center text-white font-black text-[8px] tracking-tight shrink-0 shadow-sm border border-purple-400/30">
-        <span>DBC</span>
-      </div>
-    );
-  }
-  if (channelId === "c14" || n.includes("channel i") || n.includes("চ্যানেল আই")) {
-    return (
-      <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-emerald-600 to-teal-800 flex items-center justify-center text-red-400 font-black text-[10px] shrink-0 shadow-sm border border-emerald-400/30">
-        <span>i</span>
-      </div>
-    );
-  }
-  return (
-    <div className="w-6 h-6 rounded-lg bg-primary/20 text-primary flex items-center justify-center font-bold text-[10px] shrink-0">
-      <Tv className="w-3 h-3" />
-    </div>
-  );
-};
-
-const defaultChannels: IPTVChannel[] = [
+export const defaultChannels: MediaItem[] = [
   { 
     id: "c1", 
-    name: "Jamuna TV", 
+    type: "channel",
+    name: "Jamuna TV (যমুনা টিভি)", 
     category: "জাতীয় সংবাদ", 
     videoId: "0Q_IZvp_N5w",
-    streamUrl: "https://www.youtube.com/embed/0Q_IZvp_N5w?autoplay=0&mute=0&enablejsapi=1&playsinline=1&rel=0&modestbranding=1",
-    color: "bg-blue-600", 
-    text: "text-white",
-    source: "24/7 লাইভ এইচডি"
+    streamUrl: "https://tvsen5.aynaott.com/banglavision/index.m3u8",
+    logoColor: "from-blue-600 to-blue-800",
+    logoText: "JTV",
+    source: "24/7 লাইভ এইচডি",
+    description: "যমুনা টেলিভিশনের সার্বক্ষণিক লাইভ নিউজ ও ব্রেকিং নিউজ সম্প্রচার।"
   },
   { 
     id: "c2", 
-    name: "Somoy TV", 
+    type: "channel",
+    name: "Somoy TV (সময় টিভি)", 
     category: "ব্রেকিং নিউজ", 
     videoId: "i8VSQO6TlFc",
-    streamUrl: "https://www.youtube.com/embed/i8VSQO6TlFc?autoplay=0&mute=0&enablejsapi=1&playsinline=1&rel=0&modestbranding=1",
-    color: "bg-orange-600", 
-    text: "text-white",
-    source: "24/7 লাইভ এইচডি"
+    streamUrl: "https://tvsen5.aynaott.com/somoytv/index.m3u8",
+    logoColor: "from-orange-500 to-orange-700",
+    logoText: "সময়",
+    source: "24/7 লাইভ এইচডি",
+    description: "সময় টিভির তাজা খবর, দেশ ও বিদেশের সর্বশেষ আপডেট।"
   },
   { 
     id: "c3", 
-    name: "Channel 24", 
+    type: "channel",
+    name: "Channel 24 (চ্যানেল ২৪)", 
     category: "সংবাদ ২৪", 
     videoId: "LVPgC7LQOw0",
-    streamUrl: "https://www.youtube.com/embed/LVPgC7LQOw0?autoplay=0&mute=0&enablejsapi=1&playsinline=1&rel=0&modestbranding=1",
-    color: "bg-emerald-600", 
-    text: "text-white",
-    source: "24/7 লাইভ এইচডি"
+    streamUrl: "https://tvsen5.aynaott.com/xV4jEKf3D9zc/index.m3u8",
+    logoColor: "from-emerald-600 to-teal-800",
+    logoText: "24",
+    source: "24/7 লাইভ এইচডি",
+    description: "চ্যানেল ২৪-এর সরাসরি লাইভ সম্প্রচার ও অনুসন্ধানী প্রতিবেদন।"
   },
   { 
     id: "c4", 
-    name: "News24", 
+    type: "channel",
+    name: "News24 (নিউজ ২৪)", 
     category: "ব্রেকিং নিউজ", 
     videoId: "oCslIqfoOZw",
-    streamUrl: "https://www.youtube.com/embed/oCslIqfoOZw?autoplay=0&mute=0&enablejsapi=1&playsinline=1&rel=0&modestbranding=1",
-    color: "bg-red-700", 
-    text: "text-white",
-    source: "24/7 লাইভ"
+    streamUrl: "https://tvsen5.aynaott.com/news24/index.m3u8",
+    logoColor: "from-red-600 to-rose-800",
+    logoText: "N24",
+    source: "24/7 লাইভ",
+    description: "নিউজ ২৪ চ্যানেলের সরাসরি লাইভ সম্প্রচার।"
   },
   { 
     id: "c5", 
-    name: "Ekattor TV", 
+    type: "channel",
+    name: "Ekattor TV (একাত্তর টিভি)", 
     category: "জাতীয়", 
     videoId: "2lVBzxoof0U",
-    streamUrl: "https://www.youtube.com/embed/2lVBzxoof0U?autoplay=0&mute=0&enablejsapi=1&playsinline=1&rel=0&modestbranding=1",
-    color: "bg-green-700", 
-    text: "text-white",
-    source: "তাজা সংবাদ"
+    streamUrl: "https://tvsen5.aynaott.com/ekattor/index.m3u8",
+    logoColor: "from-green-700 to-green-900",
+    logoText: "৭১",
+    source: "তাজা সংবাদ",
+    description: "একাত্তর টেলিভিশনের দিনভর লাইভ খবর ও রাজনৈতিক আলোচনা।"
   },
   { 
     id: "c6", 
-    name: "Independent TV", 
+    type: "channel",
+    name: "Independent TV (ইন্ডিপেনডেন্ট)", 
     category: "বাংলাদেশ", 
     videoId: "qREvoxxG6Nc",
-    streamUrl: "https://www.youtube.com/embed/qREvoxxG6Nc?autoplay=0&mute=0&enablejsapi=1&playsinline=1&rel=0&modestbranding=1",
-    color: "bg-slate-800", 
-    text: "text-white",
-    source: "24/7 লাইভ"
+    streamUrl: "https://tvsen5.aynaott.com/independent/index.m3u8",
+    logoColor: "from-slate-800 to-zinc-900",
+    logoText: "i",
+    source: "24/7 লাইভ",
+    description: "ইনডিপেনডেন্ট টেলিভিশনের লাইভ নিউজ ও বিশেষ বিশ্লেষণ।"
   },
   { 
     id: "c7", 
-    name: "RTV News", 
+    type: "channel",
+    name: "RTV News (আরটিভি)", 
     category: "জাতীয় সংবাদ", 
     videoId: "PtztZQi5hCg",
-    streamUrl: "https://www.youtube.com/embed/PtztZQi5hCg?autoplay=0&mute=0&enablejsapi=1&playsinline=1&rel=0&modestbranding=1",
-    color: "bg-red-600", 
-    text: "text-white",
-    source: "24/7 লাইভ"
+    streamUrl: "https://tvsen5.aynaott.com/rtv/index.m3u8",
+    logoColor: "from-red-600 to-red-800",
+    logoText: "rtv",
+    source: "24/7 লাইভ",
+    description: "আরটিভি নিউজের সরাসরি সম্প্রচার।"
   },
   { 
     id: "c8", 
-    name: "Banglavision", 
+    type: "channel",
+    name: "Banglavision (বাংলাভিশন)", 
     category: "সংবাদ ও খবর", 
     videoId: "mCFcsPxkQrY",
-    streamUrl: "https://www.youtube.com/embed/mCFcsPxkQrY?autoplay=0&mute=0&enablejsapi=1&playsinline=1&rel=0&modestbranding=1",
-    color: "bg-sky-600", 
-    text: "text-white",
-    source: "24/7 লাইভ"
+    streamUrl: "https://tvsen5.aynaott.com/banglavision/index.m3u8",
+    logoColor: "from-sky-500 to-sky-700",
+    logoText: "BV",
+    source: "24/7 লাইভ",
+    description: "বাংলাভিশনের লাইভ নিউজ ও বুলেটিন।"
   },
   { 
     id: "c9", 
-    name: "Desh TV", 
+    type: "channel",
+    name: "Desh TV (দেশ টিভি)", 
     category: "খবর ও রাজনীতি", 
     videoId: "V2oJukYnC40",
-    streamUrl: "https://www.youtube.com/embed/V2oJukYnC40?autoplay=0&mute=0&enablejsapi=1&playsinline=1&rel=0&modestbranding=1",
-    color: "bg-teal-700", 
-    text: "text-white",
-    source: "24/7 লাইভ"
+    streamUrl: "https://tvsen5.aynaott.com/deshtv/index.m3u8",
+    logoColor: "from-teal-600 to-teal-800",
+    logoText: "দেশ",
+    source: "24/7 লাইভ",
+    description: "দেশ টিভির সার্বক্ষণিক সংবাদ।"
   },
   { 
     id: "c13", 
-    name: "DBC News", 
+    type: "channel",
+    name: "DBC News (ডিবিসি)", 
     category: "জাতীয় সংবাদ", 
     videoId: "FsV_tzCDzic",
-    streamUrl: "https://www.youtube.com/embed/FsV_tzCDzic?autoplay=0&mute=0&enablejsapi=1&playsinline=1&rel=0&modestbranding=1",
-    color: "bg-purple-700", 
-    text: "text-white",
-    source: "24/7 লাইভ"
+    streamUrl: "https://tvsen5.aynaott.com/dbcnews/index.m3u8",
+    logoColor: "from-purple-600 to-indigo-800",
+    logoText: "DBC",
+    source: "24/7 লাইভ",
+    description: "ডিবিসি নিউজের সরাসরি নিউজ বুলেটিন।"
   },
   { 
     id: "c14", 
-    name: "Channel i", 
+    type: "channel",
+    name: "Channel i (চ্যানেল আই)", 
     category: "সংবাদ ও ফিচার", 
     videoId: "UBesSUxhyog",
-    streamUrl: "https://www.youtube.com/embed/UBesSUxhyog?autoplay=0&mute=0&enablejsapi=1&playsinline=1&rel=0&modestbranding=1",
-    color: "bg-emerald-700", 
-    text: "text-white",
-    source: "সংবাদ ও ফিচার"
+    streamUrl: "https://tvsen5.aynaott.com/channeli/index.m3u8",
+    logoColor: "from-emerald-600 to-teal-800",
+    logoText: "i",
+    source: "সংবাদ ও ফিচার",
+    description: "চ্যানেল আই সংবাদ ও বিশেষ আয়োজন।"
   },
   { 
     id: "c10", 
+    type: "channel",
     name: "Al Jazeera English", 
     category: "আন্তর্জাতিক", 
     videoId: "gCNeDWCI0vo",
-    streamUrl: "https://www.youtube.com/embed/gCNeDWCI0vo?autoplay=0&mute=0&enablejsapi=1&playsinline=1&rel=0&modestbranding=1",
-    color: "bg-amber-600", 
-    text: "text-white",
-    source: "Global Live HD"
+    logoColor: "from-amber-600 to-amber-800",
+    logoText: "AJ",
+    source: "Global Live HD",
+    description: "24/7 Live World News from Al Jazeera English."
   },
   { 
     id: "c11", 
+    type: "channel",
     name: "DW News", 
     category: "বিশ্ব সংবাদ", 
     videoId: "LuKwFajn37U",
-    streamUrl: "https://www.youtube.com/embed/LuKwFajn37U?autoplay=0&mute=0&enablejsapi=1&playsinline=1&rel=0&modestbranding=1",
-    color: "bg-sky-700", 
-    text: "text-white",
-    source: "Global Live HD"
+    logoColor: "from-sky-600 to-blue-800",
+    logoText: "DW",
+    source: "Global Live HD",
+    description: "International breaking news and analysis from Deutsche Welle."
   },
   { 
     id: "c12", 
+    type: "channel",
     name: "Sky News", 
     category: "আন্তর্জাতিক", 
     videoId: "xDWQ3LkccY8",
-    streamUrl: "https://www.youtube.com/embed/xDWQ3LkccY8?autoplay=0&mute=0&enablejsapi=1&playsinline=1&rel=0&modestbranding=1",
-    color: "bg-rose-700", 
-    text: "text-white",
-    source: "Global Live HD"
+    logoColor: "from-rose-600 to-red-700",
+    logoText: "sky",
+    source: "Global Live HD",
+    description: "Sky News live UK and international broadcasts."
   }
 ];
 
-// 100% Real Video Reports & Content Synced with Major Channels
-const realNewsVideos: NewsVideo[] = [
+export const defaultNewsVideos: MediaItem[] = [
   {
     id: "v1",
-    title: "পানামা খালে পানি সরবরাহ নিয়ে বিশেষ প্রতিবেদন",
+    type: "video",
+    name: "পানামা খালে পানি সরবরাহ নিয়ে বিশেষ প্রতিবেদন",
     videoId: "EZ81qPzajLI",
     thumbnail: "https://img.youtube.com/vi/EZ81qPzajLI/hqdefault.jpg",
     category: "জাতীয়",
@@ -308,7 +206,8 @@ const realNewsVideos: NewsVideo[] = [
   },
   {
     id: "v2",
-    title: "৮ মাসে বন্ধের চেয়ে দ্বিগুণ নতুন পোশাক কারখানা চালু",
+    type: "video",
+    name: "৮ মাসে বন্ধের চেয়ে দ্বিগুণ নতুন পোশাক কারখানা চালু",
     videoId: "xQYPxb5iwi4",
     thumbnail: "https://img.youtube.com/vi/xQYPxb5iwi4/hqdefault.jpg",
     category: "অর্থনীতি",
@@ -318,7 +217,8 @@ const realNewsVideos: NewsVideo[] = [
   },
   {
     id: "v3",
-    title: "ডাকসু নির্বাচনের ১ বছর; প্রতিশ্রুতি পূরণে কতটা সফল ছাত্রনেতারা?",
+    type: "video",
+    name: "ডাকসু নির্বাচনের ১ বছর; প্রতিশ্রুতি পূরণে কতটা সফল ছাত্রনেতারা?",
     videoId: "cqTCa8NhM-M",
     thumbnail: "https://img.youtube.com/vi/cqTCa8NhM-M/hqdefault.jpg",
     category: "রাজনীতি",
@@ -328,7 +228,8 @@ const realNewsVideos: NewsVideo[] = [
   },
   {
     id: "v4",
-    title: "গ্যাস-জ্বালানি বৈশ্বিক সংকট, সমাধান একা সম্ভব নয়: জ্বালানি বিশেষজ্ঞ",
+    type: "video",
+    name: "গ্যাস-জ্বালানি বৈশ্বিক সংকট, সমাধান একা সম্ভব নয়",
     videoId: "2lVBzxoof0U",
     thumbnail: "https://img.youtube.com/vi/2lVBzxoof0U/hqdefault.jpg",
     category: "জাতীয়",
@@ -338,7 +239,8 @@ const realNewsVideos: NewsVideo[] = [
   },
   {
     id: "v5",
-    title: "গণমাধ্যম এখন যেকোনো সময়ের চেয়ে অনেক বেশি স্বাধীন",
+    type: "video",
+    name: "গণমাধ্যম এখন যেকোনো সময়ের চেয়ে অনেক বেশি স্বাধীন",
     videoId: "tKgcXInssiQ",
     thumbnail: "https://img.youtube.com/vi/tKgcXInssiQ/hqdefault.jpg",
     category: "গণমাধ্যম",
@@ -348,7 +250,8 @@ const realNewsVideos: NewsVideo[] = [
   },
   {
     id: "v6",
-    title: "ত্যাগী ও নির্যাতিত নেতাদের স্মরণ ও রাজনৈতিক দৃষ্টিভঙ্গি",
+    type: "video",
+    name: "ত্যাগী ও নির্যাতিত নেতাদের স্মরণ ও রাজনৈতিক দৃষ্টিভঙ্গি",
     videoId: "ffxM3qF50OE",
     thumbnail: "https://img.youtube.com/vi/ffxM3qF50OE/hqdefault.jpg",
     category: "রাজনীতি",
@@ -358,7 +261,8 @@ const realNewsVideos: NewsVideo[] = [
   },
   {
     id: "v7",
-    title: "সমসাময়িক রাজনৈতিক পরিস্থিতি ও দেশের সামগ্রিক প্রেক্ষাপট",
+    type: "video",
+    name: "সমসাময়িক রাজনৈতিক পরিস্থিতি ও দেশের সামগ্রিক প্রেক্ষাপট",
     videoId: "Nia-x6xY0BI",
     thumbnail: "https://img.youtube.com/vi/Nia-x6xY0BI/hqdefault.jpg",
     category: "জাতীয়",
@@ -368,7 +272,8 @@ const realNewsVideos: NewsVideo[] = [
   },
   {
     id: "v8",
-    title: "বাংলাভিশন সংবাদ বুলেটিন ও দিনের প্রধান খবর",
+    type: "video",
+    name: "বাংলাভিশন সংবাদ বুলেটিন ও দিনের প্রধান খবর",
     videoId: "-N8ewR65kas",
     thumbnail: "https://img.youtube.com/vi/-N8ewR65kas/hqdefault.jpg",
     category: "বুলেটিন",
@@ -379,366 +284,232 @@ const realNewsVideos: NewsVideo[] = [
 ];
 
 export default function MediaPage() {
-  const { data: session } = useSession();
-  const isPremium = (session?.user as any)?.tier === "premium" || (session?.user as any)?.role === "admin";
-  
-  const [channels, setChannels] = useState<IPTVChannel[]>(defaultChannels);
-  const [videos, setVideos] = useState<NewsVideo[]>(realNewsVideos);
-  const [streamType, setStreamType] = useState<"live" | "video">("live");
-  const [activeChannel, setActiveChannel] = useState<IPTVChannel>(defaultChannels[0]);
-  const [currentVideo, setCurrentVideo] = useState<NewsVideo>(realNewsVideos[0]);
-
-  const [isHalalMode, setIsHalalMode] = useState(false);
-  const [halalModel, setHalalModel] = useState<"HTDemucs" | "NatSep">("NatSep");
+  const [channels, setChannels] = useState<MediaItem[]>(defaultChannels);
+  const [videos, setVideos] = useState<MediaItem[]>(defaultNewsVideos);
+  const [activeMedia, setActiveMedia] = useState<MediaItem>(defaultChannels[0]);
   const [isDescExpanded, setIsDescExpanded] = useState(false);
 
-  const channelsScrollRef = useRef<HTMLDivElement | null>(null);
-  const videosScrollRef = useRef<HTMLDivElement | null>(null);
-
-  // Fetch real-time live channel streams from our dynamic IPTV resolver API
+  // Dynamic IPTV fetch if available
   useEffect(() => {
     fetch("/api/iptv")
       .then((res) => res.json())
       .then((data) => {
-        if (data && data.channels && data.channels.length > 0) {
-          setChannels(data.channels);
-          setActiveChannel((prev) => {
-            const updated = data.channels.find((c: IPTVChannel) => c.id === prev.id);
-            return updated || data.channels[0];
-          });
+        if (data?.channels && data.channels.length > 0) {
+          const mappedChannels: MediaItem[] = data.channels.map((c: any) => ({
+            id: c.id,
+            type: "channel" as const,
+            name: c.name,
+            category: c.category || "লাইভ",
+            videoId: c.videoId,
+            streamUrl: c.streamUrl,
+            source: c.source || "24/7 লাইভ",
+            description: `${c.name} এর সার্বক্ষণিক লাইভ নিউজ সম্প্রচার।`,
+            logoColor: c.color?.replace("bg-", "from-") || "from-blue-600 to-blue-800",
+            logoText: c.name?.slice(0, 3) || "TV",
+          }));
+          setChannels(mappedChannels);
         }
-        if (data && data.videos && data.videos.length > 0) {
-          setVideos(data.videos);
-          setCurrentVideo((prev) => {
-            const updated = data.videos.find((v: NewsVideo) => v.id === prev.id);
-            return updated || data.videos[0];
-          });
+        if (data?.videos && data.videos.length > 0) {
+          const mappedVideos: MediaItem[] = data.videos.map((v: any) => ({
+            id: v.id,
+            type: "video" as const,
+            name: v.title,
+            category: v.category || "ভিডিও",
+            videoId: v.videoId,
+            thumbnail: v.thumbnail,
+            duration: v.duration || "০৪:০০",
+            source: v.source || "News",
+            description: v.description,
+          }));
+          setVideos(mappedVideos);
         }
       })
       .catch(() => {});
   }, []);
 
-  const scrollContainer = (ref: React.RefObject<HTMLDivElement | null>, direction: "left" | "right") => {
-    if (ref.current) {
-      const scrollAmount = direction === "left" ? -280 : 280;
-      ref.current.scrollBy({ left: scrollAmount, behavior: "smooth" });
-    }
+  const handleSelectMedia = (item: MediaItem) => {
+    setActiveMedia(item);
   };
 
-  const [hasUserInteracted, setHasUserInteracted] = useState(false);
-
-  const activeEmbedUrl = streamType === "live" 
-    ? `https://www.youtube.com/embed/${activeChannel.videoId}?autoplay=${hasUserInteracted ? 1 : 0}&mute=0&enablejsapi=1&playsinline=1&rel=0&modestbranding=1`
-    : `https://www.youtube.com/embed/${currentVideo.videoId}?autoplay=${hasUserInteracted ? 1 : 0}&mute=0&enablejsapi=1&playsinline=1&rel=0&modestbranding=1`;
-
   return (
-    <main className="max-w-[1200px] mx-auto px-3 sm:px-6 pt-16 sm:pt-24 md:pt-32 pb-4 space-y-3 notranslate">
+    <main className="max-w-[1240px] mx-auto px-3 sm:px-6 pt-16 sm:pt-24 md:pt-28 pb-12 space-y-4 notranslate">
       {/* 1. Page Header */}
       <div>
-        <h1 className="text-base sm:text-xl md:text-2xl font-serif font-bold flex items-center gap-1.5 text-foreground tracking-tight">
-          <Video className="w-4 h-4 sm:w-6 sm:h-6 text-primary" />
+        <h1 className="text-xl sm:text-2xl md:text-3xl font-bold flex items-center gap-2 text-foreground tracking-tight">
+          <Video className="w-6 h-6 sm:w-7 sm:h-7 text-primary shrink-0" />
           নিউজ <span className="text-primary">মিডিয়া</span>
         </h1>
-        <p className="text-muted-foreground text-[11px] sm:text-xs leading-tight mt-0.5">
-          লাইভ টিভি চ্যানেল ও ভিডিও সংবাদ দেখুন এবং এআই মিউজিক ফিল্টারের মাধ্যমে মিউজিক-মুক্ত (হালাল) খবর উপভোগ করুন।
+        <p className="text-muted-foreground text-xs sm:text-sm mt-1">
+          লাইভ টিভি চ্যানেল সম্প্রচার ও ভিডিও সংবাদের সার্বক্ষণিক আধুনিক ভিডিও প্লেয়ার।
         </p>
       </div>
 
-      {/* 🧪 Isolated Halal Sound Mode Experimental Lab (Elevated to top view) */}
-      <HalalExperimentSection />
+      {/* 2. Main Primary Video Player (Fixes pause bug & eliminates Halal clutter) */}
+      <div className="w-full">
+        <HlsVideoPlayer
+          key={activeMedia.id + (activeMedia.videoId || activeMedia.streamUrl)}
+          src={activeMedia.streamUrl}
+          videoId={activeMedia.videoId}
+          title={activeMedia.name}
+          autoPlay={true}
+          className="w-full shadow-xl"
+        />
 
-      {/* 2. Wide Halal Mode AI Banner (Positioned Right Above Video Player) */}
-      <div className="w-full bg-card border border-border rounded-xl sm:rounded-2xl p-2 sm:p-2.5 shadow-sm flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 min-w-0">
-          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-primary shrink-0">
-            <Music className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+        {/* Media Info Bar Below Player */}
+        <div className="mt-2.5 px-3 py-2 rounded-xl bg-card border border-border shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="flex items-center gap-2.5 min-w-0 flex-1">
+            <Badge className="bg-primary/10 text-primary border-none text-[10px] font-bold px-2 py-0.5 uppercase tracking-wide shrink-0">
+              {activeMedia.category}
+            </Badge>
+            <h2 className="text-xs sm:text-sm font-bold text-foreground leading-tight truncate">
+              {activeMedia.name}
+            </h2>
+            <span className="text-[10px] text-muted-foreground hidden sm:inline-block shrink-0">
+              • {activeMedia.source}
+            </span>
           </div>
-          <div className="truncate">
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs sm:text-sm font-bold text-foreground truncate">হালাল মোড (এআই মিউজিক ফিল্টার)</span>
-              {!isPremium && <Lock className="w-3 h-3 text-muted-foreground shrink-0" />}
-            </div>
-            <p className="text-[10px] sm:text-xs text-muted-foreground truncate">ভিডিও থেকে ব্যাকগ্রাউন্ড মিউজিক সরিয়ে ফেলুন</p>
-          </div>
-        </div>
 
-        <div className="flex items-center gap-2 shrink-0">
-          {/* Halal Model Selector (HTDemucs vs NatSep) */}
-          {isHalalMode && (
-            <div className="inline-flex bg-muted/90 p-0.5 rounded-full border border-border text-[10px] sm:text-[11px] font-bold">
-              <button
-                type="button"
-                onClick={() => setHalalModel("HTDemucs")}
-                className={`px-2.5 py-0.5 rounded-full transition-colors cursor-pointer ${halalModel === "HTDemucs" ? "bg-primary text-primary-foreground shadow-sm font-bold" : "text-muted-foreground hover:text-foreground"}`}
-              >
-                HTDemucs
-              </button>
-              <button
-                type="button"
-                onClick={() => setHalalModel("NatSep")}
-                className={`px-2.5 py-0.5 rounded-full transition-colors cursor-pointer ${halalModel === "NatSep" ? "bg-primary text-primary-foreground shadow-sm font-bold" : "text-muted-foreground hover:text-foreground"}`}
-              >
-                NatSep
-              </button>
-            </div>
-          )}
-
-          <Button 
-            variant={isHalalMode ? "default" : "outline"} 
-            size="sm" 
-            disabled={!isPremium}
-            onClick={() => isPremium && setIsHalalMode(!isHalalMode)}
-            className={`h-7 px-3 text-[11px] font-bold rounded-full shrink-0 cursor-pointer ${isHalalMode ? "bg-primary text-primary-foreground" : ""}`}
+          <button
+            onClick={() => setIsDescExpanded(!isDescExpanded)}
+            className="self-end sm:self-auto flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground font-semibold px-2.5 py-1 rounded-lg bg-muted/60 hover:bg-muted border border-border transition-all shrink-0 cursor-pointer"
           >
-            {isPremium ? (isHalalMode ? "চালু আছে" : "চালু করুন") : "Upgrade"}
-          </Button>
-        </div>
-      </div>
-
-      {/* 3. Main 100% Real Live Stream & Video Player Card */}
-      <Card className="overflow-hidden bg-card border border-border rounded-xl sm:rounded-2xl shadow-sm transition-all">
-        <div className="relative aspect-video bg-black group overflow-hidden select-none">
-          {/* Active 24/7 Live Stream / Real Video Embed */}
-          {streamType === "live" && activeChannel.isIptvStream ? (
-            <HlsVideoPlayer
-              key={activeChannel.streamUrl}
-              src={activeChannel.streamUrl}
-              title={activeChannel.name}
-              autoPlay={hasUserInteracted}
-              className="w-full h-full rounded-none border-none shadow-none"
-            />
-          ) : (
-            <iframe
-              key={streamType === "live" ? activeChannel.videoId : currentVideo.videoId}
-              src={activeEmbedUrl}
-              title={streamType === "live" ? activeChannel.name : currentVideo.title}
-              className="w-full h-full border-0"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-              allowFullScreen
-              referrerPolicy="strict-origin-when-cross-origin"
-            />
-          )}
+            <span>{isDescExpanded ? "সংক্ষিপ্ত বিবরণ" : "বিস্তারিত"}</span>
+            {isDescExpanded ? <ChevronUp className="w-3.5 h-3.5 text-primary" /> : <ChevronDown className="w-3.5 h-3.5 text-primary" />}
+          </button>
         </div>
 
-        {/* Video / Stream Metadata Info Row (Ultra-Slim Design) */}
-        <div className="px-2.5 py-1.5 sm:px-3 sm:py-2">
-          <div className="flex items-center justify-between gap-2">
-            <div className="min-w-0 flex-1 flex items-center gap-2">
-              <Badge className="bg-primary/10 text-primary border-none text-[9px] font-bold px-1.5 py-0.2 uppercase tracking-wider shrink-0">
-                {streamType === "live" ? activeChannel.category : currentVideo.category}
-              </Badge>
-
-              {/* Title */}
-              <h2 className="text-xs sm:text-sm font-bold text-foreground leading-tight tracking-tight truncate">
-                {streamType === "live" ? `${activeChannel.name} — সরাসরি লাইভ সংবাদ সম্প্রচার` : currentVideo.title}
-              </h2>
-            </div>
-
-            {/* Description Toggle */}
-            <button
-              onClick={() => setIsDescExpanded(!isDescExpanded)}
-              className="flex items-center gap-1 text-[10px] sm:text-[11px] text-muted-foreground hover:text-foreground font-semibold px-2 py-0.5 rounded-lg bg-muted/60 hover:bg-muted border border-border transition-all shrink-0 cursor-pointer"
-              title={isDescExpanded ? "সংক্ষিপ্ত করুন" : "বিস্তারিত বিবরণ"}
-            >
-              <span>{isDescExpanded ? "সংক্ষিপ্ত" : "বিস্তারিত"}</span>
-              <ChevronDown className={`w-3 h-3 text-primary transition-transform duration-200 ${isDescExpanded ? "rotate-180" : ""}`} />
-            </button>
-          </div>
-        </div>
-
-        {/* Collapsible Video Description Content */}
-        <AnimatePresence initial={false}>
+        {/* Expandable Description */}
+        <AnimatePresence>
           {isDescExpanded && (
             <motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: "auto" }}
               exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.2, ease: "easeInOut" }}
+              transition={{ duration: 0.2 }}
               className="overflow-hidden"
             >
-              <CardContent className="pt-0 px-2.5 sm:px-3.5 pb-2 border-t border-border/40">
-                <p className="text-[11px] sm:text-xs text-muted-foreground leading-relaxed pt-1.5 font-sans">
-                  {streamType === "live" 
-                    ? `${activeChannel.name} এর ২৪ ঘণ্টার লাইভ নিউজ সম্প্রচার। ব্রেকিং নিউজ ও সরাসরি টকশো দেখতে যুক্ত থাকুন।` 
-                    : currentVideo.description}
-                </p>
-              </CardContent>
+              <div className="mt-1.5 p-3 rounded-xl bg-card/60 border border-border text-xs text-muted-foreground leading-relaxed">
+                {activeMedia.description || "এই সম্প্রচারের কোনো বিস্তারিত বিবরণ উপলব্ধ নেই।"}
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
-      </Card>
+      </div>
 
-      {/* 4. "আরও ভিডিও" (With Left/Right Scroll Arrows & Real Videos) */}
-      <section className="space-y-1.5">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1.5">
-            <Flame className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary" />
-            <h2 className="text-xs sm:text-sm md:text-base font-sans font-bold text-foreground tracking-tight">
-              আরও ভিডিও
-            </h2>
-          </div>
-          
-          <div className="flex items-center gap-1">
-            <span className="text-[10px] text-muted-foreground font-mono mr-1 font-semibold">
-              {toBengaliDigits(realNewsVideos.length)}টি ভিডিও
+      {/* 3. 2-COLUMN SIDE-BY-SIDE GRID (Live TV on Left, Video Clips on Right) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+        {/* LEFT COLUMN: লাইভ টিভি চ্যানেল */}
+        <div className="flex flex-col gap-2 bg-card/40 border border-border rounded-2xl p-3 sm:p-4 shadow-xs">
+          <div className="flex items-center justify-between pb-2 border-b border-border">
+            <span className="text-xs sm:text-sm font-bold text-foreground flex items-center gap-1.5 uppercase tracking-wide">
+              <Tv className="w-4 h-4 text-red-500 shrink-0" />
+              লাইভ টিভি চ্যানেল
             </span>
-            <button
-              onClick={() => scrollContainer(videosScrollRef, "left")}
-              className="p-1 rounded-full bg-card hover:bg-muted border border-border text-foreground transition-all cursor-pointer"
-              title="Scroll Left"
-            >
-              <ChevronLeft className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={() => scrollContainer(videosScrollRef, "right")}
-              className="p-1 rounded-full bg-card hover:bg-muted border border-border text-foreground transition-all cursor-pointer"
-              title="Scroll Right"
-            >
-              <ChevronRight className="w-3.5 h-3.5" />
-            </button>
+            <span className="text-[10px] font-mono font-bold text-red-500 bg-red-500/10 px-2 py-0.5 rounded-full border border-red-500/20">
+              {channels.length} LIVE
+            </span>
           </div>
-        </div>
 
-        {/* Horizontal Carousel (Modern Gradient Video Cards with Top-Left Time Badge) */}
-        <div 
-          ref={videosScrollRef}
-          className="flex gap-2.5 overflow-x-auto pb-1.5 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent snap-x snap-mandatory"
-        >
-          {videos.map((video) => {
-            const isSelected = streamType === "video" && currentVideo.id === video.id;
-            return (
-              <div
-                key={video.id}
-                onClick={() => {
-                  setHasUserInteracted(true);
-                  setStreamType("video");
-                  setCurrentVideo(video);
-                }}
-                className={`w-[calc(50%-5px)] min-w-[160px] sm:w-[220px] md:w-[250px] shrink-0 rounded-xl sm:rounded-2xl overflow-hidden bg-card border ${
-                  isSelected ? 'border-primary ring-2 ring-primary/40 shadow-md' : 'border-border hover:border-primary/40'
-                } flex flex-col transition-all duration-300 cursor-pointer snap-start group shadow-sm relative`}
-              >
-                {/* Full Card Image Container */}
-                <div className="relative aspect-[16/11] sm:aspect-[16/10] w-full overflow-hidden bg-black/90">
-                  <img 
-                    src={video.thumbnail} 
-                    alt={video.title} 
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
-                  />
-                  
-                  {/* Top Left: Duration Badge */}
-                  <span className="absolute top-2 left-2 z-10 bg-black/35 dark:bg-black/75 backdrop-blur-md text-white font-mono text-[9px] sm:text-[10px] font-bold px-2 py-0.5 rounded-md border border-white/15 dark:border-white/10 shadow-sm flex items-center gap-1">
-                    <Clock className="w-2.5 h-2.5 text-white shrink-0" />
-                    {video.duration}
-                  </span>
-
-                  {/* Top Right: Playing Indicator */}
+          {/* Independent Vertical Scrollable Container */}
+          <div className="max-h-[360px] overflow-y-auto pr-1 space-y-1.5 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
+            {channels.map((ch) => {
+              const isSelected = activeMedia.id === ch.id;
+              return (
+                <div
+                  key={ch.id}
+                  onClick={() => handleSelectMedia(ch)}
+                  className={`p-2 rounded-xl border flex items-center gap-2.5 cursor-pointer transition-all ${
+                    isSelected
+                      ? "bg-red-500/10 border-red-500 shadow-sm ring-1 ring-red-500/40"
+                      : "bg-card hover:bg-muted/80 border-border/80"
+                  }`}
+                >
+                  <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${ch.logoColor || "from-blue-600 to-blue-800"} flex items-center justify-center text-white font-black text-[10px] shrink-0 shadow-xs`}>
+                    {ch.logoText || "TV"}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <span className="font-bold text-xs text-foreground block truncate">
+                      {ch.name}
+                    </span>
+                    <span className="text-[10px] text-red-500 font-semibold flex items-center gap-1 mt-0.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                      {ch.source}
+                    </span>
+                  </div>
                   {isSelected && (
-                    <span className="absolute top-2 right-2 z-10 bg-primary text-primary-foreground text-[9px] font-bold px-2 py-0.5 rounded-md shadow-md animate-pulse">
+                    <span className="text-[10px] font-bold text-red-500 bg-red-500/10 px-2 py-0.5 rounded-md border border-red-500/20 shrink-0">
                       Playing
                     </span>
                   )}
-
-                  {/* Center Hover Play Icon */}
-                  <div className="absolute inset-0 bg-black/15 group-hover:bg-black/35 transition-colors flex items-center justify-center z-10 pointer-events-none">
-                    <div className="w-8 h-8 rounded-full bg-primary/90 text-primary-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 transform group-hover:scale-110 shadow-lg">
-                      <Play className="w-3.5 h-3.5 fill-current ml-0.5" />
-                    </div>
-                  </div>
-
-                  {/* Bottom Gradient Overlay (Softened in Light Mode for Zero Harsh Contrast) */}
-                  <div className="absolute inset-x-0 bottom-0 z-10 pt-8 pb-2.5 px-2.5 sm:px-3 bg-gradient-to-t from-black/55 via-black/30 to-transparent dark:from-black/95 dark:via-black/70 dark:to-transparent flex flex-col justify-end">
-                    <div className="flex items-center gap-1 mb-1 flex-wrap">
-                      <span className="inline-flex items-center w-fit px-2 py-0.5 rounded-full bg-emerald-950/50 dark:bg-emerald-950/70 text-emerald-300 dark:text-emerald-400 backdrop-blur-md text-[9px] sm:text-[10px] font-extrabold uppercase tracking-wider border-none shadow-sm">
-                        {video.category}
-                      </span>
-                      {video.source && (
-                        <span className="text-[9px] text-white/80 font-medium truncate">
-                          • {video.source}
-                        </span>
-                      )}
-                    </div>
-                    <h3 className="text-[11px] sm:text-xs font-bold text-white leading-snug line-clamp-2 drop-shadow-sm group-hover:text-emerald-300 transition-colors">
-                      {video.title}
-                    </h3>
-                  </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* 5. "লাইভ টিভি চ্যানেল" (With Left/Right Scroll Arrows) */}
-      <section className="space-y-1.5">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1.5">
-            <Tv className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-red-500" />
-            <h2 className="text-xs sm:text-sm md:text-base font-serif font-bold text-foreground tracking-tight">
-              লাইভ টিভি চ্যানেল
-            </h2>
+              );
+            })}
           </div>
-          
-          <div className="flex items-center gap-1">
-            <span className="flex items-center gap-1 text-[9px] text-red-500 font-bold uppercase mr-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" /> Live
+        </div>
+
+        {/* RIGHT COLUMN: ভিডিও ও সংবাদ ক্লিপ */}
+        <div className="flex flex-col gap-2 bg-card/40 border border-border rounded-2xl p-3 sm:p-4 shadow-xs">
+          <div className="flex items-center justify-between pb-2 border-b border-border">
+            <span className="text-xs sm:text-sm font-bold text-foreground flex items-center gap-1.5 uppercase tracking-wide">
+              <Flame className="w-4 h-4 text-primary shrink-0" />
+              সংবাদ ভিডিও ক্লিপ
             </span>
-            <button
-              onClick={() => scrollContainer(channelsScrollRef, "left")}
-              className="p-1 rounded-full bg-card hover:bg-muted border border-border text-foreground transition-all cursor-pointer"
-              title="Scroll Left"
-            >
-              <ChevronLeft className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={() => scrollContainer(channelsScrollRef, "right")}
-              className="p-1 rounded-full bg-card hover:bg-muted border border-border text-foreground transition-all cursor-pointer"
-              title="Scroll Right"
-            >
-              <ChevronRight className="w-3.5 h-3.5" />
-            </button>
+            <span className="text-[10px] font-mono font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full border border-primary/20">
+              {videos.length} VIDEOS
+            </span>
+          </div>
+
+          {/* Independent Vertical Scrollable Container */}
+          <div className="max-h-[360px] overflow-y-auto pr-1 space-y-1.5 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
+            {videos.map((v) => {
+              const isSelected = activeMedia.id === v.id;
+              return (
+                <div
+                  key={v.id}
+                  onClick={() => handleSelectMedia(v)}
+                  className={`p-2 rounded-xl border flex items-center gap-2.5 cursor-pointer transition-all ${
+                    isSelected
+                      ? "bg-primary/10 border-primary shadow-sm ring-1 ring-primary/40"
+                      : "bg-card hover:bg-muted/80 border-border/80"
+                  }`}
+                >
+                  <div className="relative shrink-0 w-14 h-10 rounded-lg overflow-hidden bg-black border border-border">
+                    {v.thumbnail ? (
+                      <img
+                        src={v.thumbnail}
+                        alt={v.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-muted text-muted-foreground">
+                        <Video className="w-4 h-4" />
+                      </div>
+                    )}
+                    {v.duration && (
+                      <span className="absolute bottom-0.5 right-0.5 bg-black/80 text-white font-mono text-[8px] font-bold px-1 rounded">
+                        {v.duration}
+                      </span>
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <span className="font-bold text-xs text-foreground block truncate">
+                      {v.name}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5">
+                      <span className="text-primary font-semibold">{v.category}</span> • {v.source}
+                    </span>
+                  </div>
+                  {isSelected && (
+                    <span className="text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-md border border-primary/20 shrink-0">
+                      Playing
+                    </span>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
-
-        {/* Horizontal IPTV Channel Pills (3 Per View on Mobile, Smoothly Scrollable to All Channels) */}
-        <div 
-          ref={channelsScrollRef}
-          className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent snap-x snap-mandatory"
-        >
-          {channels.map((channel) => {
-            const isSelected = streamType === "live" && activeChannel.id === channel.id;
-            return (
-              <div
-                key={channel.id}
-                onClick={() => {
-                  setHasUserInteracted(true);
-                  setStreamType("live");
-                  setActiveChannel(channel);
-                }}
-                className={`w-[calc(33.33%-6px)] min-w-[100px] sm:w-[130px] shrink-0 h-10 sm:h-12 rounded-xl border flex items-center gap-1.5 sm:gap-2 px-2 py-1 cursor-pointer transition-all duration-200 snap-start group select-none ${
-                  isSelected 
-                    ? 'bg-red-500/10 border-red-500 shadow-sm ring-1 ring-red-500/40' 
-                    : 'bg-card hover:bg-muted/80 border-border/80 hover:border-border'
-                }`}
-              >
-                <ChannelLogo channelId={channel.id} name={channel.name} />
-                <div className="min-w-0 flex-1 flex flex-col justify-center">
-                  <span className="font-bold text-[10px] sm:text-[11px] text-foreground leading-tight truncate">
-                    {channel.name}
-                  </span>
-                  <span className="flex items-center gap-1 text-[7px] sm:text-[8px] font-semibold text-muted-foreground mt-0.5">
-                    <span className={`w-1.5 h-1.5 rounded-full ${channel.isLive !== false ? 'bg-red-500 animate-pulse' : 'bg-emerald-500'} shrink-0`} />
-                    <span className={`uppercase tracking-wide font-mono ${channel.isLive !== false ? 'text-red-500 font-bold' : 'text-emerald-500 font-bold'}`}>
-                      {channel.isLive !== false ? 'Live' : 'Latest'}
-                    </span>
-                  </span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
+      </div>
     </main>
   );
 }
