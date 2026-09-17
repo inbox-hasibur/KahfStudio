@@ -10,7 +10,7 @@ export async function POST(req: Request) {
                    
     const body = await req.json().catch(() => ({}));
     const userId = body.userId;
-    const isAnnual = body.isAnnual === true;
+    const cycle = (body.cycle || (body.isAnnual === true ? 'yearly' : 'monthly')) as string;
 
     if (!userId) {
       return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
@@ -23,7 +23,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'SSLCommerz credentials missing' }, { status: 500 });
     }
 
-    const amount = isAnnual ? '1000.00' : '100.00';
+    const amountMap: Record<string, string> = { weekly: '30.00', monthly: '100.00', yearly: '1000.00' };
+    const amount = amountMap[cycle] || '100.00';
+    const productNameMap: Record<string, string> = {
+      weekly: 'KahfStudio Premium (Weekly)',
+      monthly: 'KahfStudio Premium (Monthly)',
+      yearly: 'KahfStudio Premium (Yearly)',
+    };
     const tran_id = `KAHF_SSL_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
 
     const formData = new URLSearchParams();
@@ -49,13 +55,13 @@ export async function POST(req: Request) {
 
     // Product Info
     formData.append('shipping_method', 'NO');
-    formData.append('product_name', isAnnual ? 'KahfStudio Premium (Yearly)' : 'KahfStudio Premium (Monthly)');
+    formData.append('product_name', productNameMap[cycle] || 'KahfStudio Premium (Monthly)');
     formData.append('product_category', 'Subscription');
     formData.append('product_profile', 'non-physical-goods');
 
     // Custom data to verify after payment
     formData.append('value_a', userId);
-    formData.append('value_b', isAnnual ? 'yearly' : 'monthly');
+    formData.append('value_b', cycle);
 
     const isLive = process.env.SSLCOMMERZ_IS_LIVE === 'true';
     const gatewayUrl = isLive 

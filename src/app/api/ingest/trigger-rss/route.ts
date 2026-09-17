@@ -887,7 +887,13 @@ YOUR RESPONSE MUST STRICTLY BE A VALID JSON OBJECT WITH THESE KEYS ONLY.`;
       }
 
       // Track 2: Allocate any remaining approved candidates from queueIndex onward to Live RSS Stream
-      acceptedStreamArticles = candidateQueue.slice(queueIndex);
+      // Deduplicate: exclude articles that were already inserted in Track 1 (they share the same candidateQueue)
+      const track1InsertedUrls = new Set(
+        candidateQueue.slice(0, queueIndex).map((c) => c.url)
+      );
+      acceptedStreamArticles = candidateQueue.slice(queueIndex).filter(
+        (c) => !track1InsertedUrls.has(c.url)
+      );
 
       // 6. Track 2: Bulk Live Stream Articles Ingestion (Zero Gemini API Quota Consumed!)
       if (acceptedStreamArticles.length > 0) {
@@ -901,8 +907,27 @@ YOUR RESPONSE MUST STRICTLY BE A VALID JSON OBJECT WITH THESE KEYS ONLY.`;
           await sendLog(`  ├─ ⚠️ Thumbnail enrichment warning: ${enrichErr.message}`);
         }
 
+        // Final dedup check: exclude URLs that already exist in DB (in case of overlapping source runs)
+        const streamCandidateUrls = acceptedStreamArticles.map((c) => c.url);
+        let finalStreamArticles = acceptedStreamArticles;
+        try {
+          const { data: existingStreamRows } = await supabase
+            .from("news_articles")
+            .select("original_url")
+            .in("original_url", streamCandidateUrls);
+          if (existingStreamRows && existingStreamRows.length > 0) {
+            const existingStreamSet = new Set(existingStreamRows.map((r: any) => r.original_url));
+            finalStreamArticles = acceptedStreamArticles.filter((c) => !existingStreamSet.has(c.url));
+            if (finalStreamArticles.length < acceptedStreamArticles.length) {
+              await sendLog(`  ├─ 🔎 Dedup: Skipped ${acceptedStreamArticles.length - finalStreamArticles.length} already-existing stream articles.`);
+            }
+          }
+        } catch (dedupErr: any) {
+          await sendLog(`  ├─ ⚠️ Stream dedup warning: ${dedupErr.message}. Proceeding with all stream candidates.`);
+        }
+
         let streamSavedCount = 0;
-        const bulkRows = acceptedStreamArticles.map((item) => ({
+        const bulkRows = finalStreamArticles.map((item) => ({
           headline: item.title,
           raw_content: item.description || item.title,
           ai_summary: null, // As requested: no AI summary for raw RSS news

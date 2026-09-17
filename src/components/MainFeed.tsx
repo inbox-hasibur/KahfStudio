@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import NewsCard from "./NewsCard";
 import { Sparkles, Compass } from "lucide-react";
+import { useSession } from "@/lib/auth-client";
 
 interface MainFeedProps {
   newsItems: any[];
@@ -47,6 +48,45 @@ const itemVariants = {
 
 export default function MainFeed({ newsItems, isGlobal = false, isArabic = false }: MainFeedProps) {
   const [activeCategory, setActiveCategory] = useState("সর্বশেষ");
+  const { data: sessionData } = useSession();
+  const userId = sessionData?.user?.id;
+  const [savedIds, setSavedIds] = useState<string[]>([]);
+
+  // Fetch existing bookmarks once user session is available
+  useEffect(() => {
+    if (!userId) return;
+    fetch(`/api/bookmarks?userId=${userId}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.success && data.savedIds) setSavedIds(data.savedIds);
+      })
+      .catch(() => {});
+  }, [userId]);
+
+  const toggleSave = async (id: string) => {
+    if (!userId) return;
+    const isCurrentlySaved = savedIds.includes(id);
+    // Optimistic update
+    setSavedIds((prev) =>
+      isCurrentlySaved ? prev.filter((s) => s !== id) : [...prev, id]
+    );
+    try {
+      if (!isCurrentlySaved) {
+        await fetch("/api/bookmarks", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId, newsId: id }),
+        });
+      } else {
+        await fetch(`/api/bookmarks?userId=${userId}&newsId=${id}`, { method: "DELETE" });
+      }
+    } catch (e) {
+      // Revert on error
+      setSavedIds((prev) =>
+        isCurrentlySaved ? [...prev, id] : prev.filter((s) => s !== id)
+      );
+    }
+  };
 
   // Smart Category Filtering
   const filteredNews = React.useMemo(() => {
@@ -138,7 +178,11 @@ export default function MainFeed({ newsItems, isGlobal = false, isArabic = false
           {filteredNews.length > 0 ? (
             filteredNews.map((item, index) => (
               <motion.div key={item.id} variants={itemVariants} custom={index}>
-                <NewsCard news={item} />
+                <NewsCard
+                  news={item}
+                  isSaved={savedIds.includes(item.id)}
+                  onToggleSave={() => toggleSave(item.id)}
+                />
               </motion.div>
             ))
           ) : (

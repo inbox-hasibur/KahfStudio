@@ -87,9 +87,7 @@ const Footer = () => {
             <h3 className="text-xs sm:text-sm font-bold text-foreground mb-3">এক্সপ্লোর</h3>
             <ul className="space-y-2.5 text-xs sm:text-sm text-muted-foreground">
               <li><Link href="/models" className="hover:text-primary transition-colors">এআই মডেলস (Models)</Link></li>
-              <li><Link href="/categories" className="hover:text-primary transition-colors">ক্যাটাগরি সমূহ</Link></li>
-              <li><Link href="/discover" className="hover:text-primary transition-colors">ডিসকভার</Link></li>
-              <li><Link href="/privacy" className="hover:text-primary transition-colors">গোপনীয়তা নীতি</Link></li>
+              <li><Link href="/archive" className="hover:text-primary transition-colors">আর্কাইভ (Archive)</Link></li>
             </ul>
           </div>
 
@@ -98,7 +96,8 @@ const Footer = () => {
         <div className="mt-8 pt-6 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-3 text-xs sm:text-sm text-muted-foreground">
           <p>© {new Date().getFullYear()} KahfStudio. All rights reserved.</p>
           <div className="flex items-center gap-4 sm:gap-6">
-            <Link href="/privacy" className="hover:text-foreground transition-colors">Privacy Policy</Link>
+            <Link href="/pricing" className="hover:text-foreground transition-colors">Pricing</Link>
+            <Link href="/models" className="hover:text-foreground transition-colors">AI Models</Link>
           </div>
         </div>
       </div>

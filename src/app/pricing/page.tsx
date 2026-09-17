@@ -197,7 +197,12 @@ export default function PricingPage() {
                 </ul>
               </CardContent>
               <CardFooter className="px-8 pb-8 pt-4 flex-col gap-3">
-                {status === "authenticated" ? (
+                {status === "loading" ? (
+                  <Button disabled className="w-full h-12 rounded-xl font-bold text-[15px] bg-primary text-primary-foreground opacity-70">
+                    <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                    Loading...
+                  </Button>
+                ) : status === "authenticated" ? (
                   <>
                     <Link href={`/checkout?cycle=${cycle}`} className="w-full">
                       <Button 
@@ -218,7 +223,7 @@ export default function PricingPage() {
                 ) : (
                   <Link href="/register" className="w-full">
                     <Button className="w-full bg-primary text-primary-foreground hover:bg-primary/90 h-12 rounded-xl font-bold text-[15px] shadow-md">
-                      Get Premium
+                      Sign Up to Get Premium
                     </Button>
                   </Link>
                 )}
