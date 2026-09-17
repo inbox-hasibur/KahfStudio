@@ -146,8 +146,10 @@ export default function DailySummaryPage() {
         preferredType: 'summary',
         preferredLang: preferredLang,
         audioUrls: {
-          bn_summary: !isGlobal ? generatedAudio : undefined,
-          en_summary: isGlobal ? generatedAudio : undefined,
+          bn_summary: (!isGlobal && !isArabic) ? generatedAudio : undefined,
+          en_summary: (isGlobal && !isArabic) ? generatedAudio : undefined,
+          ar_summary: isArabic ? generatedAudio : undefined,
+          ar_full: isArabic ? generatedAudio : undefined,
         },
       },
     });

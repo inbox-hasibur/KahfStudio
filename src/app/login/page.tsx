@@ -6,7 +6,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { signIn } from "@/lib/auth-client";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,8 +20,10 @@ const loginSchema = z.object({
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectUrl = searchParams?.get("redirect");
   const [error, setError] = useState<string | null>(null);
   const [role, setRole] = useState<"user" | "admin">("user");
   
@@ -42,6 +45,8 @@ export default function LoginPage() {
     } else {
       if (role === "admin") {
         router.push("/admin");
+      } else if (redirectUrl) {
+        router.push(redirectUrl);
       } else {
         router.push("/");
       }
@@ -111,5 +116,13 @@ export default function LoginPage() {
         </CardFooter>
       </Card>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="flex-1 flex items-center justify-center py-12 pt-36"><div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" /></div>}>
+      <LoginForm />
+    </Suspense>
   );
 }

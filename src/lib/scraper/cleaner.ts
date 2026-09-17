@@ -5,12 +5,18 @@
  */
 
 // Section terminator boundaries - once any of these headings appear, the article body has finished!
-// True section terminator boundaries - once any of these headings appear, the article body has finished!
+// Section terminator boundaries - once any of these headings appear, the article body has finished!
 const SECTION_CUTOFF_PATTERNS = [
   /^(পাঠকের মন্তব্য|মন্তব্য সমূহ|comments|leave a comment|discussion)(?:\s|$|[:\-])/i,
-  /^(কপিরাইট|সর্বস্বত্ব সংরক্ষিত|all rights reserved|terms & conditions|privacy policy)(?:\s|$|[:\-])/i,
+  /^(কপিরাইট|সর্বস্বত্ব সংরক্ষিত|all rights reserved|terms & conditions|privacy policy|copyright \d+)(?:\s|$|[:\-])/i,
   /^(ট্যাগ|বিষয়|টপিক|tags|topics|related topics)(?:\s|$|[:\-])/i,
   /^(about the author|author bio|লেখক পরিচিতি)(?:\s|$|[:\-])/i,
+  /^(follow us|subscribers?|followers?|subscribe\b)/i,
+  /^(phone|email|support|contact us|address):\s*/i,
+  /^(h\s*\d+\/\d+,\s*rd\s*\d+|sekhertek,\s*dhaka)/i,
+  /^\[newsdesk\]/i,
+  /^written by\s+[a-z0-9_.-]+/i,
+  /^\d+(\.\d+)?[KMB]?\s*(Followers|Subscribers|Follow Us|Subscribe)/i,
 ];
 
 // Inline promotional / teaser lines that should be skipped without breaking the rest of the article
@@ -36,6 +42,17 @@ const NOISE_PATTERNS = [
   /^(প্রকাশ|আপডেট|প্রকাশিত|আপডেট করা হয়েছে|published|updated)/i, // Publication timestamps
   /^(\d+\s*(ঘণ্টা|মিনিট|দিন|ঘন্টা|hours?|mins?|days?)\s*(আগে|ago))/i, // Relative time (e.g. ১০ ঘণ্টা আগে)
   /^(খুঁজুন|search|login|লগইন|ই-পেপার|epaper)/i, // Header navigation buttons
+  /^\d+(\.\d+)?[KMB]?\s*(Followers|Subscribers|Likes|Follow Us|Subscribe)/i,
+  /^(phone|email|support|contact|tel|fax|address):\s*/i,
+  /^h\s*\d+\/\d+,\s*rd\s*\d+/i,
+  /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/i,
+  /^\(\+\d{2,4}\)\s*\d+/,
+  /^\[newsdesk\]/i,
+  /^written by\s+[a-z0-9_.-]+/i,
+  /^\d+\s*comments\s*\d+\s*views/i,
+  /^(like|facebook|twitter|email|whatsapp|linkedin)\s*$/i,
+  /^(entertainment|fitness & health|science and technology|youtube trending)\s*\(\d+\)/i,
+  /^[a-z0-9.-]+\.(com|org|net|gov|edu)\s+is\s+a\s+trusted/i,
   /^ok$/i,
 ];
 
@@ -168,11 +185,9 @@ export function cleanJinaMarkdown(rawContent: string): string {
     trimmed = trimmed.replace(/\s+/g, ' ').trim();
     if (!trimmed) continue;
 
-    // Check if this line marks the true end of the main article (comments, footer, copyright, tags)
-    // CRITICAL FIX: Only break if we are past 70% of the document or already have 5+ substantial paragraphs,
-    // otherwise inline copyright captions (like "ছবি: কপিরাইট গেটি ইমেজ") would terminate the whole article prematurely!
+    // Check if this line marks the true end of the main article (comments, footer, copyright, tags, contact info)
     if (SECTION_CUTOFF_PATTERNS.some((pattern) => pattern.test(trimmed))) {
-      if (cleanParagraphs.length >= 5 && lineIdx > totalLines * 0.6) {
+      if (cleanParagraphs.length >= 2) {
         break;
       }
       continue;

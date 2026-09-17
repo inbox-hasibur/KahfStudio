@@ -97,8 +97,10 @@ export async function POST(req: NextRequest) {
       articlesQuery = articlesQuery.or('country.eq.BD,country.is.null');
     } else if (country === 'UK') {
       articlesQuery = articlesQuery.or('country.eq.UK,country.eq.GLOBAL');
+    } else if (country === 'UK') {
+      articlesQuery = articlesQuery.or('country.eq.UK,country.eq.GLOBAL');
     } else if (country === 'SA') {
-      articlesQuery = articlesQuery.or('country.eq.SA,country.eq.GLOBAL');
+      articlesQuery = articlesQuery.eq('country', 'SA');
     } else {
       articlesQuery = articlesQuery.eq('country', country);
     }
@@ -106,7 +108,12 @@ export async function POST(req: NextRequest) {
     const { data: articles, error: articlesError } = await articlesQuery;
     if (articlesError) throw articlesError;
 
-    const topArticles = (articles || []).slice(0, 4);
+    // For SA, ensure stories have Arabic content to avoid language mix
+    let topArticles = (articles || []).slice(0, 4);
+    if (country === 'SA') {
+      const arabicOnly = (articles || []).filter(a => /[\u0600-\u06FF]/.test(a.headline || ''));
+      if (arabicOnly.length > 0) topArticles = arabicOnly.slice(0, 4);
+    }
 
     // 4. Assemble Full Podcast Script & TTS Language based on Country
     let podcastScript = '';
@@ -122,12 +129,16 @@ export async function POST(req: NextRequest) {
 
       podcastScript = `السلام عليكم ورحمة الله وبركاته! مرحباً بكم في النشرة الإخبارية اليومية من KahfStudio للمملكة العربية السعودية. اليوم هو ${arDay}، ${arDate}. درجة الحرارة الحالية في الرياض تبلغ حوالي ${temp} درجة مئوية، والطقس ${desc}. إليكم أهم وأبرز الأخبار اليوم:\n\n`;
 
-      const arOrdinals = ['الخبر الأول', 'الخبر الثاني', 'الخبر الثالث', 'الخبر الرابع'];
-      topArticles.forEach((art, index) => {
-        const ord = arOrdinals[index] || `الخبر ${index + 1}`;
-        const summaryFirst = art.ai_summary ? art.ai_summary.split(/[.؟!\n]/)[0] : '';
-        podcastScript += `${ord}: ${art.headline}۔ ${summaryFirst}\n\n`;
-      });
+      if (topArticles.length > 0) {
+        const arOrdinals = ['الخبر الأول', 'الخبر الثاني', 'الخبر الثالث', 'الخبر الرابع'];
+        topArticles.forEach((art, index) => {
+          const ord = arOrdinals[index] || `الخبر ${index + 1}`;
+          const summaryFirst = art.ai_summary ? art.ai_summary.split(/[.؟!\n]/)[0] : '';
+          podcastScript += `${ord}: ${art.headline}۔ ${summaryFirst}\n\n`;
+        });
+      } else {
+        podcastScript += `نتابع معكم آخر المستجدات والتطورات الإخبارية في المملكة العربية السعودية والمنطقة على مدار الساعة.\n\n`;
+      }
 
       podcastScript += `هذه كانت أبرز عناوين الأخبار اليوم. شكراً لحسن استماعكم إلى KahfStudio، ودمتم في أمان الله ورعايته.`;
 

@@ -39,10 +39,10 @@ function CheckoutContent() {
   }, [cycle]);
 
   useEffect(() => {
-    if (!status && !sessionData?.user) {
-      router.push("/auth/signin");
+    if (status === "unauthenticated") {
+      router.push(`/login?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`);
     }
-  }, [status, router, sessionData]);
+  }, [status, router]);
 
   const handleCheckout = async (gateway: 'lemonsqueezy' | 'stripe') => {
     if (!sessionData?.user?.id) return;

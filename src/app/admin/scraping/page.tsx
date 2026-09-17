@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Database, Play, Square, Link as LinkIcon, Settings, Key, Search, Plus, Trash2, Eye, EyeOff, Maximize2, Minimize2, Radio, Globe, RefreshCw, CheckCircle, Info, Tv, Video, Edit2, Check, Copy, ExternalLink, X } from "lucide-react";
+import { Database, Play, Square, Link as LinkIcon, Settings, Key, Search, Plus, Trash2, Eye, EyeOff, Maximize2, Minimize2, Radio, Globe, RefreshCw, CheckCircle, Info, Tv, Video, Edit2, Check, Copy, ExternalLink, X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -635,22 +635,28 @@ export default function AdminScrapingPage() {
     
     const totalTarget = Math.max(1, parseInt(targetCount || "5", 10));
     const CHUNK_SIZE = 2; // 2 articles per chunk for guaranteed fast execution
-    const totalBatches = Math.ceil(totalTarget / CHUNK_SIZE);
+    const maxSafetyBatches = Math.max(totalTarget * 3, 10);
 
     let allLogs: string[] = [
       ...scrapeLogs,
-      `\n[${getNowTime()}] 🚀 Initiating Ingestion Pipeline for ${totalTarget} article(s) (${totalBatches} batch(es)) [Country: "${selectedCountry}", Category: "${selectedCategory}"]...`,
+      `\n[${getNowTime()}] 🚀 Initiating Ingestion Pipeline for ${totalTarget} saved article(s) [Country: "${selectedCountry}", Category: "${selectedCategory}"]...`,
     ];
     setScrapeLogs([...allLogs]);
     try { localStorage.setItem("kahf_scrape_logs", JSON.stringify(allLogs)); } catch (e) {}
 
+    let totalSavedAllBatches = 0;
+    let batch = 0;
+    let consecutiveZeroCount = 0;
+
     try {
-      for (let batch = 1; batch <= totalBatches; batch++) {
-        const currentBatchLimit = Math.min(CHUNK_SIZE, totalTarget - (batch - 1) * CHUNK_SIZE);
+      while (totalSavedAllBatches < totalTarget && batch < maxSafetyBatches) {
+        batch++;
+        const remainingNeeded = totalTarget - totalSavedAllBatches;
+        const currentBatchLimit = Math.min(CHUNK_SIZE, remainingNeeded);
         
         allLogs = [
           ...allLogs,
-          `\n[${getNowTime()}] 📦 [Batch ${batch}/${totalBatches}] Processing ${currentBatchLimit} article(s)...`,
+          `\n[${getNowTime()}] 📦 [Batch #${batch}] Processing chunk for ${currentBatchLimit} article(s) (Goal: ${totalSavedAllBatches}/${totalTarget} saved)...`,
         ];
         setScrapeLogs([...allLogs]);
         try { localStorage.setItem("kahf_scrape_logs", JSON.stringify(allLogs)); } catch (e) {}
@@ -660,7 +666,7 @@ export default function AdminScrapingPage() {
         if (!response.ok) {
           let errBody = "";
           try { errBody = await response.text(); } catch (e) {}
-          const errMsg = `[${getNowTime()}] ❌ [Batch ${batch} HTTP Error ${response.status}]: ${errBody || response.statusText || 'Unknown Server Error'}`;
+          const errMsg = `[${getNowTime()}] ❌ [Batch #${batch} HTTP Error ${response.status}]: ${errBody || response.statusText || 'Unknown Server Error'}`;
           allLogs = [...allLogs, errMsg];
           setScrapeLogs([...allLogs]);
           try { localStorage.setItem("kahf_scrape_logs", JSON.stringify(allLogs)); } catch (e) {}
@@ -674,6 +680,8 @@ export default function AdminScrapingPage() {
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let buffer = "";
+        let savedInThisBatch = 0;
+        let sourcesExhausted = false;
 
         while (true) {
           const { value, done } = await reader.read();
@@ -688,10 +696,27 @@ export default function AdminScrapingPage() {
             if (trimmed.startsWith("data: ")) {
               try {
                 const data = JSON.parse(trimmed.slice(6));
+                if (data.event === "batch_completed") {
+                  savedInThisBatch = Number(data.savedInBatch) || 0;
+                }
                 if (data.message) {
                   allLogs = [...allLogs, data.message];
                   setScrapeLogs([...allLogs]);
                   try { localStorage.setItem("kahf_scrape_logs", JSON.stringify(allLogs)); } catch (e) {}
+
+                  if (
+                    data.message.includes("No articles found") ||
+                    data.message.includes("Nothing new to ingest") ||
+                    data.message.includes("No active sources found")
+                  ) {
+                    sourcesExhausted = true;
+                  }
+
+                  const saveMatch = data.message.match(/Successfully Saved \[(\d+)\//i);
+                  if (saveMatch && savedInThisBatch === 0) {
+                    const parsed = parseInt(saveMatch[1], 10);
+                    if (!isNaN(parsed) && parsed > savedInThisBatch) savedInThisBatch = parsed;
+                  }
                 }
               } catch (e) {}
             } else if (trimmed && !trimmed.startsWith(":") && !trimmed.startsWith("event:")) {
@@ -702,12 +727,40 @@ export default function AdminScrapingPage() {
           }
         }
 
-        if (batch < totalBatches) {
-          await new Promise((r) => setTimeout(r, 400));
+        totalSavedAllBatches += savedInThisBatch;
+
+        allLogs = [
+          ...allLogs,
+          `[${getNowTime()}] 📊 Batch #${batch} result: +${savedInThisBatch} newly saved. Total Progress: ${totalSavedAllBatches}/${totalTarget} article(s).`,
+        ];
+        setScrapeLogs([...allLogs]);
+        try { localStorage.setItem("kahf_scrape_logs", JSON.stringify(allLogs)); } catch (e) {}
+
+        if (savedInThisBatch === 0) {
+          consecutiveZeroCount++;
+        } else {
+          consecutiveZeroCount = 0;
+        }
+
+        if (sourcesExhausted || consecutiveZeroCount >= 3) {
+          allLogs = [
+            ...allLogs,
+            `[${getNowTime()}] ℹ️ No further new unique articles discovered across sources at this time.`,
+          ];
+          setScrapeLogs([...allLogs]);
+          try { localStorage.setItem("kahf_scrape_logs", JSON.stringify(allLogs)); } catch (e) {}
+          break;
+        }
+
+        if (totalSavedAllBatches < totalTarget) {
+          await new Promise((r) => setTimeout(r, 600));
         }
       }
 
-      allLogs = [...allLogs, `\n[${getNowTime()}] 🏁 Ingestion Pipeline Finished! All ${totalBatches} batch(es) completed.`];
+      allLogs = [
+        ...allLogs,
+        `\n[${getNowTime()}] 🏁 Ingestion Pipeline Finished! Successfully saved ${totalSavedAllBatches} of ${totalTarget} requested article(s) across ${batch} batch(es).`
+      ];
       setScrapeLogs([...allLogs]);
       try { localStorage.setItem("kahf_scrape_logs", JSON.stringify(allLogs)); } catch (e) {}
     } catch (e: any) {
@@ -1242,20 +1295,20 @@ export default function AdminScrapingPage() {
       {/* 3. Sources Management with Country Tabs */}
       <Card className="bg-card/50 backdrop-blur-sm border-border">
         <CardHeader>
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             <div>
-              <CardTitle className="flex items-center gap-2">
-                <Database className="w-5 h-5 text-primary" />
+              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                <Database className="w-5 h-5 text-primary shrink-0" />
                 Automated Scraping Sources (RSS / DDG)
               </CardTitle>
-              <CardDescription>Manage active RSS feeds for Bangladesh, Global, UK & Saudi Arabia background news harvesting.</CardDescription>
+              <CardDescription className="text-xs sm:text-sm">Manage active RSS feeds for Bangladesh, Global, UK & Saudi Arabia background news harvesting.</CardDescription>
             </div>
 
-            {/* Country Filter Dropdown */}
-            <div className="flex items-center gap-2">
+            {/* Country Filter Dropdown & Actions */}
+            <div className="flex flex-wrap items-center gap-2">
               <Label className="text-xs text-muted-foreground whitespace-nowrap">Filter Sources:</Label>
-              <span className="text-[11px] font-mono font-semibold px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 whitespace-nowrap">
-                {activeSourceTab === "ALL" ? sources.length : activeSourceTab === "BD" ? bdCount : activeSourceTab === "GLOBAL" ? globalCount : activeSourceTab === "UK" ? ukCount : saCount}
+              <span className="text-[11px] font-mono font-semibold px-2.5 py-1 rounded-full bg-primary/10 text-primary border border-primary/20 whitespace-nowrap">
+                {activeSourceTab === "ALL" ? sources.length : activeSourceTab === "BD" ? bdCount : activeSourceTab === "GLOBAL" ? globalCount : activeSourceTab === "UK" ? ukCount : saCount} sources
               </span>
               <select
                 value={activeSourceTab}
@@ -1264,7 +1317,7 @@ export default function AdminScrapingPage() {
                   setActiveSourceTab(val);
                   if (val !== "ALL") setNewSourceCountry(val);
                 }}
-                className="h-9 px-3 text-xs bg-muted/60 hover:bg-muted border border-border rounded-xl font-medium focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary shadow-sm transition-colors cursor-pointer text-foreground"
+                className="h-9 px-3 text-xs bg-muted/60 hover:bg-muted border border-border rounded-xl font-medium focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary shadow-sm transition-colors cursor-pointer text-foreground max-w-[200px]"
               >
                 <option value="ALL">🌐 All Sources ({sources.length})</option>
                 <option value="BD">🇧🇩 Bangladesh ({bdCount})</option>
@@ -1272,13 +1325,25 @@ export default function AdminScrapingPage() {
                 <option value="UK">🇬🇧 United Kingdom ({ukCount})</option>
                 <option value="SA">🇸🇦 Saudi Arabia ({saCount})</option>
               </select>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleLoadDefaultSources}
+                disabled={isSeedingSources}
+                className="h-9 text-xs font-semibold rounded-xl border-primary/30 text-primary hover:bg-primary/10 transition-colors"
+                title="Seed verified default feeds for selected country"
+              >
+                {isSeedingSources ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : <RefreshCw className="w-3.5 h-3.5 mr-1" />}
+                Seed Defaults
+              </Button>
             </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Add Source Input Bar */}
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-2 items-end bg-muted/40 p-3 rounded-xl border border-border/50">
-            <div className="md:col-span-3 space-y-1">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-12 gap-2.5 items-end bg-muted/40 p-3 sm:p-4 rounded-xl border border-border/50">
+            <div className="sm:col-span-1 md:col-span-3 space-y-1">
               <Label className="text-xs font-medium">Source Name</Label>
               <Input 
                 placeholder="e.g. BBC News (World)" 
@@ -1287,7 +1352,7 @@ export default function AdminScrapingPage() {
                 className="h-9 text-xs"
               />
             </div>
-            <div className="md:col-span-4 space-y-1">
+            <div className="sm:col-span-1 md:col-span-4 space-y-1">
               <Label className="text-xs font-medium">Feed URL or RSS link</Label>
               <Input 
                 placeholder="https://feeds.bbci.co.uk/.../rss.xml" 
@@ -1296,7 +1361,7 @@ export default function AdminScrapingPage() {
                 className="h-9 text-xs font-mono"
               />
             </div>
-            <div className="md:col-span-2 space-y-1">
+            <div className="sm:col-span-1 md:col-span-2 space-y-1">
               <Label className="text-xs font-medium">Country</Label>
               <select 
                 className="flex h-9 w-full rounded-md border border-input bg-background px-2.5 py-1 text-xs"
@@ -1309,7 +1374,7 @@ export default function AdminScrapingPage() {
                 <option value="SA">🇸🇦 Saudi Arabia</option>
               </select>
             </div>
-            <div className="md:col-span-2 space-y-1">
+            <div className="sm:col-span-1 md:col-span-2 space-y-1">
               <Label className="text-xs font-medium">Category</Label>
               <select 
                 className="flex h-9 w-full rounded-md border border-input bg-background px-2.5 py-1 text-xs"
@@ -1321,7 +1386,7 @@ export default function AdminScrapingPage() {
                 {CATEGORIES.filter(c => c !== "General").map(cat => <option key={cat} value={cat}>{cat}</option>)}
               </select>
             </div>
-            <div className="md:col-span-1">
+            <div className="sm:col-span-2 md:col-span-1">
               <Button 
                 onClick={handleAddSource} 
                 disabled={!newSourceName || !newSourceUrl} 
@@ -1332,9 +1397,9 @@ export default function AdminScrapingPage() {
             </div>
           </div>
 
-          {/* Sources Table */}
-          <div className="border border-border rounded-xl overflow-hidden shadow-sm">
-            <table className="w-full text-sm">
+          {/* Sources Table with Mobile Horizontal Scroll */}
+          <div className="border border-border rounded-xl overflow-x-auto shadow-sm">
+            <table className="w-full min-w-[650px] text-sm">
               <thead className="bg-muted/60 text-muted-foreground text-left border-b border-border">
                 <tr>
                   <th className="px-4 py-3 font-medium rounded-tl-xl text-xs">Name</th>

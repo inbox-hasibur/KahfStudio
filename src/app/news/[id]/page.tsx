@@ -72,7 +72,7 @@ export default function NewsDetailPage() {
   }, []);
 
   const isArabic = siteLang === "AR";
-  const isGlobal = siteLang === "EN" || siteLang === "AR";
+  const isGlobal = siteLang === "EN";
 
   const handleShare = async () => {
     try {
@@ -175,7 +175,8 @@ export default function NewsDetailPage() {
 
     async function fetchRelated() {
       try {
-        const res = await fetch(`/api/news?limit=3`);
+        const countryParam = siteLang === "AR" ? "SA" : siteLang === "EN" ? "GLOBAL" : "BD";
+        const res = await fetch(`/api/news?limit=4&country=${countryParam}`);
         const data = await res.json();
         if (data.success && data.data) {
           setRelatedStories(data.data.filter((item: any) => item.id !== id).slice(0, 3));
@@ -261,7 +262,7 @@ export default function NewsDetailPage() {
 
   const handlePlayAudio = (type: "full" | "summary") => {
     const isEnglish = typeof document !== 'undefined' && (document.cookie.includes('googtrans=/bn/en') || localStorage.getItem('kahf-language') === 'EN');
-    const preferredLang = isEnglish ? 'EN' : 'BN';
+    const preferredLang = isArabic ? 'AR' : isEnglish ? 'EN' : 'BN';
 
     const event = new CustomEvent('play-audio', {
       detail: {
@@ -278,6 +279,8 @@ export default function NewsDetailPage() {
           bn_summary: (newsItem as any).audio_bn_summary,
           en_full: (newsItem as any).audio_en_full,
           en_summary: (newsItem as any).audio_en_summary,
+          ar_full: (newsItem as any).audio_ar_full,
+          ar_summary: (newsItem as any).audio_ar_summary,
         }
       }
     });
@@ -693,7 +696,7 @@ export default function NewsDetailPage() {
                   className="flex items-center gap-1.5 px-3.5 py-1.5 bg-primary hover:bg-primary/90 text-primary-foreground rounded-full text-xs font-bold transition-all shadow-md shadow-primary/20 whitespace-nowrap cursor-pointer"
                 >
                   <Sparkles className="w-3.5 h-3.5" />
-                  <span>Listen Summary</span>
+                  <span>{isArabic ? "استمع للموجز" : isGlobal ? "Listen Summary" : "সারসংক্ষেপ শুনুন"}</span>
                 </button>
 
                 {/* 2. Listen Full News */}
@@ -702,7 +705,7 @@ export default function NewsDetailPage() {
                   className="flex items-center gap-1.5 px-3.5 py-1.5 bg-muted hover:bg-muted/80 text-foreground rounded-full text-xs font-semibold transition-all border border-border whitespace-nowrap cursor-pointer"
                 >
                   <Headphones className="w-3.5 h-3.5 text-primary" />
-                  <span>Full Audio</span>
+                  <span>{isArabic ? "الخبر الكامل" : isGlobal ? "Full Audio" : "সম্পূর্ণ অডিও"}</span>
                 </button>
 
                 {/* 3. Voice Settings (Synced Sliders Icon) */}

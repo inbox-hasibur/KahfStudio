@@ -215,22 +215,28 @@ export default function AdminScrapingPage() {
     const getNowTime = () => new Date().toLocaleTimeString('en-US', { hour12: true });
     
     const totalTarget = Math.max(1, parseInt(targetCount || "5", 10));
-    const CHUNK_SIZE = 2; // 2 articles per chunk to guarantee ultra-fast 8s execution per batch
-    const totalBatches = Math.ceil(totalTarget / CHUNK_SIZE);
+    const CHUNK_SIZE = 2; // 2 articles per chunk to guarantee fast execution per batch
+    const maxSafetyBatches = Math.max(totalTarget * 3, 10);
 
     let allLogs: string[] = [
-      `[${getNowTime()}] 🚀 Initiating Ingestion Pipeline for ${totalTarget} article(s) (${totalBatches} auto-chunk batch(es)) [Country: "${selectedCountry}"]...`,
+      `[${getNowTime()}] 🚀 Initiating Ingestion Pipeline for ${totalTarget} saved article(s) [Country: "${selectedCountry}"]...`,
     ];
     setScrapeLogs([...allLogs]);
     try { localStorage.setItem("kahf_scrape_logs", JSON.stringify(allLogs)); } catch (e) {}
 
+    let totalSavedAllBatches = 0;
+    let batch = 0;
+    let consecutiveZeroCount = 0;
+
     try {
-      for (let batch = 1; batch <= totalBatches; batch++) {
-        const currentBatchLimit = Math.min(CHUNK_SIZE, totalTarget - (batch - 1) * CHUNK_SIZE);
+      while (totalSavedAllBatches < totalTarget && batch < maxSafetyBatches) {
+        batch++;
+        const remainingNeeded = totalTarget - totalSavedAllBatches;
+        const currentBatchLimit = Math.min(CHUNK_SIZE, remainingNeeded);
         
         allLogs = [
           ...allLogs,
-          `\n[${getNowTime()}] 📦 [Batch ${batch}/${totalBatches}] Processing ${currentBatchLimit} article(s) (Category: "${selectedCategory}", Country: "${selectedCountry}")...`,
+          `\n[${getNowTime()}] 📦 [Batch #${batch}] Processing chunk for ${currentBatchLimit} article(s) (Goal: ${totalSavedAllBatches}/${totalTarget} saved)...`,
         ];
         setScrapeLogs([...allLogs]);
         try { localStorage.setItem("kahf_scrape_logs", JSON.stringify(allLogs)); } catch (e) {}
@@ -240,7 +246,7 @@ export default function AdminScrapingPage() {
         if (!response.ok) {
           let errBody = "";
           try { errBody = await response.text(); } catch (e) {}
-          const errMsg = `[${getNowTime()}] ❌ [Batch ${batch} HTTP Error ${response.status}]: ${errBody || response.statusText || 'Unknown Server Error'}`;
+          const errMsg = `[${getNowTime()}] ❌ [Batch #${batch} HTTP Error ${response.status}]: ${errBody || response.statusText || 'Unknown Server Error'}`;
           allLogs = [...allLogs, errMsg];
           setScrapeLogs([...allLogs]);
           try { localStorage.setItem("kahf_scrape_logs", JSON.stringify(allLogs)); } catch (e) {}
@@ -254,6 +260,8 @@ export default function AdminScrapingPage() {
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let buffer = "";
+        let savedInThisBatch = 0;
+        let sourcesExhausted = false;
 
         while (true) {
           const { value, done } = await reader.read();
@@ -268,10 +276,27 @@ export default function AdminScrapingPage() {
             if (trimmed.startsWith("data: ")) {
               try {
                 const data = JSON.parse(trimmed.slice(6));
+                if (data.event === "batch_completed") {
+                  savedInThisBatch = Number(data.savedInBatch) || 0;
+                }
                 if (data.message) {
                   allLogs = [...allLogs, data.message];
                   setScrapeLogs([...allLogs]);
                   try { localStorage.setItem("kahf_scrape_logs", JSON.stringify(allLogs)); } catch (e) {}
+
+                  if (
+                    data.message.includes("No articles found") ||
+                    data.message.includes("Nothing new to ingest") ||
+                    data.message.includes("No active sources found")
+                  ) {
+                    sourcesExhausted = true;
+                  }
+
+                  const saveMatch = data.message.match(/Successfully Saved \[(\d+)\//i);
+                  if (saveMatch && savedInThisBatch === 0) {
+                    const parsed = parseInt(saveMatch[1], 10);
+                    if (!isNaN(parsed) && parsed > savedInThisBatch) savedInThisBatch = parsed;
+                  }
                 }
               } catch (e) {}
             } else if (trimmed && !trimmed.startsWith(":") && !trimmed.startsWith("event:")) {
@@ -282,13 +307,40 @@ export default function AdminScrapingPage() {
           }
         }
 
-        // Brief 400ms pause between batches
-        if (batch < totalBatches) {
-          await new Promise((r) => setTimeout(r, 400));
+        totalSavedAllBatches += savedInThisBatch;
+
+        allLogs = [
+          ...allLogs,
+          `[${getNowTime()}] 📊 Batch #${batch} result: +${savedInThisBatch} newly saved. Total Progress: ${totalSavedAllBatches}/${totalTarget} article(s).`,
+        ];
+        setScrapeLogs([...allLogs]);
+        try { localStorage.setItem("kahf_scrape_logs", JSON.stringify(allLogs)); } catch (e) {}
+
+        if (savedInThisBatch === 0) {
+          consecutiveZeroCount++;
+        } else {
+          consecutiveZeroCount = 0;
+        }
+
+        if (sourcesExhausted || consecutiveZeroCount >= 3) {
+          allLogs = [
+            ...allLogs,
+            `[${getNowTime()}] ℹ️ No further new unique articles discovered across sources at this time.`,
+          ];
+          setScrapeLogs([...allLogs]);
+          try { localStorage.setItem("kahf_scrape_logs", JSON.stringify(allLogs)); } catch (e) {}
+          break;
+        }
+
+        if (totalSavedAllBatches < totalTarget) {
+          await new Promise((r) => setTimeout(r, 600));
         }
       }
 
-      allLogs = [...allLogs, `\n[${getNowTime()}] 🏁 Ingestion Pipeline Finished! All ${totalBatches} batch(es) completed.`];
+      allLogs = [
+        ...allLogs,
+        `\n[${getNowTime()}] 🏁 Ingestion Pipeline Finished! Successfully saved ${totalSavedAllBatches} of ${totalTarget} requested article(s) across ${batch} batch(es).`
+      ];
       setScrapeLogs([...allLogs]);
       try { localStorage.setItem("kahf_scrape_logs", JSON.stringify(allLogs)); } catch (e) {}
     } catch (e: any) {
@@ -676,31 +728,34 @@ export default function AdminScrapingPage() {
       {/* Sources Management */}
       <Card className="bg-card/50 backdrop-blur-sm border-border">
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <CardTitle className="flex items-center gap-2">
-                <Database className="w-5 h-5 text-primary" />
+              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                <Database className="w-5 h-5 text-primary shrink-0" />
                 Automated Scraping Sources (RSS / DDG)
               </CardTitle>
-              <CardDescription>Manage sources for the hourly/daily background cron jobs.</CardDescription>
+              <CardDescription className="text-xs sm:text-sm">Manage sources for the background news harvesting pipeline.</CardDescription>
             </div>
+            <span className="text-[11px] font-mono font-semibold px-2.5 py-1 rounded-full bg-primary/10 text-primary border border-primary/20 whitespace-nowrap self-start sm:self-auto">
+              {sources.length} active sources
+            </span>
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="flex gap-2 items-end">
-            <div className="flex-1 space-y-1">
-              <Label className="text-xs">Source Name</Label>
-              <Input placeholder="e.g. Prothom Alo" value={newSourceName} onChange={e => setNewSourceName(e.target.value)} />
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-12 gap-3 items-end bg-muted/40 p-3 sm:p-4 rounded-xl border border-border/50">
+            <div className="sm:col-span-1 md:col-span-3 space-y-1">
+              <Label className="text-xs font-medium">Source Name</Label>
+              <Input placeholder="e.g. Prothom Alo" value={newSourceName} onChange={e => setNewSourceName(e.target.value)} className="h-9 text-xs" />
             </div>
-            <div className="flex-[2] space-y-1">
-              <Label className="text-xs">Feed URL or DDG Query</Label>
-              <Input placeholder="https://.../feed" value={newSourceUrl} onChange={e => setNewSourceUrl(e.target.value)} />
+            <div className="sm:col-span-1 md:col-span-5 space-y-1">
+              <Label className="text-xs font-medium">Feed URL or RSS link</Label>
+              <Input placeholder="https://.../feed" value={newSourceUrl} onChange={e => setNewSourceUrl(e.target.value)} className="h-9 text-xs font-mono" />
             </div>
-            <div className="flex-1 space-y-1">
-              <Label className="text-xs">Category</Label>
+            <div className="sm:col-span-1 md:col-span-3 space-y-1">
+              <Label className="text-xs font-medium">Category</Label>
               <div className="flex gap-2">
                 <select 
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="flex h-9 w-full rounded-md border border-input bg-background px-2.5 py-1 text-xs"
                   value={CATEGORIES.includes(newSourceCat) ? newSourceCat : "Custom"}
                   onChange={(e) => {
                     if (e.target.value !== "Custom") setNewSourceCat(e.target.value);
@@ -711,22 +766,24 @@ export default function AdminScrapingPage() {
                   <option value="Custom">Custom...</option>
                 </select>
                 {!CATEGORIES.includes(newSourceCat) && (
-                  <Input placeholder="Custom" value={newSourceCat} onChange={e => setNewSourceCat(e.target.value)} />
+                  <Input placeholder="Custom" value={newSourceCat} onChange={e => setNewSourceCat(e.target.value)} className="h-9 text-xs" />
                 )}
               </div>
             </div>
-            <Button onClick={handleAddSource} disabled={!newSourceName || !newSourceUrl} className="bg-white text-black hover:bg-slate-200 border border-slate-300">
-              <Plus className="w-4 h-4 mr-1" /> Add
-            </Button>
+            <div className="sm:col-span-1 md:col-span-1">
+              <Button onClick={handleAddSource} disabled={!newSourceName || !newSourceUrl} className="w-full h-9 bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-semibold">
+                <Plus className="w-4 h-4 mr-1" /> Add
+              </Button>
+            </div>
           </div>
 
-          <div className="border border-border rounded-xl overflow-hidden">
-            <table className="w-full text-sm">
+          <div className="border border-border rounded-xl overflow-x-auto shadow-sm">
+            <table className="w-full min-w-[560px] text-sm">
               <thead className="bg-muted/60 text-muted-foreground text-left border-b border-border">
                 <tr>
-                  <th className="px-4 py-3 font-medium rounded-tl-xl">Name</th>
-                  <th className="px-4 py-3 font-medium">URL</th>
-                  <th className="px-4 py-3 font-medium rounded-tr-xl">Category</th>
+                  <th className="px-4 py-3 font-medium rounded-tl-xl text-xs">Name</th>
+                  <th className="px-4 py-3 font-medium text-xs">Feed URL</th>
+                  <th className="px-4 py-3 font-medium rounded-tr-xl text-right text-xs">Category & Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -734,20 +791,20 @@ export default function AdminScrapingPage() {
                   <tr>
                     <td colSpan={3} className="px-4 py-8 text-center text-muted-foreground">
                       No sources found. 
-                      <Button variant="link" onClick={handleLoadDefaultSources} className="text-primary p-0 h-auto ml-1">
+                      <Button variant="link" onClick={handleLoadDefaultSources} className="text-primary p-0 h-auto ml-1 font-semibold">
                         Load Defaults
                       </Button>
                     </td>
                   </tr>
                 )}
                 {sources.map(source => (
-                  <tr key={source.id} className="border-t border-border">
-                    <td className="px-4 py-2">{source.name}</td>
-                    <td className="px-4 py-2 font-mono text-xs max-w-[200px] truncate" title={source.url}>{source.url}</td>
-                    <td className="px-4 py-2 flex items-center justify-between">
-                      {source.category}
-                      <Button variant="ghost" size="icon" onClick={() => handleDeleteSource(source.id)} className="h-6 w-6 text-red-500 hover:text-red-600">
-                        <Trash2 className="w-3 h-3" />
+                  <tr key={source.id} className="border-t border-border hover:bg-muted/30 transition-colors">
+                    <td className="px-4 py-2.5 font-medium">{source.name}</td>
+                    <td className="px-4 py-2.5 font-mono text-xs max-w-[280px] truncate text-muted-foreground" title={source.url}>{source.url}</td>
+                    <td className="px-4 py-2.5 flex items-center justify-end gap-3">
+                      <span className="text-xs text-muted-foreground">{source.category}</span>
+                      <Button variant="ghost" size="icon" onClick={() => handleDeleteSource(source.id)} className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-500/10">
+                        <Trash2 className="w-3.5 h-3.5" />
                       </Button>
                     </td>
                   </tr>

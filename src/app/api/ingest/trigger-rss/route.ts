@@ -5,9 +5,9 @@ import axios from "axios";
 import * as cheerio from "cheerio";
 import { extractArticleContent } from "@/lib/scraper/universal-extractor";
 import { discoverRssFeed, enrichRssItemsWithOgImage } from "@/lib/scraper/rss-discovery";
-import { generateSeamlessGeminiAudio, uploadAudioToCloudinary } from "@/lib/audio/gemini-tts";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { decodeHtmlEntities } from "@/lib/scraper/cleaner";
+import { decodeHtmlEntities, cleanJinaMarkdown } from "@/lib/scraper/cleaner";
+import { generateSeamlessGeminiAudio, uploadAudioToCloudinary } from "@/lib/audio/gemini-tts";
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -147,7 +147,8 @@ export function isValidArticleCandidate(title: string, url: string): boolean {
 
 export function sanitizeArticleContent(content: string): string {
   if (!content) return "";
-  let text = decodeHtmlEntities(content);
+  let text = cleanJinaMarkdown(content);
+  text = decodeHtmlEntities(text);
   // 1. Strip Jina AI reader metadata headers
   text = text.replace(/^(Title|URL Source|Markdown Content|Author|Published Time|Description):\s*.*$/gim, '');
   // 2. Strip CDATA wrappers and raw HTML/XML tags
@@ -854,12 +855,61 @@ YOUR RESPONSE MUST STRICTLY BE A VALID JSON OBJECT WITH THESE KEYS ONLY.`;
           };
         }
 
-        // Full News Body Retention: Always preserve the real unabridged extracted article
-        // if Gemini shortened it or if extracted body is longer
-        const isGeminiShortened = aiResult?.clean_content && extracted.bodyText.length > 300 && (aiResult.clean_content.length < extracted.bodyText.length * 0.7);
-        const rawBodyCandidate = (!isGeminiShortened && aiResult?.clean_content && aiResult.clean_content.length >= 200)
-          ? aiResult.clean_content
-          : extracted.bodyText;
+        // Full News Body Retention & Target Language Script Protection
+        // If targetLang is Bengali or Arabic, NEVER overwrite Gemini's translated clean content with raw foreign text!
+        const hasTargetScript = (text: string, lang: string) => {
+          if (!text) return false;
+          if (lang === "Bengali") return /[\u0980-\u09FF]/.test(text);
+          if (lang === "Arabic") return /[\u0600-\u06FF]/.test(text);
+          return true;
+        };
+
+        let geminiHasTargetLang = aiResult?.clean_content && hasTargetScript(aiResult.clean_content, targetLang);
+        const extractedHasTargetLang = hasTargetScript(extracted.bodyText, targetLang);
+
+        // Emergency fallback: If target language is Bengali or Arabic, and Gemini failed to return target script while raw text is in foreign language, run a fast translation call so foreign text is NEVER saved!
+        if (!geminiHasTargetLang && !extractedHasTargetLang && (targetLang === "Bengali" || targetLang === "Arabic")) {
+          try {
+            const transKey = activeKeys[0];
+            if (transKey) {
+              const genAI = new GoogleGenerativeAI(transKey);
+              const transModel = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+              const transPrompt = `Translate this news article completely into authentic, journalistic ${targetLang}.
+Preserve all facts, quotes, context, and paragraphs. Do not summarize. Do not include markdown headers or meta labels.
+
+Headline: ${candidate.title}
+Body:
+${extracted.bodyText.slice(0, 15000)}`;
+              const transRes = await transModel.generateContent(transPrompt);
+              const transText = transRes.response.text().trim();
+              if (transText && hasTargetScript(transText, targetLang)) {
+                if (!aiResult) aiResult = {};
+                aiResult.clean_content = transText;
+                geminiHasTargetLang = true;
+              }
+            }
+          } catch (tErr) {
+            console.warn(`[Ingest] Emergency translation fallback error:`, tErr);
+          }
+        }
+
+        let rawBodyCandidate: string;
+        if (geminiHasTargetLang && !extractedHasTargetLang) {
+          // Case 1: Raw extracted text was foreign (e.g. English), Gemini produced target language -> ALWAYS use Gemini's translation!
+          rawBodyCandidate = aiResult.clean_content;
+        } else if (geminiHasTargetLang && extractedHasTargetLang) {
+          // Case 2: Both Gemini and raw text are in target language (native source):
+          // If Gemini condensed it significantly (< 45% length and extracted > 600 chars), use extracted.bodyText because it's authentic native journalism; otherwise use Gemini's cleaner version.
+          if (aiResult.clean_content.length < extracted.bodyText.length * 0.45 && extracted.bodyText.length >= 600) {
+            rawBodyCandidate = extracted.bodyText;
+          } else {
+            rawBodyCandidate = aiResult.clean_content;
+          }
+        } else if (aiResult?.clean_content && aiResult.clean_content.length >= 200) {
+          rawBodyCandidate = aiResult.clean_content;
+        } else {
+          rawBodyCandidate = extracted.bodyText;
+        }
 
         const sanitizedHeadline = (aiResult.clean_headline || candidate.title)
           .replace(/^(Title|Headline):\s*/i, '')
@@ -925,7 +975,7 @@ YOUR RESPONSE MUST STRICTLY BE A VALID JSON OBJECT WITH THESE KEYS ONLY.`;
               .trim();
 
             const wavBuffer = await fetchWithTimeout(
-              generateSeamlessGeminiAudio(textToSpeak, "bn", activeKeys, async (msg) => {
+              generateSeamlessGeminiAudio(textToSpeak, "bn", activeKeys, async (msg: string) => {
                 await sendLog(`  │  ${msg}`);
               }),
               75000,
@@ -1060,6 +1110,16 @@ YOUR RESPONSE MUST STRICTLY BE A VALID JSON OBJECT WITH THESE KEYS ONLY.`;
       }
 
       await sendLog(`\n🎉 Pipeline Completed! Successfully scraped, synthesized & saved ${totalSuccessful} new article(s).`);
+      
+      // Emit structured batch completion event so client accurately counts final saved articles
+      try {
+        await writer.write(encoder.encode(`data: ${JSON.stringify({
+          event: "batch_completed",
+          savedInBatch: totalSuccessful,
+          targetGoal: targetGoal,
+          message: `[BATCH_DONE: ${totalSuccessful}/${targetGoal}]`
+        })}\n\n`));
+      } catch (e) {}
     } catch (err: any) {
       await sendLog(`❌ [CRITICAL ERROR]: ${err.message}`);
     } finally {

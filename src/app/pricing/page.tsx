@@ -19,45 +19,64 @@ export default function PricingPage() {
   const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
   const [isTrialLoading, setIsTrialLoading] = useState(false);
 
-  const isUserLoggedIn = () => {
+  const checkActiveSession = async () => {
     if (status === "authenticated" || !!sessionData?.user) return true;
+    try {
+      const { createClient } = await import("@/utils/supabase/client");
+      const supabase = createClient();
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) return true;
+    } catch (e) {}
     if (typeof window !== "undefined") {
       return Object.keys(localStorage).some(k => k.startsWith("sb-") && k.endsWith("-auth-token"));
     }
     return false;
   };
 
-  const handleSubscribe = () => {
-    if (isUserLoggedIn()) {
-      router.push(`/checkout?cycle=${cycle}`);
-    } else {
-      router.push(`/login?redirect=${encodeURIComponent(`/checkout?cycle=${cycle}`)}`);
+  const handleSubscribe = async () => {
+    setIsCheckoutLoading(true);
+    try {
+      const loggedIn = await checkActiveSession();
+      if (loggedIn) {
+        router.push(`/checkout?cycle=${cycle}`);
+      } else {
+        router.push(`/login?redirect=${encodeURIComponent(`/checkout?cycle=${cycle}`)}`);
+      }
+    } finally {
+      setIsCheckoutLoading(false);
     }
   };
 
   const handleClaimTrial = async () => {
-    if (!sessionData?.user?.id) {
-      if (!isUserLoggedIn()) {
+    setIsTrialLoading(true);
+    try {
+      let currentUserId = sessionData?.user?.id;
+      if (!currentUserId) {
+        const { createClient } = await import("@/utils/supabase/client");
+        const supabase = createClient();
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user?.id) currentUserId = session.user.id;
+      }
+
+      if (!currentUserId) {
         router.push(`/login?redirect=${encodeURIComponent('/pricing?claimTrial=true')}`);
         return;
       }
-    }
-    setIsTrialLoading(true);
-    try {
+
       const response = await fetch('/api/checkout/trial', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: sessionData?.user?.id })
+        body: JSON.stringify({ userId: currentUserId })
       });
       const data = await response.json();
       if (data.success) {
         window.location.href = '/pricing/success?gateway=sslcommerz';
       } else {
         alert(data.error || 'Failed to claim trial');
-        setIsTrialLoading(false);
       }
     } catch (err) {
       alert('Network error while claiming trial');
+    } finally {
       setIsTrialLoading(false);
     }
   };
@@ -225,19 +244,18 @@ export default function PricingPage() {
               <CardFooter className="px-8 pb-8 pt-4 flex-col gap-3">
                 <Button 
                   onClick={handleSubscribe}
+                  disabled={isCheckoutLoading}
                   className="w-full bg-primary text-primary-foreground hover:bg-primary/90 h-12 rounded-xl font-bold text-[15px] shadow-md cursor-pointer"
                 >
-                  Subscribe ({cycle === 'weekly' ? '৳30/wk' : cycle === 'yearly' ? '৳1,000/yr' : '৳100/mo'})
+                  {isCheckoutLoading ? (
+                    <Loader2 className="w-5 h-5 animate-spin mx-auto" />
+                  ) : (
+                    `Subscribe (${cycle === 'weekly' ? '৳30/wk' : cycle === 'yearly' ? '৳1,000/yr' : '৳100/mo'})`
+                  )}
                 </Button>
                 <Button 
-                  onClick={() => {
-                    if (isUserLoggedIn()) {
-                      handleClaimTrial();
-                    } else {
-                      router.push(`/login?redirect=${encodeURIComponent('/pricing?plan=trial')}`);
-                    }
-                  }}
-                  disabled={isTrialLoading || (isUserLoggedIn() && (sessionData?.user as any)?.tier === 'premium')}
+                  onClick={handleClaimTrial}
+                  disabled={isTrialLoading || (status === "authenticated" && (sessionData?.user as any)?.tier === 'premium')}
                   variant="outline"
                   className="w-full h-12 rounded-xl font-bold text-[15px] border-primary/50 text-primary hover:bg-primary hover:text-primary-foreground cursor-pointer"
                 >

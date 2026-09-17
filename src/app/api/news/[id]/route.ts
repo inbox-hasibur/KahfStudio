@@ -90,21 +90,64 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     if (data.original_url && (!data.raw_content || data.raw_content.trim().length < 250)) {
       try {
         const { extractArticleContent } = await import('@/lib/scraper/universal-extractor');
+        const { cleanJinaMarkdown } = await import('@/lib/scraper/cleaner');
         const extracted = await extractArticleContent(data.original_url, data.headline);
         if (extracted && extracted.bodyText && extracted.bodyText.trim().length >= 250) {
-          const fullContent = extracted.bodyText;
-          data.raw_content = fullContent;
-          if (extracted.ogImage && !data.image_url) {
-            data.image_url = extracted.ogImage;
+          let fullContent = cleanJinaMarkdown(extracted.bodyText);
+          const articleCountry = (data.country || 'BD').toUpperCase();
+          const targetLang = articleCountry === 'SA' ? 'Arabic' : (articleCountry === 'GLOBAL' || articleCountry === 'UK') ? 'English' : 'Bengali';
+          const hasScript = (text: string, lang: string) => {
+            if (!text) return false;
+            if (lang === 'Bengali') return /[\u0980-\u09FF]/.test(text);
+            if (lang === 'Arabic') return /[\u0600-\u06FF]/.test(text);
+            return true;
+          };
+
+          // If article is for BD or SA but extracted body lacks target language script, translate via Gemini
+          if (!hasScript(fullContent, targetLang) && (targetLang === 'Bengali' || targetLang === 'Arabic')) {
+            try {
+              const { data: sysData } = await supabase.from('system_settings').select('setting_value').eq('setting_key', 'global_gemini_api_keys').maybeSingle();
+              let geminiKeys: string[] = [];
+              if (sysData?.setting_value) {
+                try { geminiKeys = JSON.parse(sysData.setting_value); } catch { }
+              }
+              const activeKey = geminiKeys.find((k: any) => typeof k === 'string' && k.length > 10) || process.env.GEMINI_API_KEY;
+              if (activeKey) {
+                const { GoogleGenerativeAI } = await import('@google/generative-ai');
+                const genAI = new GoogleGenerativeAI(activeKey);
+                const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+                const prompt = `Translate the following news article completely into journalistic, fluent ${targetLang}.
+Preserve all facts, quotes, paragraphs, and context. Do NOT shorten or summarize. Do NOT include markdown headers or meta labels.
+
+Article Headline: ${data.headline}
+Article Body:
+${fullContent.slice(0, 15000)}`;
+                const res = await model.generateContent(prompt);
+                const translated = res.response.text().trim();
+                if (translated && hasScript(translated, targetLang)) {
+                  fullContent = cleanJinaMarkdown(translated);
+                }
+              }
+            } catch (transErr) {
+              console.warn(`[NewsDetail API] Translation fallback failed:`, transErr);
+            }
           }
-          // Asynchronously update DB row so future fetches are already full
-          await supabase
-            .from('news_articles')
-            .update({
-              raw_content: fullContent,
-              image_url: data.image_url || extracted.ogImage || null,
-            })
-            .eq('id', id);
+
+          // Only overwrite if fullContent matches target script or if existing content was empty
+          if (hasScript(fullContent, targetLang) || !data.raw_content) {
+            data.raw_content = fullContent;
+            if (extracted.ogImage && !data.image_url) {
+              data.image_url = extracted.ogImage;
+            }
+            // Asynchronously update DB row so future fetches are already full
+            await supabase
+              .from('news_articles')
+              .update({
+                raw_content: fullContent,
+                image_url: data.image_url || extracted.ogImage || null,
+              })
+              .eq('id', id);
+          }
         }
       } catch (extractErr) {
         console.warn(`[NewsDetail API] Full content enrichment fallback error:`, extractErr);

@@ -88,6 +88,16 @@ export async function GET(req: NextRequest) {
       });
     }
 
+    // If country is SA, filter out purely English articles from intruding into the Arabic feed
+    if (country && country.toUpperCase() === 'SA') {
+      const arabicArticles = processedNews.filter((item: any) => {
+        return /[\u0600-\u06FF]/.test(item.headline || '') || /[\u0600-\u06FF]/.test(item.raw_content || '');
+      });
+      if (arabicArticles.length > 0) {
+        processedNews = arabicArticles;
+      }
+    }
+
     // Multi-tier Smart Sorting:
     // 1. Primary: Freshness (Date on top)
     // 2. Secondary: User Interests & Importance Score

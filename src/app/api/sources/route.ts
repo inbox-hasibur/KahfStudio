@@ -123,14 +123,14 @@ export async function POST(req: Request) {
         { name: "The Telegraph (UK)", url: "https://www.telegraph.co.uk/news/rss.xml", category: "General", country: "UK", is_active: true }
       ];
 
-      // Verified Saudi Arabia News Defaults
+      // Verified Saudi Arabia News Defaults (Authentic Arabic Feeds & Official News)
       const saSources = [
+        { name: "Al Arabiya Arabic (العربية)", url: "https://www.alarabiya.net/.mrss/ar/all.xml", category: "General", country: "SA", is_active: true },
+        { name: "Saudi Press Agency - واس", url: "https://www.spa.gov.sa/rss.xml", category: "General", country: "SA", is_active: true },
+        { name: "Sabq Online (صحيفة سبق)", url: "https://sabq.org/rss", category: "General", country: "SA", is_active: true },
+        { name: "Okaz News (صحيفة عكاظ)", url: "https://www.okaz.com.sa/rss.xml", category: "General", country: "SA", is_active: true },
         { name: "Arab News (SA)", url: "https://www.arabnews.com/rss.xml", category: "General", country: "SA", is_active: true },
-        { name: "Saudi Gazette", url: "https://saudigazette.com.sa/rss/saudi-arabia", category: "General", country: "SA", is_active: true },
-        { name: "Al Arabiya English (SA)", url: "https://english.alarabiya.net/feed/rss2/english/news", category: "General", country: "SA", is_active: true },
-        { name: "Asharq Al-Awsat (ENG)", url: "https://english.aawsat.com/rss.xml", category: "General", country: "SA", is_active: true },
-        { name: "Saudi Press Agency (SPA)", url: "https://www.spa.gov.sa/rss.xml", category: "General", country: "SA", is_active: true },
-        { name: "Al Riyadh Daily", url: "http://alriyadhdaily.com/rss", category: "General", country: "SA", is_active: true }
+        { name: "Saudi Gazette", url: "https://saudigazette.com.sa/rss/saudi-arabia", category: "General", country: "SA", is_active: true }
       ];
 
       // Automatically normalize any non-standard categories to General
