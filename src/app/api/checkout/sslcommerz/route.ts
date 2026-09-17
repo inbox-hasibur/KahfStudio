@@ -38,9 +38,9 @@ export async function POST(req: Request) {
     formData.append('total_amount', amount);
     formData.append('currency', 'BDT');
     formData.append('tran_id', tran_id);
-    formData.append('success_url', `${origin}/api/checkout/sslcommerz/callback?status=success`);
-    formData.append('fail_url', `${origin}/api/checkout/sslcommerz/callback?status=fail`);
-    formData.append('cancel_url', `${origin}/api/checkout/sslcommerz/callback?status=cancel`);
+    formData.append('success_url', `${origin}/api/checkout/sslcommerz/callback?status=success&userId=${encodeURIComponent(userId)}&plan=${encodeURIComponent(cycle)}&tran_id=${encodeURIComponent(tran_id)}`);
+    formData.append('fail_url', `${origin}/api/checkout/sslcommerz/callback?status=fail&userId=${encodeURIComponent(userId)}&plan=${encodeURIComponent(cycle)}&tran_id=${encodeURIComponent(tran_id)}`);
+    formData.append('cancel_url', `${origin}/api/checkout/sslcommerz/callback?status=cancel&userId=${encodeURIComponent(userId)}&plan=${encodeURIComponent(cycle)}&tran_id=${encodeURIComponent(tran_id)}`);
     formData.append('ipn_url', `${origin}/api/checkout/sslcommerz/callback`);
     
     // Customer Info

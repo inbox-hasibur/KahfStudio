@@ -23,31 +23,43 @@ async function handleCallback(req: Request) {
     }
 
     let formData: FormData | null = null;
+    let rawBody = '';
     try {
       if (req.method === 'POST') {
-        formData = await req.formData();
+        const cloned = req.clone();
+        try {
+          formData = await req.formData();
+        } catch (_) {
+          rawBody = await cloned.text();
+          const params = new URLSearchParams(rawBody);
+          formData = new FormData();
+          for (const [k, v] of params.entries()) {
+            formData.append(k, v);
+          }
+        }
       }
     } catch (_) {
       formData = new FormData();
     }
 
-    const status = formData?.get('status') as string;
+    const status = (formData?.get('status') as string) || url.searchParams.get('status') || '';
     const value_a = (formData?.get('value_a') as string) || url.searchParams.get('userId') || ''; // userId
     const value_b = (formData?.get('value_b') as string) || url.searchParams.get('plan') || 'monthly'; // plan
-    const tran_id = (formData?.get('tran_id') as string) || (formData?.get('bank_tran_id') as string) || `SSL_${Date.now()}`;
-    const amount = Number(formData?.get('amount')) || (value_b === 'yearly' ? 1000 : value_b === 'weekly' ? 30 : 100);
+    const tran_id = (formData?.get('tran_id') as string) || (formData?.get('bank_tran_id') as string) || url.searchParams.get('tran_id') || `SSL_${Date.now()}`;
+    const amount = Number(formData?.get('amount')) || Number(formData?.get('total_amount')) || (value_b === 'yearly' ? 1000 : value_b === 'weekly' ? 30 : 100);
 
     if (statusParam === 'success' || status === 'VALID' || status === 'VALIDATED' || status === 'SUCCESS') {
       if (value_a) {
         const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
         
         // 1. Update user tier in profiles
-        await supabase.from('profiles').update({ tier: 'premium' }).eq('id', value_a);
+        const { error: profileErr } = await supabase.from('profiles').update({ tier: 'premium' }).eq('id', value_a);
+        if (profileErr) console.error("Error updating profile tier:", profileErr);
         
         // 2. Update auth metadata
         await supabase.auth.admin.updateUserById(value_a, {
           user_metadata: { tier: 'premium' }
-        });
+        }).catch(err => console.error("Error updating auth user metadata:", err));
         
         // 3. Insert subscription record with recurring auto_renew status
         const plan_type = value_b === 'yearly' ? 'premium_yearly' : value_b === 'weekly' ? 'premium_weekly' : 'premium_monthly';
@@ -56,17 +68,18 @@ async function handleCallback(req: Request) {
         else if (value_b === 'weekly') valid_until.setDate(valid_until.getDate() + 7);
         else valid_until.setMonth(valid_until.getMonth() + 1);
 
-        const { data: subData } = await supabase.from('subscriptions').insert({
+        const { data: subData, error: subErr } = await supabase.from('subscriptions').insert({
           user_id: value_a,
           plan_type: plan_type,
           status: 'active',
           auto_renew: true,
           valid_until: valid_until.toISOString()
         }).select('id').maybeSingle();
+        if (subErr) console.error("Error inserting subscription:", subErr);
 
         // 4. Record invoice in payment_invoices
         try {
-          await supabase.from('payment_invoices').insert({
+          const { error: invErr } = await supabase.from('payment_invoices').insert({
             user_id: value_a,
             subscription_id: subData?.id || null,
             transaction_id: tran_id,
@@ -74,9 +87,12 @@ async function handleCallback(req: Request) {
             status: 'paid',
             payment_provider: 'sslcommerz',
           });
+          if (invErr) console.error("Failed to insert payment invoice record:", invErr);
         } catch (invErr) {
-          console.warn("Failed to insert payment invoice record:", invErr);
+          console.warn("Failed to insert payment invoice record exception:", invErr);
         }
+      } else {
+        console.warn("SSLCommerz callback received success status but no userId (value_a) was present!");
       }
 
       // CRITICAL: Must use HTTP 303 (See Other) so browser converts SSLCommerz POST to a GET request

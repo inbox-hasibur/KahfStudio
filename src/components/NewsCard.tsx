@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Play, Clock, Bookmark, Share2, Check, ExternalLink, Trash2 } from "lucide-react";
+import { Play, Clock, Bookmark, Share2, Check, ExternalLink, Trash2, Copy } from "lucide-react";
 import { useSession } from "@/lib/auth-client";
 
 interface NewsCardProps {
@@ -54,6 +54,7 @@ const NewsCard = ({ news, isSaved = false, onToggleSave, onDelete }: NewsCardPro
   const isAdmin = (sessionData?.user as any)?.role === "admin";
 
   const [isCopied, setIsCopied] = React.useState(false);
+  const [isSourceCopied, setIsSourceCopied] = React.useState(false);
   const [isDeleting, setIsDeleting] = React.useState(false);
   const [isDeleted, setIsDeleted] = React.useState(false);
 
@@ -216,17 +217,39 @@ const NewsCard = ({ news, isSaved = false, onToggleSave, onDelete }: NewsCardPro
               </motion.div>
 
               {news.originalUrl && (
-                <a
-                  href={news.originalUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="h-8 sm:h-8 px-3 sm:px-3 rounded-full border border-border/80 hover:border-primary/40 bg-muted/40 hover:bg-muted text-muted-foreground hover:text-foreground text-xs sm:text-[11px] font-medium inline-flex items-center gap-1.5 transition-all cursor-pointer"
-                  title={`মূল উৎস (${news.source})`}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <span>Source</span>
-                  <ExternalLink className="w-3.5 h-3.5 text-primary" />
-                </a>
+                <div className="inline-flex items-center gap-1">
+                  <a
+                    href={news.originalUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="h-8 sm:h-8 px-3 sm:px-3 rounded-full border border-border/80 hover:border-primary/40 bg-muted/40 hover:bg-muted text-muted-foreground hover:text-foreground text-xs sm:text-[11px] font-medium inline-flex items-center gap-1.5 transition-all cursor-pointer"
+                    title={`মূল উৎস (${news.source})`}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <span>Source</span>
+                    <ExternalLink className="w-3.5 h-3.5 text-primary" />
+                  </a>
+                  <button
+                    type="button"
+                    onClick={async (e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      if (typeof window !== "undefined") {
+                        await navigator.clipboard.writeText(news.originalUrl!);
+                        setIsSourceCopied(true);
+                        setTimeout(() => setIsSourceCopied(false), 2000);
+                      }
+                    }}
+                    className={`h-8 w-8 rounded-full border flex items-center justify-center transition-all cursor-pointer ${
+                      isSourceCopied
+                        ? "bg-emerald-500/20 text-emerald-500 border-emerald-500/40"
+                        : "border-border/80 hover:border-primary/40 bg-muted/40 hover:bg-muted text-muted-foreground hover:text-foreground"
+                    }`}
+                    title={isSourceCopied ? "উৎস লিংক কপি হয়েছে!" : "Copy Source Link"}
+                  >
+                    {isSourceCopied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
               )}
             </div>
 

@@ -26,8 +26,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         .limit(1)
         .maybeSingle();
 
-      // Fallback: newest podcast archive
-      if (!podcast) {
+      // Fallback: newest podcast archive (only for BD)
+      if (!podcast && country === 'BD') {
         const { data: latestPodcast } = await supabase
           .from('podcast_archives')
           .select('*')

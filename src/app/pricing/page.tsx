@@ -177,8 +177,11 @@ export default function PricingPage() {
                     <span className="text-foreground text-sm font-bold">Personalized Summarized News</span>
                   </li>
                   <li className="flex items-start gap-3">
-                    <Shield className="w-4 h-4 text-blue-500 shrink-0 mt-1" />
-                    <span className="text-foreground text-sm font-bold">Halal Mode (Music Filtering)</span>
+                    <Shield className="w-4 h-4 text-emerald-500 shrink-0 mt-1" />
+                    <div>
+                      <span className="text-foreground text-sm font-bold block">Halal Mode Browser Extension</span>
+                      <span className="text-[11px] text-muted-foreground">Silences background music across YouTube, Spotify & websites</span>
+                    </div>
                   </li>
                   <li className="flex items-start gap-3">
                     <Globe className="w-4 h-4 text-purple-500 shrink-0 mt-1" />
@@ -197,36 +200,30 @@ export default function PricingPage() {
                 </ul>
               </CardContent>
               <CardFooter className="px-8 pb-8 pt-4 flex-col gap-3">
-                {status === "loading" ? (
-                  <Button disabled className="w-full h-12 rounded-xl font-bold text-[15px] bg-primary text-primary-foreground opacity-70">
-                    <Loader2 className="w-5 h-5 animate-spin mr-2" />
-                    Loading...
+                <Link
+                  href={status === 'authenticated' ? `/checkout?cycle=${cycle}` : `/register?redirect=${encodeURIComponent(`/checkout?cycle=${cycle}`)}`}
+                  className="w-full"
+                >
+                  <Button 
+                    className="w-full bg-primary text-primary-foreground hover:bg-primary/90 h-12 rounded-xl font-bold text-[15px] shadow-md cursor-pointer"
+                  >
+                    Subscribe ({cycle === 'weekly' ? '৳30/wk' : cycle === 'yearly' ? '৳1,000/yr' : '৳100/mo'})
                   </Button>
-                ) : status === "authenticated" ? (
-                  <>
-                    <Link href={`/checkout?cycle=${cycle}`} className="w-full">
-                      <Button 
-                        className="w-full bg-primary text-primary-foreground hover:bg-primary/90 h-12 rounded-xl font-bold text-[15px] shadow-md"
-                      >
-                        Subscribe ({cycle === 'weekly' ? '৳30/wk' : cycle === 'yearly' ? '৳1,000/yr' : '৳100/mo'})
-                      </Button>
-                    </Link>
-                    <Button 
-                      onClick={handleClaimTrial}
-                      disabled={isTrialLoading || (sessionData?.user as any)?.tier === 'premium'}
-                      variant="outline"
-                      className="w-full h-12 rounded-xl font-bold text-[15px] border-primary/50 text-primary hover:bg-primary hover:text-primary-foreground"
-                    >
-                      {isTrialLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Claim 7-Day Free Trial"}
-                    </Button>
-                  </>
-                ) : (
-                  <Link href="/register" className="w-full">
-                    <Button className="w-full bg-primary text-primary-foreground hover:bg-primary/90 h-12 rounded-xl font-bold text-[15px] shadow-md">
-                      Sign Up to Get Premium
-                    </Button>
-                  </Link>
-                )}
+                </Link>
+                <Button 
+                  onClick={() => {
+                    if (status === 'authenticated') {
+                      handleClaimTrial();
+                    } else {
+                      window.location.href = '/register?plan=trial';
+                    }
+                  }}
+                  disabled={isTrialLoading || (status === 'authenticated' && (sessionData?.user as any)?.tier === 'premium')}
+                  variant="outline"
+                  className="w-full h-12 rounded-xl font-bold text-[15px] border-primary/50 text-primary hover:bg-primary hover:text-primary-foreground cursor-pointer"
+                >
+                  {isTrialLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Claim 7-Day Free Trial"}
+                </Button>
               </CardFooter>
             </Card>
           </motion.div>

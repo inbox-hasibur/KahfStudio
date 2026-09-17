@@ -28,7 +28,21 @@ export default function AdminLibraryPage() {
   
   const isLocked = !isPending && userRole !== "admin" && userTier !== "premium";
   const [activeTab, setActiveTab] = useState("pending");
-  const [selectedCountry, setSelectedCountry] = useState("ALL");
+  const [selectedCountry, setSelectedCountry] = useState("BD");
+
+  useEffect(() => {
+    const saved = localStorage.getItem("kahf_user_country");
+    if (saved) setSelectedCountry(saved.toUpperCase());
+
+    const handleCountryChange = (e: any) => {
+      const c = e.detail?.country || localStorage.getItem("kahf_user_country");
+      if (c) setSelectedCountry(c.toUpperCase());
+    };
+
+    window.addEventListener("kahf-country-changed", handleCountryChange);
+    return () => window.removeEventListener("kahf-country-changed", handleCountryChange);
+  }, []);
+
   const [articles, setArticles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [autoApprove, setAutoApprove] = useState(false);

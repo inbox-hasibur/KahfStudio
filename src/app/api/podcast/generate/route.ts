@@ -261,11 +261,12 @@ export async function GET(req: NextRequest) {
       .limit(1)
       .maybeSingle();
 
-    // Fallback: If not found, check legacy 'daily_bulletin' or newest available podcast
-    if (!data) {
+    // Fallback: If not found and country is BD, check legacy 'daily_bulletin'
+    if (!data && country === 'BD') {
       const fb = await supabase
         .from('podcast_archives')
         .select('*')
+        .eq('archive_type', 'daily_bulletin')
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();

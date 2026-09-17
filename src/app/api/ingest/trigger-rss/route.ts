@@ -106,6 +106,20 @@ export function isValidArticleCandidate(title: string, url: string): boolean {
     return false;
   }
 
+  // Reject sponsored ad headlines (credit card ads, mortgage/equity spam, etc.)
+  if (
+    /cash back card/i.test(cleanTitle) ||
+    /best credit card/i.test(cleanTitle) ||
+    /home equity into cash/i.test(cleanTitle) ||
+    /want cash out of your home/i.test(cleanTitle) ||
+    /ink-sane value/i.test(cleanTitle) ||
+    /top buys.*worth your cash/i.test(cleanTitle) ||
+    /best cash back/i.test(cleanTitle) ||
+    (/\b(credit card|cashback|cash back)\b/i.test(cleanTitle) && !/\b(scam|fraud|police|bank|central bank)\b/i.test(cleanTitle))
+  ) {
+    return false;
+  }
+
   // Reject junk titles
   for (const pattern of JUNK_TITLE_PATTERNS) {
     if (pattern.test(cleanTitle)) return false;
@@ -153,6 +167,30 @@ export function sanitizeArticleContent(content: string): string {
     .join('\n\n');
   return decodeHtmlEntities(text.trim());
 }
+
+export function normalizeUrl(rawUrl: string): string {
+  try {
+    const u = new URL(rawUrl.trim());
+    const trackingParams = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'ref', 'fbclid', 'gclid', 'rss', 'at_medium', 'at_campaign'];
+    trackingParams.forEach(p => u.searchParams.delete(p));
+    u.protocol = 'https:';
+    u.hash = '';
+    let res = u.toString();
+    if (res.endsWith('/')) res = res.slice(0, -1);
+    return res.toLowerCase();
+  } catch {
+    return rawUrl.trim().toLowerCase().replace(/\/$/, '');
+  }
+}
+
+export function normalizeHeadline(title: string): string {
+  return (title || '')
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 
 export function sanitizeSummary(summary: string): string {
   if (!summary) return "";
@@ -472,29 +510,55 @@ export async function GET(req: NextRequest) {
 
       await sendLog(`✅ Total ${rawCandidates.length} candidate(s) discovered across all sources.`);
 
-      // 3. Batch Deduplication (Single DB Query)
-      const candidateUrls = Array.from(new Set(rawCandidates.map((c) => c.url)));
+      // 3. Batch Deduplication (URL & Headline against DB + in-run dedup)
       let newCandidates: typeof rawCandidates = [];
 
       try {
+        // Fetch recent headlines and URLs from the database (past 14 days)
+        const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
         const { data: existingRows } = await supabase
           .from("news_articles")
-          .select("original_url")
-          .in("original_url", candidateUrls);
+          .select("original_url, headline")
+          .gte("created_at", fourteenDaysAgo)
+          .limit(2500);
 
-        const existingSet = new Set(existingRows?.map((r: any) => r.original_url) || []);
-        const seen = new Set<string>();
+        const existingUrlSet = new Set<string>();
+        const existingHeadlines = new Set<string>();
+
+        (existingRows || []).forEach((r: any) => {
+          if (r.original_url) existingUrlSet.add(normalizeUrl(r.original_url));
+          if (r.headline) existingHeadlines.add(normalizeHeadline(r.headline));
+        });
+
+        const seenUrls = new Set<string>();
+        const seenHeadlines = new Set<string>();
 
         newCandidates = rawCandidates.filter((item) => {
-          if (!existingSet.has(item.url) && !seen.has(item.url)) {
-            seen.add(item.url);
-            return true;
-          }
-          return false;
+          if (!isValidArticleCandidate(item.title, item.url)) return false;
+
+          const nUrl = normalizeUrl(item.url);
+          const nHead = normalizeHeadline(item.title);
+
+          if (existingUrlSet.has(nUrl) || seenUrls.has(nUrl)) return false;
+          if (existingHeadlines.has(nHead) || seenHeadlines.has(nHead)) return false;
+
+          seenUrls.add(nUrl);
+          seenHeadlines.add(nHead);
+          return true;
         });
       } catch (e: any) {
-        await sendLog(`  ⚠️ Deduplication query warning: ${e.message}. Proceeding with all candidates.`);
-        newCandidates = rawCandidates;
+        await sendLog(`  ⚠️ Deduplication query warning: ${e.message}. Proceeding with in-memory candidate dedup.`);
+        const seenUrls = new Set<string>();
+        const seenHeadlines = new Set<string>();
+        newCandidates = rawCandidates.filter((item) => {
+          if (!isValidArticleCandidate(item.title, item.url)) return false;
+          const nUrl = normalizeUrl(item.url);
+          const nHead = normalizeHeadline(item.title);
+          if (seenUrls.has(nUrl) || seenHeadlines.has(nHead)) return false;
+          seenUrls.add(nUrl);
+          seenHeadlines.add(nHead);
+          return true;
+        });
       }
 
       await sendLog(`Deduplication complete: ${newCandidates.length} new article(s) to process (${rawCandidates.length - newCandidates.length} already in DB).`);
@@ -907,30 +971,60 @@ YOUR RESPONSE MUST STRICTLY BE A VALID JSON OBJECT WITH THESE KEYS ONLY.`;
           await sendLog(`  ├─ ⚠️ Thumbnail enrichment warning: ${enrichErr.message}`);
         }
 
-        // Final dedup check: exclude URLs that already exist in DB (in case of overlapping source runs)
-        const streamCandidateUrls = acceptedStreamArticles.map((c) => c.url);
+        // Final dedup check: exclude URLs or headlines that already exist in DB or were processed
         let finalStreamArticles = acceptedStreamArticles;
         try {
+          const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
           const { data: existingStreamRows } = await supabase
             .from("news_articles")
-            .select("original_url")
-            .in("original_url", streamCandidateUrls);
-          if (existingStreamRows && existingStreamRows.length > 0) {
-            const existingStreamSet = new Set(existingStreamRows.map((r: any) => r.original_url));
-            finalStreamArticles = acceptedStreamArticles.filter((c) => !existingStreamSet.has(c.url));
-            if (finalStreamArticles.length < acceptedStreamArticles.length) {
-              await sendLog(`  ├─ 🔎 Dedup: Skipped ${acceptedStreamArticles.length - finalStreamArticles.length} already-existing stream articles.`);
-            }
+            .select("original_url, headline")
+            .gte("created_at", sevenDaysAgo)
+            .limit(2000);
+
+          const dbUrls = new Set<string>();
+          const dbTitles = new Set<string>();
+          (existingStreamRows || []).forEach((r: any) => {
+            if (r.original_url) dbUrls.add(normalizeUrl(r.original_url));
+            if (r.headline) dbTitles.add(normalizeHeadline(r.headline));
+          });
+
+          const seenTrack2Urls = new Set<string>();
+          const seenTrack2Titles = new Set<string>();
+
+          finalStreamArticles = acceptedStreamArticles.filter((c) => {
+            if (!isValidArticleCandidate(c.title, c.url)) return false;
+            const nu = normalizeUrl(c.url);
+            const nh = normalizeHeadline(c.title);
+            if (dbUrls.has(nu) || seenTrack2Urls.has(nu)) return false;
+            if (dbTitles.has(nh) || seenTrack2Titles.has(nh)) return false;
+            seenTrack2Urls.add(nu);
+            seenTrack2Titles.add(nh);
+            return true;
+          });
+
+          if (finalStreamArticles.length < acceptedStreamArticles.length) {
+            await sendLog(`  ├─ 🔎 Dedup: Skipped ${acceptedStreamArticles.length - finalStreamArticles.length} already-existing stream articles.`);
           }
         } catch (dedupErr: any) {
-          await sendLog(`  ├─ ⚠️ Stream dedup warning: ${dedupErr.message}. Proceeding with all stream candidates.`);
+          await sendLog(`  ├─ ⚠️ Stream dedup warning: ${dedupErr.message}. Proceeding with clean candidates.`);
+          const seenTrack2Urls = new Set<string>();
+          const seenTrack2Titles = new Set<string>();
+          finalStreamArticles = acceptedStreamArticles.filter((c) => {
+            if (!isValidArticleCandidate(c.title, c.url)) return false;
+            const nu = normalizeUrl(c.url);
+            const nh = normalizeHeadline(c.title);
+            if (seenTrack2Urls.has(nu) || seenTrack2Titles.has(nh)) return false;
+            seenTrack2Urls.add(nu);
+            seenTrack2Titles.add(nh);
+            return true;
+          });
         }
 
         let streamSavedCount = 0;
         const bulkRows = finalStreamArticles.map((item) => ({
           headline: item.title,
           raw_content: item.description || item.title,
-          ai_summary: null, // As requested: no AI summary for raw RSS news
+          ai_summary: item.description ? item.description.slice(0, 320) : item.title,
           status: autoApp ? "published" : "draft",
           original_url: item.url,
           source: item.sourceName || "Web",

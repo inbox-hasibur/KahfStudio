@@ -598,12 +598,14 @@ export const HlsVideoPlayer: React.FC<HlsVideoPlayerProps> = ({
             </span>
           </div>
 
-          <div className="flex items-center gap-2">
-            <span className="px-2 py-0.5 rounded-full bg-red-600/90 text-white text-[10px] font-bold flex items-center gap-1 shadow-sm uppercase">
-              <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-              {duration > 0 ? "Video" : "Live"}
-            </span>
-          </div>
+          {(!duration || duration === 0) && (
+            <div className="flex items-center gap-2">
+              <span className="px-2 py-0.5 rounded-full bg-red-600/90 text-white text-[10px] font-bold flex items-center gap-1 shadow-sm uppercase">
+                <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                Live
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Error Overlay */}

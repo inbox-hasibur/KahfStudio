@@ -410,8 +410,8 @@ export default function MediaPage() {
             </span>
           </div>
 
-          {/* Independent Vertical Scrollable Container */}
-          <div className="max-h-[360px] overflow-y-auto pr-1 space-y-1.5 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
+          {/* Independent Vertical Scrollable Container (2 Columns) */}
+          <div className="max-h-[360px] overflow-y-auto pr-1 grid grid-cols-1 sm:grid-cols-2 gap-1.5 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
             {channels.map((ch) => {
               const isSelected = activeMedia.id === ch.id;
               return (

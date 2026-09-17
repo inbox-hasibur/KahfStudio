@@ -172,6 +172,31 @@ export default function AdminScrapingPage() {
     } catch (e) {}
   }, []);
 
+  // Sync active country edition across scraping page and source filters
+  useEffect(() => {
+    const saved = localStorage.getItem("kahf_user_country");
+    if (saved) {
+      const code = saved.toUpperCase() as "BD" | "GLOBAL" | "UK" | "SA";
+      if (["BD", "GLOBAL", "UK", "SA"].includes(code)) {
+        setActiveSourceTab(code);
+        setSelectedCountry(code);
+        setNewSourceCountry(code);
+      }
+    }
+
+    const handleCountryChange = (e: any) => {
+      const c = (e.detail?.country || localStorage.getItem("kahf_user_country"))?.toUpperCase();
+      if (c && ["BD", "GLOBAL", "UK", "SA"].includes(c)) {
+        setActiveSourceTab(c as any);
+        setSelectedCountry(c);
+        setNewSourceCountry(c as any);
+      }
+    };
+
+    window.addEventListener("kahf-country-changed", handleCountryChange);
+    return () => window.removeEventListener("kahf-country-changed", handleCountryChange);
+  }, []);
+
   // Internal terminal container scroll (never scrolls the whole window)
   useEffect(() => {
     if (logsContainerRef.current) {

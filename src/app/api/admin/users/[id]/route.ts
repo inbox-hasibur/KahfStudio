@@ -86,20 +86,29 @@ export async function PATCH(request: Request, context: { params: any }) {
       return NextResponse.json({ error: updateError.message }, { status: 500 });
     }
 
-    // If tier was updated to premium, ensure a manual active subscription entry exists
+    // If tier was updated to premium, ensure a manual active subscription entry exists and record invoice
     if (updates.tier === 'premium') {
       const validUntil = new Date();
       validUntil.setDate(validUntil.getDate() + 30);
       
       try {
-        await supabase.from('subscriptions').insert({
+        const { data: subData } = await supabase.from('subscriptions').insert({
           user_id: id,
           plan_type: 'monthly',
           status: 'active',
           valid_until: validUntil.toISOString()
+        }).select('id').maybeSingle();
+
+        await supabase.from('payment_invoices').insert({
+          user_id: id,
+          subscription_id: subData?.id || null,
+          transaction_id: `ADMIN_MANUAL_${Date.now()}`,
+          amount: 100,
+          status: 'paid',
+          payment_provider: 'admin_manual',
         });
       } catch (err) {
-        console.error('Subscription insert error:', err);
+        console.error('Subscription/Invoice insert error:', err);
       }
     }
 

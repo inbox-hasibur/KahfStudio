@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "Kahf Halal Mode Audio Filter",
+  "version": "1.0.0",
+  "description": "Automatically silences background music across YouTube, Spotify, and websites for a halal browsing experience.",
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "permissions": [
+    "storage",
+    "activeTab"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
+}

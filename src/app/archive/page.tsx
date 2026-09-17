@@ -59,11 +59,32 @@ export default function ArchivePage() {
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
   const [savedIds, setSavedIds] = useState<string[]>([]);
 
-  // 4 Dedicated Filter Dropdowns
-  const [selectedLanguage, setSelectedLanguage] = useState<string>("all");
+  // 4 Dedicated Filter Dropdowns (Synced Country Edition)
+  const [selectedCountry, setSelectedCountry] = useState<string>("BD");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [selectedSource, setSelectedSource] = useState<string>("all");
   const [selectedDateRange, setSelectedDateRange] = useState<string>("all");
+
+  // Sync default country from user's current edition in localStorage
+  React.useEffect(() => {
+    if (typeof window !== "undefined") {
+      const savedCountry = localStorage.getItem("kahf_user_country") || "BD";
+      setSelectedCountry(savedCountry);
+    }
+  }, []);
+
+  // Listen to cross-app country changes
+  React.useEffect(() => {
+    const handleCountryChange = (e: any) => {
+      if (e.detail?.country) setSelectedCountry(e.detail.country);
+      else {
+        const saved = localStorage.getItem("kahf_user_country");
+        if (saved) setSelectedCountry(saved);
+      }
+    };
+    window.addEventListener("kahf-country-changed", handleCountryChange as EventListener);
+    return () => window.removeEventListener("kahf-country-changed", handleCountryChange as EventListener);
+  }, []);
 
   const [articles, setArticles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -171,7 +192,7 @@ export default function ArchivePage() {
   }, [articles]);
 
   const resetFilters = () => {
-    setSelectedLanguage("all");
+    setSelectedCountry("all");
     setSelectedCategory("all");
     setSelectedSource("all");
     setSelectedDateRange("all");
@@ -179,7 +200,7 @@ export default function ArchivePage() {
   };
 
   const hasActiveFilters = 
-    selectedLanguage !== "all" || 
+    selectedCountry !== "all" || 
     selectedCategory !== "all" || 
     selectedSource !== "all" || 
     selectedDateRange !== "all" || 
@@ -210,9 +231,10 @@ export default function ArchivePage() {
         if (!matches) return false;
       }
 
-      // 3. Language filter
-      if (selectedLanguage !== "all") {
-        if (item.language !== selectedLanguage) return false;
+      // 3. Country / Edition filter (4 distinct options BD, GLOBAL, UK, SA)
+      if (selectedCountry !== "all") {
+        const itemCountry = (item.country || "BD").toUpperCase();
+        if (itemCountry !== selectedCountry.toUpperCase()) return false;
       }
 
       // 4. Category filter
@@ -243,7 +265,7 @@ export default function ArchivePage() {
 
       return true;
     });
-  }, [articles, activeTab, savedIds, searchQuery, selectedLanguage, selectedCategory, selectedSource, selectedDateRange]);
+  }, [articles, activeTab, savedIds, searchQuery, selectedCountry, selectedCategory, selectedSource, selectedDateRange]);
 
   if (status === "loading" || status === "unauthenticated") {
     return (
@@ -363,22 +385,30 @@ export default function ArchivePage() {
 
         {/* 4 Dropdown Filters Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          {/* 1. Language / Edition Dropdown */}
+          {/* 1. Country / Edition Dropdown */}
           <div className="space-y-1">
             <label className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1.5">
               <Globe className="w-3 h-3 text-primary" />
-              Language / Edition
+              Country / Edition
             </label>
             <div className="relative">
               <select
-                value={selectedLanguage}
-                onChange={(e) => setSelectedLanguage(e.target.value)}
+                value={selectedCountry}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setSelectedCountry(val);
+                  if (typeof window !== "undefined" && val !== "all") {
+                    localStorage.setItem("kahf_user_country", val);
+                    window.dispatchEvent(new CustomEvent("kahf-country-changed", { detail: { country: val } }));
+                  }
+                }}
                 className="w-full bg-background border border-border rounded-xl px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 appearance-none font-medium"
               >
-                <option value="all">🌍 All Languages</option>
-                <option value="bn">🇧🇩 বাংলা (Bangladesh)</option>
-                <option value="en">🌐 English (Global & UK)</option>
-                <option value="ar">🇸🇦 العربية (Arabic)</option>
+                <option value="all">🌍 All Editions</option>
+                <option value="BD">🇧🇩 বাংলাদেশ (BD)</option>
+                <option value="GLOBAL">🌐 আন্তর্জাতিক (GLOBAL)</option>
+                <option value="UK">🇬🇧 যুক্তরাজ্য (UK)</option>
+                <option value="SA">🇸🇦 المملكة العربية السعودية (SA)</option>
               </select>
               <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5 text-muted-foreground text-xs">
                 ▼
@@ -465,9 +495,9 @@ export default function ArchivePage() {
         <div className="flex items-center justify-between pt-1 border-t border-border/40 text-xs text-muted-foreground">
           <div>
             Showing <span className="font-semibold text-foreground">{filteredArchive.length}</span> of {articles.length} articles
-            {selectedLanguage !== 'all' && (
+            {selectedCountry && (
               <span className="ml-2 px-2 py-0.5 rounded-md bg-primary/10 text-primary font-semibold text-[11px]">
-                {selectedLanguage === 'bn' ? 'বাংলা' : selectedLanguage === 'en' ? 'English' : 'العربية'}
+                {selectedCountry === 'BD' ? '🇧🇩 Bangladesh' : selectedCountry === 'GLOBAL' ? '🌍 Global' : selectedCountry === 'UK' ? '🇬🇧 UK' : '🇸🇦 Saudi Arabia'}
               </span>
             )}
             {selectedCategory !== 'all' && (

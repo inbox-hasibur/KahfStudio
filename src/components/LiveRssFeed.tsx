@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Radio,
@@ -21,6 +22,7 @@ import {
   Newspaper,
   Flame,
   Trash2,
+  Copy,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -104,8 +106,10 @@ const getPlaceholderImage = (category: string) => {
 export default function LiveRssFeed({ isGlobal = false, isArabic = false, selectedCountry }: LiveRssFeedProps) {
   const countryCode = selectedCountry?.code || "BD";
   const { data: sessionData } = useSession();
+  const userId = sessionData?.user?.id;
   const isAdmin = (sessionData?.user as any)?.role === "admin";
 
+  const router = useRouter();
   const [articles, setArticles] = useState<StreamArticle[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedSource, setSelectedSource] = useState("All");
@@ -114,6 +118,57 @@ export default function LiveRssFeed({ isGlobal = false, isArabic = false, select
   const [visibleCount, setVisibleCount] = useState(12);
   const [isSourceDropdownOpen, setIsSourceDropdownOpen] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [copiedSourceId, setCopiedSourceId] = useState<string | null>(null);
+  const [savedIds, setSavedIds] = useState<string[]>([]);
+
+  // Fetch bookmarks on load
+  useEffect(() => {
+    if (!userId) return;
+    const fetchBookmarks = () => {
+      fetch(`/api/bookmarks?userId=${userId}`)
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.success && data.savedIds) setSavedIds(data.savedIds);
+        })
+        .catch(() => {});
+    };
+    fetchBookmarks();
+
+    const handleSync = () => fetchBookmarks();
+    window.addEventListener("bookmarks-changed", handleSync);
+    return () => window.removeEventListener("bookmarks-changed", handleSync);
+  }, [userId]);
+
+  const handleToggleSave = async (id: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!userId) {
+      router.push("/register");
+      return;
+    }
+
+    const isCurrentlySaved = savedIds.includes(id);
+    setSavedIds((prev) =>
+      isCurrentlySaved ? prev.filter((s) => s !== id) : [...prev, id]
+    );
+
+    try {
+      if (!isCurrentlySaved) {
+        await fetch("/api/bookmarks", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId, newsId: id }),
+        });
+      } else {
+        await fetch(`/api/bookmarks?userId=${userId}&newsId=${id}`, { method: "DELETE" });
+      }
+      window.dispatchEvent(new CustomEvent("bookmarks-changed"));
+    } catch (e) {
+      setSavedIds((prev) =>
+        isCurrentlySaved ? [...prev, id] : prev.filter((s) => s !== id)
+      );
+    }
+  };
 
   const handleDeleteArticle = async (articleId: string, e: React.MouseEvent) => {
     e.preventDefault();
@@ -563,49 +618,87 @@ export default function LiveRssFeed({ isGlobal = false, isArabic = false, select
                           <span>{isArabic ? "استمع" : isGlobal ? "Listen" : "শুনুন"}</span>
                         </Button>
 
-                        {/* Direct Source Link */}
+                        {/* Direct Source Link + Copy Button */}
                         {article.original_url && (
-                          <a
-                            href={article.original_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="h-7 px-2.5 rounded-full border border-border/80 hover:border-primary/40 bg-muted/40 hover:bg-muted text-muted-foreground hover:text-foreground text-[11px] font-medium inline-flex items-center gap-1 transition-all"
-                            title={`Open original story at ${article.source}`}
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <span>{isArabic ? "المصدر" : "Source"}</span>
-                            <ExternalLink className="w-3 h-3 text-primary" />
-                          </a>
+                          <div className="inline-flex items-center gap-1">
+                            <a
+                              href={article.original_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="h-7 px-2.5 rounded-full border border-border/80 hover:border-primary/40 bg-muted/40 hover:bg-muted text-muted-foreground hover:text-foreground text-[11px] font-medium inline-flex items-center gap-1 transition-all"
+                              title={`Open original story at ${article.source}`}
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <span>{isArabic ? "المصدر" : "Source"}</span>
+                              <ExternalLink className="w-3 h-3 text-primary" />
+                            </a>
+                            <button
+                              type="button"
+                              onClick={async (e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                if (typeof window !== "undefined") {
+                                  await navigator.clipboard.writeText(article.original_url!);
+                                  setCopiedSourceId(article.id);
+                                  setTimeout(() => setCopiedSourceId(null), 2000);
+                                }
+                              }}
+                              className={`h-7 w-7 rounded-full border flex items-center justify-center transition-all cursor-pointer ${
+                                copiedSourceId === article.id
+                                  ? "bg-emerald-500/20 text-emerald-500 border-emerald-500/40"
+                                  : "border-border/80 hover:border-primary/40 bg-muted/40 hover:bg-muted text-muted-foreground hover:text-foreground"
+                              }`}
+                              title={copiedSourceId === article.id ? "উৎস লিংক কপি হয়েছে!" : "Copy Source Link"}
+                            >
+                              {copiedSourceId === article.id ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
+                            </button>
+                          </div>
                         )}
                       </div>
 
-                      {/* Share Button */}
-                      <button
-                        onClick={(e) => handleShare(article, e)}
-                        className={`p-1.5 rounded-full transition-colors ${
-                          copiedId === article.id
-                            ? "text-primary bg-primary/10"
-                            : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                        }`}
-                        title={copiedId === article.id ? "Copied!" : "Share Link"}
-                      >
-                        {copiedId === article.id ? (
-                          <Check className="w-3.5 h-3.5 text-primary" />
-                        ) : (
-                          <Share2 className="w-3.5 h-3.5" />
-                        )}
-                      </button>
-
-                      {/* Admin Direct Delete Button */}
-                      {isAdmin && (
+                      {/* Secondary Actions: Bookmark, Share, Delete */}
+                      <div className="flex items-center gap-0.5">
+                        {/* Bookmark / Save Button */}
                         <button
-                          onClick={(e) => handleDeleteArticle(article.id, e)}
-                          className="p-1.5 rounded-full transition-colors text-muted-foreground hover:text-red-500 hover:bg-red-500/15 cursor-pointer"
-                          title="সংবাদ মুছে ফেলুন (Admin Delete)"
+                          onClick={(e) => handleToggleSave(article.id, e)}
+                          className={`p-1.5 rounded-full transition-colors cursor-pointer ${
+                            savedIds.includes(article.id)
+                              ? "text-primary bg-primary/10"
+                              : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                          }`}
+                          title={savedIds.includes(article.id) ? "সংরক্ষিত (Saved)" : "সংরক্ষণ করুন (Save to Archive)"}
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
+                          <Bookmark className="w-3.5 h-3.5" fill={savedIds.includes(article.id) ? "currentColor" : "none"} />
                         </button>
-                      )}
+
+                        {/* Share Button */}
+                        <button
+                          onClick={(e) => handleShare(article, e)}
+                          className={`p-1.5 rounded-full transition-colors cursor-pointer ${
+                            copiedId === article.id
+                              ? "text-primary bg-primary/10"
+                              : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                          }`}
+                          title={copiedId === article.id ? "Copied!" : "Share Link"}
+                        >
+                          {copiedId === article.id ? (
+                            <Check className="w-3.5 h-3.5 text-primary" />
+                          ) : (
+                            <Share2 className="w-3.5 h-3.5" />
+                          )}
+                        </button>
+
+                        {/* Admin Direct Delete Button */}
+                        {isAdmin && (
+                          <button
+                            onClick={(e) => handleDeleteArticle(article.id, e)}
+                            className="p-1.5 rounded-full transition-colors text-muted-foreground hover:text-red-500 hover:bg-red-500/15 cursor-pointer"
+                            title="সংবাদ মুছে ফেলুন (Admin Delete)"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </Card>

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import NewsCard from "./NewsCard";
 import { Sparkles, Compass } from "lucide-react";
@@ -47,6 +48,7 @@ const itemVariants = {
 };
 
 export default function MainFeed({ newsItems, isGlobal = false, isArabic = false }: MainFeedProps) {
+  const router = useRouter();
   const [activeCategory, setActiveCategory] = useState("সর্বশেষ");
   const { data: sessionData } = useSession();
   const userId = sessionData?.user?.id;
@@ -55,16 +57,26 @@ export default function MainFeed({ newsItems, isGlobal = false, isArabic = false
   // Fetch existing bookmarks once user session is available
   useEffect(() => {
     if (!userId) return;
-    fetch(`/api/bookmarks?userId=${userId}`)
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.success && data.savedIds) setSavedIds(data.savedIds);
-      })
-      .catch(() => {});
+    const fetchBookmarks = () => {
+      fetch(`/api/bookmarks?userId=${userId}`)
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.success && data.savedIds) setSavedIds(data.savedIds);
+        })
+        .catch(() => {});
+    };
+    fetchBookmarks();
+
+    const handleSync = () => fetchBookmarks();
+    window.addEventListener("bookmarks-changed", handleSync);
+    return () => window.removeEventListener("bookmarks-changed", handleSync);
   }, [userId]);
 
   const toggleSave = async (id: string) => {
-    if (!userId) return;
+    if (!userId) {
+      router.push("/register");
+      return;
+    }
     const isCurrentlySaved = savedIds.includes(id);
     // Optimistic update
     setSavedIds((prev) =>
@@ -80,6 +92,7 @@ export default function MainFeed({ newsItems, isGlobal = false, isArabic = false
       } else {
         await fetch(`/api/bookmarks?userId=${userId}&newsId=${id}`, { method: "DELETE" });
       }
+      window.dispatchEvent(new CustomEvent("bookmarks-changed"));
     } catch (e) {
       // Revert on error
       setSavedIds((prev) =>

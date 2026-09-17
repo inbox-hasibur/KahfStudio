@@ -6,7 +6,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import {
   Clock, Globe, ArrowLeft, Play, Share2, Bookmark,
-  ThumbsUp, MessageCircle, ExternalLink, Tag, Volume2, AlignLeft, Sparkles, Bot, ChevronUp, ChevronDown, ChevronLeft, Settings, Sliders, Headphones, Check
+  ThumbsUp, MessageCircle, ExternalLink, Tag, Volume2, AlignLeft, Sparkles, Bot, ChevronUp, ChevronDown, ChevronLeft, Settings, Sliders, Headphones, Check, Copy
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import AudioPlayer from "@/components/AudioPlayer";
@@ -42,6 +42,7 @@ export default function NewsDetailPage() {
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
+  const [isSourceCopied, setIsSourceCopied] = useState(false);
   const [relatedStories, setRelatedStories] = useState<any[]>([]);
   const [activeView, setActiveView] = useState<"full" | "summary">("summary");
   const [isStickyExpanded, setIsStickyExpanded] = useState(true);
@@ -255,7 +256,8 @@ export default function NewsDetailPage() {
       })
     : null;
 
-  const paragraphs = newsItem.summary ? newsItem.summary.split("\n\n").filter(Boolean) : [];
+  const effectiveSummary = newsItem.summary || newsItem.raw_content || newsItem.title || "";
+  const paragraphs = effectiveSummary ? effectiveSummary.split("\n\n").filter(Boolean) : [];
 
   const handlePlayAudio = (type: "full" | "summary") => {
     const isEnglish = typeof document !== 'undefined' && (document.cookie.includes('googtrans=/bn/en') || localStorage.getItem('kahf-language') === 'EN');
@@ -497,16 +499,37 @@ export default function NewsDetailPage() {
             </div>
 
             {newsItem.originalUrl && (
-              <a
-                href={newsItem.originalUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-muted/60 hover:bg-muted text-foreground border border-border/80 hover:border-primary/40 text-xs font-semibold transition-all shadow-sm group/orig ml-1 sm:ml-2"
-                title={`${newsItem.source}`}
-              >
-                <span>{isArabic ? "اقرأ المصدر الأصلي" : isGlobal ? "Read Source" : "মূল সংবাদ পড়ুন"}</span>
-                <ExternalLink className="w-3.5 h-3.5 text-primary group-hover/orig:translate-x-0.5 group-hover/orig:-translate-y-0.5 transition-transform" />
-              </a>
+              <div className="inline-flex items-center gap-1 ml-1 sm:ml-2">
+                <a
+                  href={newsItem.originalUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-muted/60 hover:bg-muted text-foreground border border-border/80 hover:border-primary/40 text-xs font-semibold transition-all shadow-sm group/orig"
+                  title={`${newsItem.source}`}
+                >
+                  <span>{isArabic ? "اقرأ المصدر الأصلي" : isGlobal ? "Read Source" : "মূল সংবাদ পড়ুন"}</span>
+                  <ExternalLink className="w-3.5 h-3.5 text-primary group-hover/orig:translate-x-0.5 group-hover/orig:-translate-y-0.5 transition-transform" />
+                </a>
+                <button
+                  type="button"
+                  onClick={async (e) => {
+                    e.preventDefault();
+                    if (typeof window !== "undefined") {
+                      await navigator.clipboard.writeText(newsItem.originalUrl);
+                      setIsSourceCopied(true);
+                      setTimeout(() => setIsSourceCopied(false), 2000);
+                    }
+                  }}
+                  className={`p-1.5 sm:p-2 rounded-xl border transition-all cursor-pointer ${
+                    isSourceCopied
+                      ? "bg-emerald-500/20 text-emerald-500 border-emerald-500/40"
+                      : "bg-muted/60 hover:bg-muted text-muted-foreground hover:text-foreground border-border/80"
+                  }`}
+                  title={isSourceCopied ? "উৎস লিংক কপি হয়েছে!" : "Copy Source Link"}
+                >
+                  {isSourceCopied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                </button>
+              </div>
             )}
           </div>
 

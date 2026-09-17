@@ -123,8 +123,8 @@ export default function Home() {
     }
   }, [selectedCountry]);
 
-  const isArabic = siteLang === "AR";
-  const isGlobal = siteLang === "EN" || siteLang === "AR";
+  const isArabic = siteLang === "AR" || selectedCountry.code === "SA";
+  const isGlobal = siteLang === "EN" || selectedCountry.code === "GLOBAL" || selectedCountry.code === "UK";
 
   const { news, loading: newsLoading } = useNews({
     country: selectedCountry.code,
