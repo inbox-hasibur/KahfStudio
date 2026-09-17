@@ -8,23 +8,46 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useSession } from "@/lib/auth-client";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import Navbar from "@/components/Navbar";
 
 export default function PricingPage() {
+  const router = useRouter();
   const { data: sessionData, status } = useSession();
   const [cycle, setCycle] = useState<"weekly" | "monthly" | "yearly">("monthly");
   const isAnnual = cycle === "yearly";
   const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
   const [isTrialLoading, setIsTrialLoading] = useState(false);
 
+  const isUserLoggedIn = () => {
+    if (status === "authenticated" || !!sessionData?.user) return true;
+    if (typeof window !== "undefined") {
+      return Object.keys(localStorage).some(k => k.startsWith("sb-") && k.endsWith("-auth-token"));
+    }
+    return false;
+  };
+
+  const handleSubscribe = () => {
+    if (isUserLoggedIn()) {
+      router.push(`/checkout?cycle=${cycle}`);
+    } else {
+      router.push(`/login?redirect=${encodeURIComponent(`/checkout?cycle=${cycle}`)}`);
+    }
+  };
+
   const handleClaimTrial = async () => {
-    if (!sessionData?.user?.id) return;
+    if (!sessionData?.user?.id) {
+      if (!isUserLoggedIn()) {
+        router.push(`/login?redirect=${encodeURIComponent('/pricing?claimTrial=true')}`);
+        return;
+      }
+    }
     setIsTrialLoading(true);
     try {
       const response = await fetch('/api/checkout/trial', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: sessionData.user.id })
+        body: JSON.stringify({ userId: sessionData?.user?.id })
       });
       const data = await response.json();
       if (data.success) {
@@ -200,25 +223,21 @@ export default function PricingPage() {
                 </ul>
               </CardContent>
               <CardFooter className="px-8 pb-8 pt-4 flex-col gap-3">
-                <Link
-                  href={status === 'authenticated' ? `/checkout?cycle=${cycle}` : `/register?redirect=${encodeURIComponent(`/checkout?cycle=${cycle}`)}`}
-                  className="w-full"
+                <Button 
+                  onClick={handleSubscribe}
+                  className="w-full bg-primary text-primary-foreground hover:bg-primary/90 h-12 rounded-xl font-bold text-[15px] shadow-md cursor-pointer"
                 >
-                  <Button 
-                    className="w-full bg-primary text-primary-foreground hover:bg-primary/90 h-12 rounded-xl font-bold text-[15px] shadow-md cursor-pointer"
-                  >
-                    Subscribe ({cycle === 'weekly' ? '৳30/wk' : cycle === 'yearly' ? '৳1,000/yr' : '৳100/mo'})
-                  </Button>
-                </Link>
+                  Subscribe ({cycle === 'weekly' ? '৳30/wk' : cycle === 'yearly' ? '৳1,000/yr' : '৳100/mo'})
+                </Button>
                 <Button 
                   onClick={() => {
-                    if (status === 'authenticated') {
+                    if (isUserLoggedIn()) {
                       handleClaimTrial();
                     } else {
-                      window.location.href = '/register?plan=trial';
+                      router.push(`/login?redirect=${encodeURIComponent('/pricing?plan=trial')}`);
                     }
                   }}
-                  disabled={isTrialLoading || (status === 'authenticated' && (sessionData?.user as any)?.tier === 'premium')}
+                  disabled={isTrialLoading || (isUserLoggedIn() && (sessionData?.user as any)?.tier === 'premium')}
                   variant="outline"
                   className="w-full h-12 rounded-xl font-bold text-[15px] border-primary/50 text-primary hover:bg-primary hover:text-primary-foreground cursor-pointer"
                 >

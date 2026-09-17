@@ -270,6 +270,53 @@ export default function Home() {
 
   const totalStories = news.length;
 
+  const [savedIds, setSavedIds] = useState<string[]>([]);
+  const userId = sessionData?.user?.id;
+
+  useEffect(() => {
+    if (!userId) return;
+    const fetchBookmarks = () => {
+      fetch(`/api/bookmarks?userId=${userId}`)
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.success && data.savedIds) setSavedIds(data.savedIds);
+        })
+        .catch(() => {});
+    };
+    fetchBookmarks();
+
+    const handleSync = () => fetchBookmarks();
+    window.addEventListener("bookmarks-changed", handleSync);
+    return () => window.removeEventListener("bookmarks-changed", handleSync);
+  }, [userId]);
+
+  const toggleSave = async (id: string) => {
+    if (!userId) {
+      window.location.href = "/register";
+      return;
+    }
+    const isCurrentlySaved = savedIds.includes(id);
+    setSavedIds((prev) =>
+      isCurrentlySaved ? prev.filter((s) => s !== id) : [...prev, id]
+    );
+    try {
+      if (!isCurrentlySaved) {
+        await fetch("/api/bookmarks", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId, newsId: id }),
+        });
+      } else {
+        await fetch(`/api/bookmarks?userId=${userId}&newsId=${id}`, { method: "DELETE" });
+      }
+      window.dispatchEvent(new CustomEvent("bookmarks-changed"));
+    } catch (e) {
+      setSavedIds((prev) =>
+        isCurrentlySaved ? [...prev, id] : prev.filter((s) => s !== id)
+      );
+    }
+  };
+
   const [podcastAudioUrl, setPodcastAudioUrl] = useState<string | null>(null);
   const [podcastDuration, setPodcastDuration] = useState<number | null>(null);
   const [podcastStoredScript, setPodcastStoredScript] = useState<string | null>(null);
@@ -672,7 +719,12 @@ export default function Home() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
             {displayPersonalized.slice(0, 3).map((item: any) => (
-              <NewsCard key={`personalized-${item.id}`} news={item} />
+              <NewsCard
+                key={`personalized-${item.id}`}
+                news={item}
+                isSaved={savedIds.includes(item.id)}
+                onToggleSave={() => toggleSave(item.id)}
+              />
             ))}
           </div>
         </motion.section>

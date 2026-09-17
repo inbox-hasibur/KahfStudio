@@ -43,9 +43,26 @@ export async function GET(request: Request, context: { params: any }) {
       console.error('Invoices fetch error:', invError);
     }
 
+    let userSubscriptions = subscriptions || [];
+    if (profile.tier === 'premium' && userSubscriptions.length === 0) {
+      const validUntil = new Date();
+      validUntil.setDate(validUntil.getDate() + 30);
+      try {
+        const { data: newSub } = await supabase.from('subscriptions').insert({
+          user_id: id,
+          plan_type: 'premium_monthly',
+          status: 'active',
+          valid_until: validUntil.toISOString()
+        }).select('*').single();
+        if (newSub) userSubscriptions = [newSub];
+      } catch (err) {
+        console.error('Auto-repair subscription error:', err);
+      }
+    }
+
     return NextResponse.json({
       profile,
-      subscriptions: subscriptions || [],
+      subscriptions: userSubscriptions,
       invoices: invoices || []
     });
   } catch (error: any) {

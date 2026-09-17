@@ -87,35 +87,40 @@ export default function ArchivePage() {
   }, []);
 
   const [articles, setArticles] = useState<any[]>([]);
+  const [savedArticles, setSavedArticles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const mapArticle = React.useCallback((item: any) => {
+    const lang = detectLanguage(item.headline, item.raw_content, item.country);
+    return {
+      id: item.id,
+      title: item.headline,
+      summary: item.ai_summary || item.raw_content,
+      category: item.category || "General",
+      source: item.source || "KahfNews",
+      country: item.country || "GLOBAL",
+      language: lang,
+      priority: "medium",
+      publishedAt: new Date(item.published_at || item.created_at).toLocaleDateString(),
+      imageUrl: item.image_url || getPlaceholderImage(item.category),
+      rawDate: new Date(item.published_at || item.created_at),
+      isPersonalized: item.is_personalized || item.type === 'personalized' || false,
+      audio_bn_full: item.audio_bn_full,
+      audio_bn_summary: item.audio_bn_summary,
+      audio_en_full: item.audio_en_full,
+      audio_en_summary: item.audio_en_summary,
+    };
+  }, []);
 
   React.useEffect(() => {
     async function fetchArchive() {
       try {
-        const res = await fetch("/api/news?limit=200");
+        setLoading(true);
+        const countryParam = selectedCountry && selectedCountry !== "all" ? `&country=${encodeURIComponent(selectedCountry)}` : "";
+        const res = await fetch(`/api/news?limit=150${countryParam}`);
         const data = await res.json();
         if (data.success && data.data) {
-          const mapped = data.data.map((item: any) => {
-            const lang = detectLanguage(item.headline, item.raw_content, item.country);
-            return {
-              id: item.id,
-              title: item.headline,
-              summary: item.ai_summary || item.raw_content,
-              category: item.category || "General",
-              source: item.source || "KahfNews",
-              country: item.country || "GLOBAL",
-              language: lang,
-              priority: "medium",
-              publishedAt: new Date(item.published_at || item.created_at).toLocaleDateString(),
-              imageUrl: item.image_url || getPlaceholderImage(item.category),
-              rawDate: new Date(item.published_at || item.created_at),
-              isPersonalized: item.is_personalized || item.type === 'personalized' || false,
-              audio_bn_full: item.audio_bn_full,
-              audio_bn_summary: item.audio_bn_summary,
-              audio_en_full: item.audio_en_full,
-              audio_en_summary: item.audio_en_summary,
-            };
-          });
+          const mapped = data.data.map(mapArticle);
           setArticles(mapped);
         }
       } catch (error) {
@@ -125,23 +130,34 @@ export default function ArchivePage() {
       }
     }
     fetchArchive();
-  }, []);
+  }, [selectedCountry, mapArticle]);
+
+  const fetchSavedBookmarks = React.useCallback(async () => {
+    if (!userId) return;
+    try {
+      const res = await fetch(`/api/bookmarks?userId=${userId}`);
+      const data = await res.json();
+      if (data.success) {
+        if (data.savedIds) setSavedIds(data.savedIds);
+        if (data.data) {
+          setSavedArticles(data.data.map(mapArticle));
+        }
+      }
+    } catch (err) {
+      console.error("Failed to fetch bookmarks:", err);
+    }
+  }, [userId, mapArticle]);
 
   React.useEffect(() => {
-    async function fetchSavedBookmarks() {
-      if (!userId) return;
-      try {
-        const res = await fetch(`/api/bookmarks?userId=${userId}`);
-        const data = await res.json();
-        if (data.success && data.savedIds) {
-          setSavedIds(data.savedIds);
-        }
-      } catch (err) {
-        console.error("Failed to fetch bookmarks:", err);
-      }
-    }
     fetchSavedBookmarks();
-  }, [userId]);
+  }, [fetchSavedBookmarks]);
+
+  // Cross-component bookmark synchronization
+  React.useEffect(() => {
+    const handleSync = () => fetchSavedBookmarks();
+    window.addEventListener("bookmarks-changed", handleSync);
+    return () => window.removeEventListener("bookmarks-changed", handleSync);
+  }, [fetchSavedBookmarks]);
 
   React.useEffect(() => {
     if (status === "unauthenticated") {
@@ -151,9 +167,13 @@ export default function ArchivePage() {
 
   const toggleSave = async (id: string) => {
     const isCurrentlySaved = savedIds.includes(id);
+    // Optimistic update
     setSavedIds((prev) =>
       isCurrentlySaved ? prev.filter((savedId) => savedId !== id) : [...prev, id]
     );
+    if (isCurrentlySaved) {
+      setSavedArticles((prev) => prev.filter((a) => a.id !== id));
+    }
 
     if (!userId) return;
 
@@ -169,27 +189,31 @@ export default function ArchivePage() {
           method: "DELETE",
         });
       }
+      window.dispatchEvent(new CustomEvent("bookmarks-changed"));
     } catch (e) {
       console.error("Failed to toggle bookmark in DB:", e);
+      fetchSavedBookmarks();
     }
   };
 
   // Distinct categories and sources from loaded articles
   const availableCategories = useMemo(() => {
     const set = new Set<string>();
-    articles.forEach((a) => {
+    const list = activeTab === "saved" ? savedArticles : articles;
+    list.forEach((a) => {
       if (a.category) set.add(a.category.trim());
     });
     return Array.from(set).sort();
-  }, [articles]);
+  }, [articles, savedArticles, activeTab]);
 
   const availableSources = useMemo(() => {
     const set = new Set<string>();
-    articles.forEach((a) => {
+    const list = activeTab === "saved" ? savedArticles : articles;
+    list.forEach((a) => {
       if (a.source) set.add(a.source.trim());
     });
     return Array.from(set).sort();
-  }, [articles]);
+  }, [articles, savedArticles, activeTab]);
 
   const resetFilters = () => {
     setSelectedCountry("all");
@@ -209,8 +233,9 @@ export default function ArchivePage() {
   // Filtered Archive
   const filteredArchive = useMemo(() => {
     const now = new Date().getTime();
+    const sourceList = activeTab === "saved" ? savedArticles : articles;
 
-    return articles.filter((item) => {
+    return sourceList.filter((item) => {
       // 1. Tab filter
       if (activeTab === "saved") {
         if (!savedIds.includes(item.id)) return false;
@@ -231,7 +256,7 @@ export default function ArchivePage() {
         if (!matches) return false;
       }
 
-      // 3. Country / Edition filter (4 distinct options BD, GLOBAL, UK, SA)
+      // 3. Country / Edition filter (only if activeTab is not saved, or if user explicitly filtered in saved)
       if (selectedCountry !== "all") {
         const itemCountry = (item.country || "BD").toUpperCase();
         if (itemCountry !== selectedCountry.toUpperCase()) return false;
@@ -265,7 +290,7 @@ export default function ArchivePage() {
 
       return true;
     });
-  }, [articles, activeTab, savedIds, searchQuery, selectedCountry, selectedCategory, selectedSource, selectedDateRange]);
+  }, [articles, savedArticles, activeTab, savedIds, searchQuery, selectedCountry, selectedCategory, selectedSource, selectedDateRange]);
 
   if (status === "loading" || status === "unauthenticated") {
     return (
@@ -340,12 +365,12 @@ export default function ArchivePage() {
               onClick={() => setActiveTab("saved")}
               className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all flex items-center gap-1.5 ${
                 activeTab === "saved" 
-                  ? "bg-amber-500 text-white shadow-sm font-semibold" 
+                  ? "bg-emerald-600 text-white shadow-sm font-semibold" 
                   : "text-muted-foreground hover:text-foreground hover:bg-muted"
               }`}
             >
               <Bookmark className="w-3.5 h-3.5" fill={activeTab === "saved" ? "currentColor" : "none"} />
-              Saved ({savedIds.length})
+              Saved ({savedArticles.length})
             </button>
           </div>
 
@@ -494,7 +519,7 @@ export default function ArchivePage() {
         {/* Filter Summary & Reset Action */}
         <div className="flex items-center justify-between pt-1 border-t border-border/40 text-xs text-muted-foreground">
           <div>
-            Showing <span className="font-semibold text-foreground">{filteredArchive.length}</span> of {articles.length} articles
+            Showing <span className="font-semibold text-foreground">{filteredArchive.length}</span> of {activeTab === "saved" ? savedArticles.length : articles.length} articles
             {selectedCountry && (
               <span className="ml-2 px-2 py-0.5 rounded-md bg-primary/10 text-primary font-semibold text-[11px]">
                 {selectedCountry === 'BD' ? '🇧🇩 Bangladesh' : selectedCountry === 'GLOBAL' ? '🌍 Global' : selectedCountry === 'UK' ? '🇬🇧 UK' : '🇸🇦 Saudi Arabia'}

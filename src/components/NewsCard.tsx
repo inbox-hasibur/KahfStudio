@@ -256,13 +256,16 @@ const NewsCard = ({ news, isSaved = false, onToggleSave, onDelete }: NewsCardPro
             {/* Secondary Actions */}
             <div className="flex items-center gap-1">
               <motion.button
-                className={`p-2 transition-colors rounded-full hover:bg-muted ${
-                  isSaved ? "text-primary" : "text-muted-foreground hover:text-foreground"
+                className={`p-2 transition-colors rounded-full ${
+                  isSaved 
+                    ? "text-emerald-500 bg-emerald-500/10 hover:bg-emerald-500/20" 
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
                 }`}
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
                 aria-label="Bookmark"
                 onClick={(e) => {
+                  e.preventDefault();
                   e.stopPropagation();
                   onToggleSave?.();
                 }}

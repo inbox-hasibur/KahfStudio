@@ -64,7 +64,6 @@ export async function POST(req: Request) {
       user_id: userId,
       plan_type: plan_type,
       status: 'active',
-      auto_renew: true,
       valid_until: valid_until.toISOString()
     }).select('id').maybeSingle();
 

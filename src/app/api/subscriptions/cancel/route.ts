@@ -30,21 +30,11 @@ export async function POST(req: Request) {
     let activeSub = subs && subs.length > 0 ? subs[0] : null;
 
     if (activeSub) {
-      // Mark subscription auto_renew = false and status = cancelled
-      const { error: updateErr } = await supabase
+      // Mark subscription status = cancelled
+      await supabase
         .from('subscriptions')
-        .update({
-          status: 'cancelled',
-          auto_renew: false,
-        })
+        .update({ status: 'cancelled' })
         .eq('id', activeSub.id);
-
-      if (updateErr) {
-        await supabase
-          .from('subscriptions')
-          .update({ status: 'cancelled' })
-          .eq('id', activeSub.id);
-      }
     } else {
       // If no sub record exists, insert a cancelled sub record so history is consistent
       const { data: newSub } = await supabase
@@ -53,7 +43,6 @@ export async function POST(req: Request) {
           user_id: userId,
           plan_type: 'premium_monthly',
           status: 'cancelled',
-          auto_renew: false,
           valid_until: new Date().toISOString()
         })
         .select('*')

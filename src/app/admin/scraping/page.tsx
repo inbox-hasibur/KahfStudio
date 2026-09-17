@@ -116,6 +116,15 @@ export default function AdminScrapingPage() {
   const [newSourceCat, setNewSourceCat] = useState("General");
   const [newSourceCountry, setNewSourceCountry] = useState<"BD" | "GLOBAL" | "UK" | "SA">("BD");
   const [isSeedingSources, setIsSeedingSources] = useState(false);
+  const [copiedSourceId, setCopiedSourceId] = useState<string | null>(null);
+
+  const handleCopySourceUrl = (id: string, url: string) => {
+    if (typeof window !== "undefined") {
+      navigator.clipboard.writeText(url);
+      setCopiedSourceId(id);
+      setTimeout(() => setCopiedSourceId(null), 2000);
+    }
+  };
 
   // News Automation - Auto Approve
   const [autoApprove, setAutoApprove] = useState(true);
@@ -1354,8 +1363,25 @@ export default function AdminScrapingPage() {
                   filteredSources.map((source) => (
                     <tr key={source.id} className="border-t border-border hover:bg-muted/30 transition-colors">
                       <td className="px-4 py-2.5 font-medium">{source.name}</td>
-                      <td className="px-4 py-2.5 font-mono text-xs max-w-[280px] truncate text-muted-foreground" title={source.url}>
-                        {source.url}
+                      <td className="px-4 py-2.5">
+                        <div className="flex items-center gap-1.5 max-w-[320px]">
+                          <span className="font-mono text-xs truncate text-muted-foreground" title={source.url}>
+                            {source.url}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleCopySourceUrl(source.id, source.url)}
+                            className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted shrink-0 transition-colors cursor-pointer"
+                            title="Copy source URL"
+                            aria-label="Copy source URL"
+                          >
+                            {copiedSourceId === source.id ? (
+                              <Check className="w-3.5 h-3.5 text-emerald-500" />
+                            ) : (
+                              <Copy className="w-3.5 h-3.5" />
+                            )}
+                          </button>
+                        </div>
                       </td>
                       <td className="px-4 py-2.5">
                         <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${

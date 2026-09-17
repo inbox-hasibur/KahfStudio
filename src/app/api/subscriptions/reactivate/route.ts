@@ -32,20 +32,10 @@ export async function POST(req: Request) {
     validUntil.setMonth(validUntil.getMonth() + 1);
 
     if (activeSub) {
-      const { error: updateErr } = await supabase
+      await supabase
         .from('subscriptions')
-        .update({
-          status: 'active',
-          auto_renew: true,
-        })
+        .update({ status: 'active', valid_until: validUntil.toISOString() })
         .eq('id', activeSub.id);
-
-      if (updateErr) {
-        await supabase
-          .from('subscriptions')
-          .update({ status: 'active' })
-          .eq('id', activeSub.id);
-      }
     } else {
       const { data: newSub } = await supabase
         .from('subscriptions')
@@ -53,7 +43,6 @@ export async function POST(req: Request) {
           user_id: userId,
           plan_type: 'premium_monthly',
           status: 'active',
-          auto_renew: true,
           valid_until: validUntil.toISOString()
         })
         .select('*')

@@ -1,10 +1,11 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
-import { Play, ExternalLink, Headphones, Trash2 } from "lucide-react";
+import { Play, ExternalLink, Headphones, Trash2, Bookmark } from "lucide-react";
 import { useSession } from "@/lib/auth-client";
+import { useRouter } from "next/navigation";
 
 import Link from "next/link";
 
@@ -25,9 +26,59 @@ interface HeadlineCardProps {
 }
 
 const HeadlineCard = ({ news, index = 0 }: HeadlineCardProps) => {
+  const router = useRouter();
   const { data: sessionData } = useSession();
+  const userId = sessionData?.user?.id;
   const isAdmin = (sessionData?.user as any)?.role === "admin";
   const [isDeleted, setIsDeleted] = React.useState(false);
+  const [isSaved, setIsSaved] = useState(false);
+
+  useEffect(() => {
+    if (!userId || !news.id) return;
+    const checkSaved = () => {
+      fetch(`/api/bookmarks?userId=${userId}`)
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.success && data.savedIds) {
+            setIsSaved(data.savedIds.includes(news.id));
+          }
+        })
+        .catch(() => {});
+    };
+    checkSaved();
+
+    const handleSync = () => checkSaved();
+    window.addEventListener("bookmarks-changed", handleSync);
+    return () => window.removeEventListener("bookmarks-changed", handleSync);
+  }, [userId, news.id]);
+
+  const handleToggleSave = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!userId) {
+      router.push("/register");
+      return;
+    }
+    if (!news.id) return;
+
+    const nextState = !isSaved;
+    setIsSaved(nextState);
+
+    try {
+      if (nextState) {
+        await fetch("/api/bookmarks", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId, newsId: news.id }),
+        });
+      } else {
+        await fetch(`/api/bookmarks?userId=${userId}&newsId=${news.id}`, { method: "DELETE" });
+      }
+      window.dispatchEvent(new CustomEvent("bookmarks-changed"));
+    } catch (err) {
+      setIsSaved(!nextState);
+    }
+  };
 
   const handleDelete = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -138,6 +189,20 @@ const HeadlineCard = ({ news, index = 0 }: HeadlineCardProps) => {
                   <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 </motion.button>
               )}
+              <motion.button
+                onClick={handleToggleSave}
+                className={`p-1 sm:p-1.5 transition-colors rounded-full cursor-pointer ${
+                  isSaved
+                    ? "text-emerald-500 bg-emerald-500/10 hover:bg-emerald-500/20"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                }`}
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                title={isSaved ? "Remove from Saved" : "Save story"}
+                aria-label="Bookmark"
+              >
+                <Bookmark className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill={isSaved ? "currentColor" : "none"} />
+              </motion.button>
               <motion.button
                 className="p-1 sm:p-1.5 text-muted-foreground hover:text-foreground transition-colors rounded-full hover:bg-muted"
                 whileHover={{ scale: 1.1, rotate: 15 }}
