@@ -1,9 +1,18 @@
 -- Seed popular news sources
-INSERT INTO public.scraping_sources (name, url, category, is_active)
+INSERT INTO public.scraping_sources (name, url, category, is_active, country)
 VALUES
-  ('Prothom Alo (RSS)', 'https://www.prothomalo.com/feed', 'General', true),
-  ('BBC Bangla', 'https://feeds.bbci.co.uk/bengali/rss.xml', 'General', true),
-  ('VOA Bangla', 'https://www.voabangla.com/api/z--r-rymqv', 'General', true)
+  ('Prothomalo', 'https://www.prothomalo.com/feed', 'General', true, 'BD'),
+  ('The Daily Star', 'https://www.thedailystar.net/frontpage/rss.xml', 'General', true, 'BD'),
+  ('JagoNews', 'https://www.jagonews24.com/rss/rss.xml', 'General', true, 'BD'),
+  ('Banglanews24', 'https://www.banglanews24.com/rss/rss.xml', 'General', true, 'BD'),
+  ('NTV News', 'https://www.ntvbd.com/feed', 'General', true, 'BD'),
+  ('RTV News', 'https://www.rtvonline.com/feed', 'General', true, 'BD'),
+  ('Channel i News', 'https://www.channelionline.com/feed/', 'General', true, 'BD'),
+  ('BBC Bangla', 'https://feeds.bbci.co.uk/bengali/rss.xml', 'General', true, 'BD'),
+  ('Barta24', 'https://barta24.com/feed', 'General', true, 'BD'),
+  ('Risingbd', 'https://www.risingbd.com/rss/rss.xml', 'General', true, 'BD'),
+  ('BD24Live', 'https://www.bd24live.com/bangla/feed', 'General', true, 'BD'),
+  ('Bangladesh Journal', 'https://www.bd-journal.com/feed/', 'General', true, 'BD')
 ON CONFLICT (url) DO NOTHING;
 
 -- Seed default system settings

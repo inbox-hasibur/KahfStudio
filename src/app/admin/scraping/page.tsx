@@ -157,7 +157,7 @@ export default function AdminScrapingPage() {
   const [isSavingDefaults, setIsSavingDefaults] = useState(false);
   const [defaultsSavedSuccess, setDefaultsSavedSuccess] = useState(false);
 
-  const CATEGORIES = ["জাতীয়", "রাজনীতি", "অর্থনীতি", "খেলাধুলা", "প্রযুক্তি", "আন্তর্জাতিক", "General"];
+  const CATEGORIES = ["জাতীয়", "রাজনীতি", "অর্থনীতি", "খেলাধুলা", "প্রযুক্তি", "আন্তর্জাতিক", "World", "General"];
 
   // Load last persisted logs on mount
   useEffect(() => {
@@ -189,7 +189,7 @@ export default function AdminScrapingPage() {
 
   const fetchData = async () => {
     try {
-      const resSources = await fetch("/api/sources");
+      const resSources = await fetch("/api/sources", { cache: "no-store" });
       if (resSources.ok) {
         const { sources: sourcesData } = await resSources.json();
         if (sourcesData) setSources(sourcesData);
@@ -515,66 +515,84 @@ export default function AdminScrapingPage() {
   // Sources Actions
   const handleAddSource = async () => {
     if (!newSourceName || !newSourceUrl) return;
-    const res = await fetch("/api/sources", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: "ADD",
-        payload: {
-          name: newSourceName,
-          url: newSourceUrl,
-          category: newSourceCat,
-          country: newSourceCountry,
-        }
-      })
-    });
-    if (res.ok) {
-      setNewSourceName("");
-      setNewSourceUrl("");
-      fetchData();
+    try {
+      const res = await fetch("/api/sources", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "ADD",
+          payload: {
+            name: newSourceName.trim(),
+            url: newSourceUrl.trim(),
+            category: newSourceCat,
+            country: newSourceCountry,
+          }
+        })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setNewSourceName("");
+        setNewSourceUrl("");
+        await fetchData();
+      } else {
+        alert(data.error || "Failed to add source. Please verify URL.");
+      }
+    } catch (err: any) {
+      alert("Error adding source: " + err.message);
     }
   };
 
   const handleDeleteSource = async (id: string) => {
-    await fetch("/api/sources", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "DELETE", payload: { id } })
-    });
-    fetchData();
+    try {
+      const res = await fetch("/api/sources", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "DELETE", payload: { id } })
+      });
+      if (res.ok) {
+        await fetchData();
+      }
+    } catch (err) {}
   };
 
   const handleToggleSource = async (id: string, current: boolean) => {
-    await fetch("/api/sources", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "TOGGLE", payload: { id, is_active: !current } })
-    });
-    fetchData();
+    try {
+      const res = await fetch("/api/sources", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "TOGGLE", payload: { id, is_active: !current } })
+      });
+      if (res.ok) {
+        await fetchData();
+      }
+    } catch (err) {}
   };
   
   const handleLoadDefaultSources = async () => {
     setIsSeedingSources(true);
-    const countryToSeed = activeSourceTab === "ALL" ? "ALL" : activeSourceTab;
-    await fetch("/api/sources", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "SEED", payload: { country: countryToSeed } })
-    });
-    await fetchData();
-    setIsSeedingSources(false);
+    try {
+      const countryToSeed = activeSourceTab === "ALL" ? "ALL" : activeSourceTab;
+      await fetch("/api/sources", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "SEED", payload: { country: countryToSeed } })
+      });
+      await fetchData();
+    } finally {
+      setIsSeedingSources(false);
+    }
   };
 
   // Filtered Sources based on Country Filter
   const filteredSources = sources.filter((s) => {
     if (activeSourceTab === "ALL") return true;
-    return (s.country || "BD").toUpperCase() === activeSourceTab;
+    return (s.country || "BD").trim().toUpperCase() === activeSourceTab;
   });
 
-  const bdCount = sources.filter(s => (s.country || "BD").toUpperCase() === "BD").length;
-  const globalCount = sources.filter(s => (s.country || "").toUpperCase() === "GLOBAL").length;
-  const ukCount = sources.filter(s => (s.country || "").toUpperCase() === "UK").length;
-  const saCount = sources.filter(s => (s.country || "").toUpperCase() === "SA").length;
+  const bdCount = sources.filter(s => (s.country || "BD").trim().toUpperCase() === "BD").length;
+  const globalCount = sources.filter(s => (s.country || "").trim().toUpperCase() === "GLOBAL").length;
+  const ukCount = sources.filter(s => (s.country || "").trim().toUpperCase() === "UK").length;
+  const saCount = sources.filter(s => (s.country || "").trim().toUpperCase() === "SA").length;
 
   // Manual Scraping Trigger
   const handleTriggerEmergencyScrape = async () => {
@@ -1202,6 +1220,9 @@ export default function AdminScrapingPage() {
             {/* Country Filter Dropdown */}
             <div className="flex items-center gap-2">
               <Label className="text-xs text-muted-foreground whitespace-nowrap">Filter Sources:</Label>
+              <span className="text-[11px] font-mono font-semibold px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 whitespace-nowrap">
+                {activeSourceTab === "ALL" ? sources.length : activeSourceTab === "BD" ? bdCount : activeSourceTab === "GLOBAL" ? globalCount : activeSourceTab === "UK" ? ukCount : saCount}
+              </span>
               <select
                 value={activeSourceTab}
                 onChange={(e) => {

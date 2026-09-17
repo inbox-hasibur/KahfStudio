@@ -318,18 +318,39 @@ export async function GET(req: NextRequest) {
         .select("*")
         .eq("is_active", true);
 
-      if (targetCategory !== "All") {
-        sourceQuery = sourceQuery.eq("category", targetCategory);
+      if (targetCategory && targetCategory !== "All") {
+        if (["General", "World", "আন্তর্জাতিক"].includes(targetCategory)) {
+          sourceQuery = sourceQuery.in("category", ["General", "World", "আন্তর্জাতিক"]);
+        } else {
+          sourceQuery = sourceQuery.eq("category", targetCategory);
+        }
       }
-      if (targetCountry !== "All") {
+      if (targetCountry && targetCountry !== "All") {
         sourceQuery = sourceQuery.eq("country", targetCountry);
       }
 
-      const { data: sources, error: sourceError } = await sourceQuery;
+      let { data: sources, error: sourceError } = await sourceQuery;
 
       if (sourceError) {
         await sendLog(`❌ [DB Error] Failed to fetch sources: ${sourceError.message}`);
         return;
+      }
+
+      // Resilient fallback: If no sources were found specifically for this category in this country,
+      // fallback to all active sources for this country so the scrape pipeline never dies.
+      if ((!sources || sources.length === 0) && targetCategory !== "All") {
+        await sendLog(`ℹ️ No sources specifically tagged "${targetCategory}" for ${targetCountry}. Falling back to all active sources for ${targetCountry}...`);
+        let fallbackQuery = supabase
+          .from("scraping_sources")
+          .select("*")
+          .eq("is_active", true);
+        if (targetCountry !== "All") {
+          fallbackQuery = fallbackQuery.eq("country", targetCountry);
+        }
+        const fallbackRes = await fallbackQuery;
+        if (fallbackRes.data && fallbackRes.data.length > 0) {
+          sources = fallbackRes.data;
+        }
       }
 
       if (!sources || sources.length === 0) {
