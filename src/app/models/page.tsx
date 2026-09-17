@@ -263,29 +263,22 @@ export default function AIModelsPage() {
               </CardHeader>
               <CardContent className="p-0 mb-4">
                 <p className="text-muted-foreground text-xs sm:text-sm leading-relaxed">
-                  Direct browser integration. Uses our local WebAssembly engine to silence background musical instruments in real-time, providing a seamless Halal listening experience everywhere you browse.
+                  Seamlessly integrates with your browser. Uses our neural audio engine to eliminate background music while keeping human vocals intact, ensuring clean and Halal audio playback on YouTube, news feeds, and video players.
                 </p>
               </CardContent>
               <CardFooter className="p-0 pt-2">
-                {isPremium ? (
-                  <Button
-                    asChild
-                    className="w-full h-8 sm:h-9 text-xs sm:text-sm gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-sm cursor-pointer"
+                <Button
+                  asChild
+                  className="w-full h-8 sm:h-9 text-xs sm:text-sm gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-xl shadow-sm cursor-pointer"
+                >
+                  <a
+                    href="https://drive.google.com/file/d/1ByDT0MjRrhl4acrN6CNd9Y9iDULcHYOm/view?usp=sharing"
+                    target="_blank"
+                    rel="noopener noreferrer"
                   >
-                    <a href="/downloads/kahf-halal-mode-extension.zip" download>
-                      <Download className="w-3.5 h-3.5" /> Download Halal Extension (.zip)
-                    </a>
-                  </Button>
-                ) : (
-                  <Button
-                    asChild
-                    className="w-full h-8 sm:h-9 text-xs sm:text-sm gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-xl shadow-sm cursor-pointer"
-                  >
-                    <Link href="/pricing">
-                      <Chrome className="w-3.5 h-3.5" /> Add to Chrome (Premium)
-                    </Link>
-                  </Button>
-                )}
+                    <Download className="w-3.5 h-3.5" /> Download Extension (.zip)
+                  </a>
+                </Button>
               </CardFooter>
             </Card>
           </div>
