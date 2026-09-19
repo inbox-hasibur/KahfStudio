@@ -75,14 +75,21 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // 2. Trigger AI Podcast generation if podcast schedule is enabled
+    // 2. Trigger AI Podcast generation if podcast schedule is enabled (Multi-country: BD, SA, GLOBAL, UK)
     if (isPodcastEnabled) {
       try {
-        const podRes = await fetch(`${appUrl}/api/podcast/generate`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-        });
-        podcastTriggered = podRes.ok;
+        const podcastCountries = country === "All" ? ["BD", "SA", "GLOBAL", "UK"] : [country];
+        const podPromises = podcastCountries.map((c) =>
+          fetch(`${appUrl}/api/podcast/generate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ country: c }),
+          })
+        );
+        const podResults = await Promise.allSettled(podPromises);
+        podcastTriggered = podResults.some(
+          (r) => r.status === 'fulfilled' && r.value.ok
+        );
       } catch (err: any) {
         console.error('Podcast cron trigger failed:', err);
       }

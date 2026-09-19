@@ -1071,20 +1071,32 @@ ${extracted.bodyText.slice(0, 15000)}`;
         }
 
         let streamSavedCount = 0;
-        const bulkRows = finalStreamArticles.map((item) => ({
-          headline: item.title,
-          raw_content: item.description || item.title,
-          ai_summary: item.description ? item.description.slice(0, 320) : item.title,
-          status: autoApp ? "published" : "draft",
-          original_url: item.url,
-          source: item.sourceName || "Web",
-          category: item.category || "General",
-          country: item.country || (targetCountry !== "All" ? targetCountry : "BD"),
-          image_url: item.imageUrl || null,
-          published_at: item.pubDate ? new Date(item.pubDate).toISOString() : new Date().toISOString(),
-          importance_score: (item as any).importance || 25,
-          admin_id: null,
-        }));
+        const bulkRows = finalStreamArticles.map((item) => {
+          let determinedCountry = item.country || (targetCountry !== "All" ? targetCountry : "BD");
+          // Strict Script Check: Never tag non-Bengali text as BD, and never tag non-Arabic text as SA!
+          const hasBn = /[\u0980-\u09FF]/.test(item.title);
+          const hasAr = /[\u0600-\u06FF]/.test(item.title);
+          if (determinedCountry === "BD" && !hasBn) {
+            determinedCountry = "GLOBAL";
+          } else if (determinedCountry === "SA" && !hasAr) {
+            determinedCountry = "GLOBAL";
+          }
+
+          return {
+            headline: item.title,
+            raw_content: item.description || item.title,
+            ai_summary: item.description ? item.description.slice(0, 320) : item.title,
+            status: autoApp ? "published" : "draft",
+            original_url: item.url,
+            source: item.sourceName || "Web",
+            category: item.category || "General",
+            country: determinedCountry,
+            image_url: item.imageUrl || null,
+            published_at: item.pubDate ? new Date(item.pubDate).toISOString() : new Date().toISOString(),
+            importance_score: (item as any).importance || 25,
+            admin_id: null,
+          };
+        });
 
         // Batch insert in chunks of 25 to be database friendly
         for (let i = 0; i < bulkRows.length; i += 25) {

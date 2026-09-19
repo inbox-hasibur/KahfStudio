@@ -23,7 +23,7 @@ export async function GET(req: Request) {
 export async function PATCH(req: NextRequest) {
   const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
   const body = await req.json();
-  const { id, status, headline, ai_summary } = body;
+  const { id, status, headline, ai_summary, raw_content } = body;
 
   if (!id) {
     return NextResponse.json({ error: "Article ID is required" }, { status: 400 });
@@ -33,6 +33,7 @@ export async function PATCH(req: NextRequest) {
   if (status !== undefined) updateData.status = status;
   if (headline !== undefined) updateData.headline = headline;
   if (ai_summary !== undefined) updateData.ai_summary = ai_summary;
+  if (raw_content !== undefined) updateData.raw_content = raw_content;
 
   const { error } = await supabase.from('news_articles').update(updateData).eq('id', id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

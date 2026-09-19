@@ -108,18 +108,33 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
   // Helper for language detection
   const getSiteLanguage = useCallback((): "EN" | "BN" | "AR" => {
     if (typeof window === "undefined") return "BN";
+    const savedCountry = (localStorage.getItem("kahf_user_country") || "BD").toUpperCase();
+    if (savedCountry === "SA") return "AR";
+    if (["GLOBAL", "UK"].includes(savedCountry)) return "EN";
+
     const savedLang = localStorage.getItem("kahf-language");
     const hasArCookie = document.cookie.includes("googtrans=/bn/ar");
     const hasEnCookie = document.cookie.includes("googtrans=/bn/en");
 
     if (savedLang === "AR" || (!savedLang && hasArCookie)) return "AR";
     if (savedLang === "EN" || (!savedLang && hasEnCookie)) return "EN";
-    if (savedLang === "BN") return "BN";
-
-    const savedCountry = localStorage.getItem("kahf_user_country");
-    if (savedCountry === "SA") return "AR";
-    if (["GLOBAL", "UK"].includes(savedCountry || "")) return "EN";
     return "BN";
+  }, []);
+
+  // Initialize country-specific TTS model & language on mount
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const country = (localStorage.getItem("kahf_user_country") || "BD").toUpperCase();
+    if (country === "BD") {
+      setTtsSettings((prev) => ({ ...prev, model: "gemini-3.1-flash-tts", languagePreference: "bn" }));
+      setAudioMode("bn_summary");
+    } else if (country === "SA") {
+      setTtsSettings((prev) => ({ ...prev, model: "browser-native", languagePreference: "ar" }));
+      setAudioMode("ar_summary");
+    } else if (country === "UK" || country === "GLOBAL") {
+      setTtsSettings((prev) => ({ ...prev, model: "browser-native", languagePreference: "en" }));
+      setAudioMode("en_summary");
+    }
   }, []);
 
   // 1. Initialize Playlist from props
@@ -236,15 +251,30 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
 
     const handleOpenSettings = () => setIsSettingsOpen(true);
     const handleTogglePlayer = () => setIsOpen((prev) => !prev);
+    const handleCountryChanged = (e: any) => {
+      const country = (e.detail?.country || localStorage.getItem("kahf_user_country") || "BD").toUpperCase();
+      if (country === "BD") {
+        setTtsSettings((prev) => ({ ...prev, model: "gemini-3.1-flash-tts", languagePreference: "bn" }));
+        setAudioMode("bn_summary");
+      } else if (country === "SA") {
+        setTtsSettings((prev) => ({ ...prev, model: "browser-native", languagePreference: "ar" }));
+        setAudioMode("ar_summary");
+      } else if (country === "UK" || country === "GLOBAL") {
+        setTtsSettings((prev) => ({ ...prev, model: "browser-native", languagePreference: "en" }));
+        setAudioMode("en_summary");
+      }
+    };
 
     window.addEventListener("play-audio", handlePlayAudio);
     window.addEventListener("open-audio-settings", handleOpenSettings);
     window.addEventListener("toggle-audio-player", handleTogglePlayer);
+    window.addEventListener("country-changed", handleCountryChanged);
 
     return () => {
       window.removeEventListener("play-audio", handlePlayAudio);
       window.removeEventListener("open-audio-settings", handleOpenSettings);
       window.removeEventListener("toggle-audio-player", handleTogglePlayer);
+      window.removeEventListener("country-changed", handleCountryChanged);
     };
   }, [ttsSettings, getSiteLanguage]);
 
@@ -378,7 +408,7 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
         langVoices.find((v) => isVoiceNatural(v.name)) ||
         langVoices.find((v) => (wantMale ? isVoiceMale(v.name) : isVoiceFemale(v.name))) ||
         langVoices[0] ||
-        (!isArabic && !isEnglish ? allVoices.find((v) => v.lang.toLowerCase().startsWith("hi") || v.default) : null);
+        null;
 
       let chunkStartTime = Date.now();
 

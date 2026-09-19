@@ -134,14 +134,17 @@ async function generateChunkPcm(
 
       try {
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+        const sanitizedChunkText = cleanTextForSpeech(text);
+        if (!sanitizedChunkText) continue;
+
         const payload = {
-          contents: [{ parts: [{ text: `Read aloud the following text transcript exactly as written without any commentary:\n\n${text}` }] }],
+          contents: [{ parts: [{ text: sanitizedChunkText }] }],
           generationConfig: {
             responseModalities: ['AUDIO'],
             speechConfig: {
               voiceConfig: {
                 prebuiltVoiceConfig: {
-                  voiceName: lang === 'bn' ? 'Puck' : 'Aoede',
+                  voiceName: lang === 'bn' ? 'Puck' : lang === 'ar' ? 'Aoede' : 'Puck',
                 },
               },
             },

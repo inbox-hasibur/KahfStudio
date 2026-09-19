@@ -126,8 +126,14 @@ export default function AdminScrapingPage() {
     }
   };
 
-  // News Automation - Auto Approve
-  const [autoApprove, setAutoApprove] = useState(true);
+  // News Automation - Auto Approve (Cached locally to prevent initial load flicker)
+  const [autoApprove, setAutoApprove] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      const cached = localStorage.getItem("kahf_auto_approve");
+      if (cached !== null) return cached === "true";
+    }
+    return true;
+  });
 
   // News Automation - Scraping Schedule (Default 2 times/day: 7:00 AM & 7:00 PM)
   const [isScheduleEnabled, setIsScheduleEnabled] = useState(true);
@@ -235,7 +241,13 @@ export default function AdminScrapingPage() {
         if (settingsData) {
           // Auto Approve
           const autoSetting = settingsData.find((s: any) => s.setting_key === "auto_approve_news");
-          if (autoSetting) setAutoApprove(autoSetting.setting_value === "true");
+          if (autoSetting) {
+            const isAuto = autoSetting.setting_value === "true";
+            setAutoApprove(isAuto);
+            if (typeof window !== "undefined") {
+              localStorage.setItem("kahf_auto_approve", isAuto.toString());
+            }
+          }
 
           // Scraping Schedule
           const scrEn = settingsData.find((s: any) => s.setting_key === "scraping_schedule_enabled");
@@ -911,6 +923,9 @@ export default function AdminScrapingPage() {
                     checked={autoApprove}
                     onChange={(val: boolean) => {
                       setAutoApprove(val);
+                      if (typeof window !== "undefined") {
+                        localStorage.setItem("kahf_auto_approve", val.toString());
+                      }
                       saveSetting("auto_approve_news", val.toString());
                     }}
                   />
@@ -1304,12 +1319,9 @@ export default function AdminScrapingPage() {
               <CardDescription className="text-xs sm:text-sm">Manage active RSS feeds for Bangladesh, Global, UK & Saudi Arabia background news harvesting.</CardDescription>
             </div>
 
-            {/* Country Filter Dropdown & Actions */}
+            {/* Country Filter Dropdown */}
             <div className="flex flex-wrap items-center gap-2">
               <Label className="text-xs text-muted-foreground whitespace-nowrap">Filter Sources:</Label>
-              <span className="text-[11px] font-mono font-semibold px-2.5 py-1 rounded-full bg-primary/10 text-primary border border-primary/20 whitespace-nowrap">
-                {activeSourceTab === "ALL" ? sources.length : activeSourceTab === "BD" ? bdCount : activeSourceTab === "GLOBAL" ? globalCount : activeSourceTab === "UK" ? ukCount : saCount} sources
-              </span>
               <select
                 value={activeSourceTab}
                 onChange={(e) => {
@@ -1325,18 +1337,6 @@ export default function AdminScrapingPage() {
                 <option value="UK">🇬🇧 United Kingdom ({ukCount})</option>
                 <option value="SA">🇸🇦 Saudi Arabia ({saCount})</option>
               </select>
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleLoadDefaultSources}
-                disabled={isSeedingSources}
-                className="h-9 text-xs font-semibold rounded-xl border-primary/30 text-primary hover:bg-primary/10 transition-colors"
-                title="Seed verified default feeds for selected country"
-              >
-                {isSeedingSources ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : <RefreshCw className="w-3.5 h-3.5 mr-1" />}
-                Seed Defaults
-              </Button>
             </div>
           </div>
         </CardHeader>
@@ -1430,9 +1430,6 @@ export default function AdminScrapingPage() {
                       <td className="px-4 py-2.5 font-medium">{source.name}</td>
                       <td className="px-4 py-2.5">
                         <div className="flex items-center gap-1.5 max-w-[320px]">
-                          <span className="font-mono text-xs truncate text-muted-foreground" title={source.url}>
-                            {source.url}
-                          </span>
                           <button
                             type="button"
                             onClick={() => handleCopySourceUrl(source.id, source.url)}
@@ -1446,6 +1443,9 @@ export default function AdminScrapingPage() {
                               <Copy className="w-3.5 h-3.5" />
                             )}
                           </button>
+                          <span className="font-mono text-xs truncate text-muted-foreground" title={source.url}>
+                            {source.url}
+                          </span>
                         </div>
                       </td>
                       <td className="px-4 py-2.5">

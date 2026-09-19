@@ -45,9 +45,16 @@ export default function AdminLibraryPage() {
 
   const [articles, setArticles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [autoApprove, setAutoApprove] = useState(false);
+  const [autoApprove, setAutoApprove] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      const cached = localStorage.getItem("kahf_auto_approve");
+      if (cached !== null) return cached === "true";
+    }
+    return false;
+  });
   const [editingArticle, setEditingArticle] = useState<any>(null);
-  const [editForm, setEditForm] = useState({ headline: "", ai_summary: "" });
+  const [editForm, setEditForm] = useState({ headline: "", ai_summary: "", raw_content: "" });
+  const [expandedArticleId, setExpandedArticleId] = useState<string | null>(null);
 
   const supabase = createClient();
 
@@ -95,7 +102,13 @@ export default function AdminLibraryPage() {
       if (res.ok) {
         const { settings } = await res.json();
         const autoSetting = settings?.find((s: any) => s.setting_key === "auto_approve_news");
-        if (autoSetting) setAutoApprove(autoSetting.setting_value === "true");
+        if (autoSetting) {
+          const isAuto = autoSetting.setting_value === "true";
+          setAutoApprove(isAuto);
+          if (typeof window !== "undefined") {
+            localStorage.setItem("kahf_auto_approve", isAuto.toString());
+          }
+        }
       }
     } catch(e) {}
   };
@@ -103,6 +116,9 @@ export default function AdminLibraryPage() {
   const handleToggleAutoApprove = async () => {
     const newVal = !autoApprove;
     setAutoApprove(newVal);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("kahf_auto_approve", newVal.toString());
+    }
     await fetch("/api/settings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -165,22 +181,32 @@ export default function AdminLibraryPage() {
 
   const handleEditClick = (article: any) => {
     setEditingArticle(article);
-    setEditForm({ headline: article.headline, ai_summary: article.ai_summary || "" });
+    setEditForm({
+      headline: article.headline || "",
+      ai_summary: article.ai_summary || "",
+      raw_content: article.raw_content || "",
+    });
   };
 
   const handleSaveEdit = async () => {
     if (!editingArticle) return;
+    const targetId = editingArticle.id;
     setArticles((prev) =>
       prev.map((a) =>
-        a.id === editingArticle.id
-          ? { ...a, headline: editForm.headline, ai_summary: editForm.ai_summary }
+        a.id === targetId
+          ? { ...a, headline: editForm.headline, ai_summary: editForm.ai_summary, raw_content: editForm.raw_content }
           : a
       )
     );
     await fetch("/api/admin/articles", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: editingArticle.id, headline: editForm.headline, ai_summary: editForm.ai_summary }),
+      body: JSON.stringify({
+        id: targetId,
+        headline: editForm.headline,
+        ai_summary: editForm.ai_summary,
+        raw_content: editForm.raw_content,
+      }),
     });
     setEditingArticle(null);
   };
@@ -310,6 +336,20 @@ export default function AdminLibraryPage() {
                         <p className="text-sm text-foreground/80 line-clamp-2">
                           {article.ai_summary || "No AI summary available."}
                         </p>
+                        <div className="mt-2.5">
+                          <button
+                            type="button"
+                            onClick={() => setExpandedArticleId(expandedArticleId === article.id ? null : article.id)}
+                            className="text-xs text-primary hover:underline font-semibold flex items-center gap-1 cursor-pointer"
+                          >
+                            {expandedArticleId === article.id ? "▲ Hide Full News Story" : `▼ Read Full News Story (${article.raw_content?.length || 0} chars)`}
+                          </button>
+                          {expandedArticleId === article.id && (
+                            <div className="mt-2 p-3 bg-muted/40 rounded-xl border border-border/50 text-xs leading-relaxed max-h-64 overflow-y-auto whitespace-pre-wrap font-normal text-foreground/90">
+                              {article.raw_content || "No full content recorded."}
+                            </div>
+                          )}
+                        </div>
                       </div>
                       <div className="flex flex-col gap-2 shrink-0">
                         {activeTab === "pending" && (
@@ -318,7 +358,7 @@ export default function AdminLibraryPage() {
                           </Button>
                         )}
                         <div className="flex gap-2">
-                          <Button size="sm" variant="outline" onClick={() => handleEditClick(article)}>
+                          <Button size="sm" variant="outline" onClick={() => handleEditClick(article)} title="Edit summary and full story">
                             <Edit3 className="w-4 h-4" />
                           </Button>
                           <Button size="sm" variant="destructive" onClick={() => handleDelete(article.id)}>
@@ -335,43 +375,63 @@ export default function AdminLibraryPage() {
         </CardContent>
       </Card>
 
-      {/* Edit Modal */}
+      {/* Edit Modal (2 Versions: AI Summary + Full Article Body) */}
       {editingArticle && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
           <motion.div 
-            initial={{ scale: 0.9, opacity: 0 }}
+            initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className="bg-card w-full max-w-2xl rounded-2xl p-6 shadow-2xl border border-border"
+            className="bg-card w-full max-w-3xl rounded-2xl p-6 shadow-2xl border border-border my-6 max-h-[90vh] flex flex-col text-foreground"
           >
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold">Edit Article</h2>
-              <button onClick={() => setEditingArticle(null)} className="text-muted-foreground hover:text-foreground">
+            <div className="flex justify-between items-center pb-4 border-b border-border shrink-0">
+              <div>
+                <h2 className="text-xl font-bold">Edit Article</h2>
+                <p className="text-xs text-muted-foreground">Review and edit both the AI Summary (Quick Digest) and the Full Article Story</p>
+              </div>
+              <button onClick={() => setEditingArticle(null)} className="text-muted-foreground hover:text-foreground cursor-pointer">
                 <XCircle className="w-6 h-6" />
               </button>
             </div>
             
-            <div className="space-y-4">
+            <div className="space-y-4 overflow-y-auto py-4 pr-1 flex-1">
               <div>
-                <Label className="text-sm font-semibold mb-1 block">Headline</Label>
+                <Label className="text-xs font-semibold mb-1.5 block">Headline (শিরোনাম)</Label>
                 <input 
                   type="text" 
                   value={editForm.headline}
                   onChange={(e) => setEditForm({...editForm, headline: e.target.value})}
-                  className="w-full bg-background border border-border rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  className="w-full bg-background border border-border rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground"
                 />
               </div>
               <div>
-                <Label className="text-sm font-semibold mb-1 block">AI Summary (Body)</Label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <Label className="text-xs font-semibold">1. AI Summary (সারসংক্ষেপ - News Feed & Audio)</Label>
+                  <span className="text-[11px] text-muted-foreground font-mono">{editForm.ai_summary.length} chars</span>
+                </div>
                 <textarea 
-                  rows={8}
+                  rows={4}
                   value={editForm.ai_summary}
                   onChange={(e) => setEditForm({...editForm, ai_summary: e.target.value})}
-                  className="w-full bg-background border border-border rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none"
+                  className="w-full bg-background border border-border rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 resize-y text-foreground"
+                  placeholder="Short narrative summary used for the main card and audio player..."
+                />
+              </div>
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <Label className="text-xs font-semibold">2. Full Article Body (সম্পূর্ণ সংবাদ / মূল প্রতিবেদন)</Label>
+                  <span className="text-[11px] text-muted-foreground font-mono">{editForm.raw_content.length} chars</span>
+                </div>
+                <textarea 
+                  rows={9}
+                  value={editForm.raw_content}
+                  onChange={(e) => setEditForm({...editForm, raw_content: e.target.value})}
+                  className="w-full bg-background border border-border rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 resize-y text-foreground leading-relaxed"
+                  placeholder="Complete, unabridged article body shown on the full news details page..."
                 />
               </div>
             </div>
             
-            <div className="flex justify-end gap-3 mt-6">
+            <div className="flex justify-end gap-3 pt-4 border-t border-border shrink-0">
               <Button variant="outline" onClick={() => setEditingArticle(null)}>Cancel</Button>
               <Button onClick={handleSaveEdit}>Save Changes</Button>
             </div>
