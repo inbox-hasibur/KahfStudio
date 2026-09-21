@@ -29,6 +29,7 @@ export async function extractArticleContent(url: string, fallbackTitle?: string)
         'User-Agent': 'Mozilla/5.0 (compatible; KahfStudioBot/1.0)',
         'Accept': 'text/plain, text/markdown, */*',
         'X-No-Cache': 'true',
+        'X-Remove-Selector': 'header, nav, footer, .menu, .nav, .sidebar, .related, .share, .tags, .advertisement, aside, .top-bar, .bottom-bar',
       },
     });
 
@@ -86,7 +87,7 @@ export async function extractArticleContent(url: string, fallbackTitle?: string)
       }
 
       // 4. Clean Markdown Body Text
-      const cleanedJina = cleanJinaMarkdown(rawJinaData);
+      const cleanedJina = cleanJinaMarkdown(rawJinaData, extractedTitle);
       if (cleanedJina && cleanedJina.trim().length > 100) {
         return {
           title: extractedTitle,
@@ -171,8 +172,11 @@ export async function extractArticleContent(url: string, fallbackTitle?: string)
 
       // Tier 2b: Cheerio Article Paragraph Extraction
       try {
+        // Remove noise tags first
+        $('header, nav, footer, .menu, .nav, .sidebar, .related, .share, .tags, .advertisement, aside, .top-bar, .bottom-bar, script, style, noscript').remove();
+
         const paragraphs: string[] = [];
-        $('article p, .story-element-text p, .jw_article_body p, .article-content p, .details-content p, main p, p').each((_, el) => {
+        $('article p, .story-element-text p, .jw_article_body p, .article-content p, .details-content p, .news-details p, .story-content p, .post-content p').each((_, el) => {
           const pText = $(el).text().trim();
           if (pText.length > 25 && !pText.includes('কপিরাইট') && !pText.includes('বিজ্ঞাপন') && !pText.includes('সর্বস্বত্ব সংরক্ষিত')) {
             paragraphs.push(pText);
@@ -181,10 +185,11 @@ export async function extractArticleContent(url: string, fallbackTitle?: string)
 
         if (paragraphs.length >= 2) {
           const combined = paragraphs.join('\n\n');
-          const cleanedText = cleanJinaMarkdown(combined);
+          const finalTitle = ogTitle || fallbackTitle || '';
+          const cleanedText = cleanJinaMarkdown(combined, finalTitle);
           if (cleanedText.length > 100) {
             return {
-              title: ogTitle || fallbackTitle || '',
+              title: finalTitle,
               bodyText: cleanedText,
               ogImage,
               author: $('meta[name="author"]').attr('content') || null,

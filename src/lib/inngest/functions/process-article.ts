@@ -5,7 +5,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import axios from "axios";
 import { generateSeamlessGeminiAudio, uploadAudioToCloudinary } from "@/lib/audio/gemini-tts";
 import { extractArticleContent } from "@/lib/scraper/universal-extractor";
-import { decodeHtmlEntities } from "@/lib/scraper/cleaner";
+import { decodeHtmlEntities, cleanJinaMarkdown } from "@/lib/scraper/cleaner";
 
 export const processArticle = inngest.createFunction(
   { id: "process-article", event: "app/process-article" },
@@ -67,7 +67,7 @@ ${cleanedMarkdown.slice(0, 16000)}
 
 EDITORIAL POLICY:
 1. Family-Friendly & Halal: Reject vulgar entertainment gossip, sexualized content, revealing attire/bikini stories, or illicit affair scandals. Legitimate crime, anti-corruption, court verdicts, and national events are permitted.
-2. FULL CONTENT PRESERVATION: Under "clean_content", you MUST keep the entire full unabridged article intact. Never shorten or condense it into a summary. Keep every single paragraph, quote, and background detail.
+2. FULL CONTENT PRESERVATION & NOISE REMOVAL: Under "clean_content", you MUST keep the entire full unabridged article intact. Never shorten or condense it into a summary. Keep every single genuine story paragraph, quote, and background detail. IMPORTANT: If the text begins with website category menus (e.g. 'অর্থনীতিশেয়ার বাজার...', 'সারা বাংলা...'), date/calendar lines, or desk headers, STRIP THEM OUT and begin cleanly with the first narrative paragraph of the actual news story.
 
 YOUR RESPONSE MUST STRICTLY FOLLOW THIS JSON SCHEMA:
 {
@@ -75,7 +75,7 @@ YOUR RESPONSE MUST STRICTLY FOLLOW THIS JSON SCHEMA:
   "rejection_reason": "<If false, short explanation, else empty string>",
   "importance_score": <Integer from 1 to 100 representing how critical/breaking/important this news is for a general audience. 85-100: Major national/global breaking news; 65-84: High interest; 45-64: Regular news; 1-44: Minor/Niche>,
   "clean_headline": "<Engaging, accurate Bengali headline>",
-  "clean_content": "<FULL UNABRIDGED RAW ARTICLE BODY in clean Bengali markdown. CRITICAL: DO NOT SUMMARIZE OR SHORTEN THIS. Keep EVERY single paragraph, quote, and detail from the raw article intact. Only clean up formatting, ads, and navigation noise>",
+  "clean_content": "<FULL UNABRIDGED RAW ARTICLE BODY in clean Bengali markdown. CRITICAL: DO NOT SUMMARIZE OR SHORTEN THIS. Keep EVERY single genuine paragraph, quote, and detail intact. Strip out website header menus, category lists, date banners, and desk bylines from the top>",
   "ai_summary": "<A CONCISE 2-paragraph Bengali summary highlighting key events, followed by exactly 3 bullet points of key takeaways>",
   "detected_category": "<One of: Politics, Economy, Technology, Sports, Entertainment, World, Bangladesh, Lifestyle, General>",
   "detected_country": "${country}"
@@ -83,10 +83,9 @@ YOUR RESPONSE MUST STRICTLY FOLLOW THIS JSON SCHEMA:
 
       let lastError = null;
       const modelsToTry = ["gemini-3.6-flash", "gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-flash-latest"];
-
       for (const modelName of modelsToTry) {
-        for (const apiKey of activeKeys) {
-          if (!apiKey) continue;
+        for (let k = 0; k < activeKeys.length; k++) {
+          const apiKey = activeKeys[k];
           try {
             const genAI = new GoogleGenerativeAI(apiKey);
             const model = genAI.getGenerativeModel({
@@ -95,50 +94,42 @@ YOUR RESPONSE MUST STRICTLY FOLLOW THIS JSON SCHEMA:
             });
 
             const result = await model.generateContent(prompt);
-            const text = result.response.text();
-            return JSON.parse(text);
+            const rawJson = result.response.text();
+            return JSON.parse(rawJson);
           } catch (err: any) {
             lastError = err;
             console.warn(`Gemini Unified Process API error (${modelName}):`, err.message);
-            continue;
           }
         }
       }
-
-      throw new Error(`Gemini Unified Processing failed with all keys: ${lastError?.message}`);
+      throw new Error(`All Gemini models failed for unified processing: ${lastError?.message}`);
     });
 
-    // Check Halal & Family-Friendly Filter
-    if (aiResult && aiResult.is_halal_and_family_friendly === false) {
-      console.log(`[Halal Filter Dropped] ${title}: ${aiResult.rejection_reason || "Non-halal or scandalous content"}`);
-      return { skipped: true, reason: aiResult.rejection_reason || "Halal Filter Rejection" };
+    if (!aiResult.is_halal_and_family_friendly) {
+      return { status: "rejected", reason: aiResult.rejection_reason || "Failed Halal/Family-friendly policy." };
     }
 
-    // 4. Generate Pre-rendered Audio TTS (Gemini Seamless Audio)
-    const audioUrl = await step.run("generate-summary-audio", async () => {
+    // 4. Pre-generate Audio Summary if enabled (Optional Cloudinary background upload)
+    let audioUrl: string | null = null;
+    if (aiResult.ai_summary) {
       try {
-        const textToSpeak = (aiResult.ai_summary || aiResult.clean_headline)
-          .replace(/[*_#`[\]()]/g, " ")
-          .replace(/\s+/g, " ")
-          .trim();
-
-        const wavBuffer = await generateSeamlessGeminiAudio(textToSpeak, "bn", activeKeys);
-        const publicId = `news_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-        const cUrl = await uploadAudioToCloudinary(wavBuffer, publicId);
-        return cUrl;
+        const wavBuffer = await generateSeamlessGeminiAudio(aiResult.ai_summary, "bn", activeKeys);
+        if (wavBuffer && wavBuffer.length > 0) {
+          audioUrl = await uploadAudioToCloudinary(wavBuffer, `summary_bn_${Date.now()}`);
+        }
       } catch (err: any) {
-        console.warn("Pre-generated audio generation failed, skipping audio for now:", err.message);
-        return null;
+        console.warn(`[TTS] Cloudinary audio upload skipped/failed for ${url}:`, err.message);
       }
-    });
+    }
 
     // 5. Save to Supabase (news_articles)
     await step.run("save-to-db", async () => {
-      // Full News Body Retention Safeguard:
-      const isGeminiShortened = aiResult.clean_content && cleanedMarkdown.length > 300 && (aiResult.clean_content.length < cleanedMarkdown.length * 0.7);
-      const finalFullContent = (!isGeminiShortened && aiResult.clean_content && aiResult.clean_content.length >= 200)
+      // Full News Body Retention & Noise Cleansing Safeguard:
+      const rawCandidate = (aiResult.clean_content && aiResult.clean_content.length >= 200)
         ? aiResult.clean_content
         : cleanedMarkdown;
+      
+      const finalFullContent = cleanJinaMarkdown(rawCandidate, aiResult.clean_headline || title);
 
       const insertPayload: any = {
         headline: decodeHtmlEntities(aiResult.clean_headline || title),

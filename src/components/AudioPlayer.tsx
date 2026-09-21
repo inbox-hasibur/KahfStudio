@@ -87,7 +87,7 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
 
   // Settings
   const [ttsSettings, setTtsSettings] = useState<TTSSettings>({
-    model: "gemini-3.1-flash-tts",
+    model: "browser-native",
     voiceGender: "male",
     voiceStyle: "radio-host",
     speed: 1.0,
@@ -110,7 +110,7 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
     if (typeof window === "undefined") return "BN";
     const savedCountry = (localStorage.getItem("kahf_user_country") || "BD").toUpperCase();
     if (savedCountry === "SA") return "AR";
-    if (["GLOBAL", "UK"].includes(savedCountry)) return "EN";
+    if (["GLOBAL", "UK", "US"].includes(savedCountry)) return "EN";
 
     const savedLang = localStorage.getItem("kahf-language");
     const hasArCookie = document.cookie.includes("googtrans=/bn/ar");
@@ -126,12 +126,12 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
     if (typeof window === "undefined") return;
     const country = (localStorage.getItem("kahf_user_country") || "BD").toUpperCase();
     if (country === "BD") {
-      setTtsSettings((prev) => ({ ...prev, model: "gemini-3.1-flash-tts", languagePreference: "bn" }));
+      setTtsSettings((prev) => ({ ...prev, model: "browser-native", languagePreference: "bn" }));
       setAudioMode("bn_summary");
     } else if (country === "SA") {
       setTtsSettings((prev) => ({ ...prev, model: "browser-native", languagePreference: "ar" }));
       setAudioMode("ar_summary");
-    } else if (country === "UK" || country === "GLOBAL") {
+    } else if (country === "UK" || country === "GLOBAL" || country === "US") {
       setTtsSettings((prev) => ({ ...prev, model: "browser-native", languagePreference: "en" }));
       setAudioMode("en_summary");
     }
@@ -254,12 +254,12 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
     const handleCountryChanged = (e: any) => {
       const country = (e.detail?.country || localStorage.getItem("kahf_user_country") || "BD").toUpperCase();
       if (country === "BD") {
-        setTtsSettings((prev) => ({ ...prev, model: "gemini-3.1-flash-tts", languagePreference: "bn" }));
+        setTtsSettings((prev) => ({ ...prev, model: "browser-native", languagePreference: "bn" }));
         setAudioMode("bn_summary");
       } else if (country === "SA") {
         setTtsSettings((prev) => ({ ...prev, model: "browser-native", languagePreference: "ar" }));
         setAudioMode("ar_summary");
-      } else if (country === "UK" || country === "GLOBAL") {
+      } else if (country === "UK" || country === "GLOBAL" || country === "US") {
         setTtsSettings((prev) => ({ ...prev, model: "browser-native", languagePreference: "en" }));
         setAudioMode("en_summary");
       }
@@ -371,7 +371,7 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
       const chunks: string[] = [];
       let buffer = "";
       for (const s of sentences) {
-        if (buffer && buffer.length + s.length > 120) {
+        if (buffer && buffer.length + s.length > 100) {
           chunks.push(buffer);
           buffer = s;
         } else {
@@ -384,18 +384,25 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
       speechChunksRef.current = chunks;
       currentChunkIndexRef.current = resumeFromChunk;
 
+      const chunkCharCounts = chunks.map((c) => c.length);
+      const totalChars = chunkCharCounts.reduce((a, b) => a + b, 0) || 1;
+      const cumulativeChars: number[] = [0];
+      for (let i = 0; i < chunks.length; i++) {
+        cumulativeChars.push(cumulativeChars[i] + chunkCharCounts[i]);
+      }
+
       // Realistic speech duration calculation (Bangla ~13 chars/sec, Arabic ~14 chars/sec, English ~15 chars/sec)
       const charsPerSec = isArabic ? 14 : isEnglish ? 15 : 13;
       const speed = ttsSettings.speed || 1.0;
-      const totalEstimatedDuration = Math.max(6, Math.round(cleanText.length / (charsPerSec * speed)));
+      const totalEstimatedDuration = Math.max(5, Math.round(totalChars / (charsPerSec * speed)));
 
       setDuration(totalEstimatedDuration);
-      const initialTime = Math.round((resumeFromChunk / chunks.length) * totalEstimatedDuration);
-      setCurrentTime(initialTime);
-      setProgress(resumeFromChunk / chunks.length);
+      const initialProg = Math.min(1, cumulativeChars[resumeFromChunk] / totalChars);
+      setCurrentTime(Math.round(initialProg * totalEstimatedDuration));
+      setProgress(initialProg);
 
       // Find high-quality natural voice
-      const allVoices = voices.length > 0 ? voices : window.speechSynthesis.getVoices();
+      const allVoices = voices.length > 0 ? voices : (typeof window !== "undefined" && window.speechSynthesis ? window.speechSynthesis.getVoices() : []);
       const langVoices = allVoices.filter((v) => v.lang.toLowerCase().startsWith(targetLangPrefix));
 
       const wantMale = ttsSettings.voiceGender === "male";
@@ -439,8 +446,22 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
           isSpeakingRef.current = true;
         };
 
+        // Real-time boundary event tracking for accurate progress & scrubber sync
+        utterance.onboundary = (e: SpeechSynthesisEvent) => {
+          if (sessionCounterRef.current !== sessionId) return;
+          const currentChunkStart = cumulativeChars[chunkIdx] || 0;
+          const charInChunk = e.charIndex || 0;
+          const absoluteChar = Math.min(totalChars, currentChunkStart + charInChunk);
+          const currentProg = Math.min(0.99, absoluteChar / totalChars);
+          setProgress(currentProg);
+          setCurrentTime(Math.round(currentProg * totalEstimatedDuration));
+        };
+
         utterance.onend = () => {
           if (sessionCounterRef.current !== sessionId) return;
+          const completedProg = Math.min(0.99, (cumulativeChars[chunkIdx + 1] || totalChars) / totalChars);
+          setProgress(completedProg);
+          setCurrentTime(Math.round(completedProg * totalEstimatedDuration));
           speakChunk(chunkIdx + 1);
         };
 
@@ -449,14 +470,14 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
           if (e.error === "canceled" || e.error === "interrupted") return;
           console.warn("WebSpeech chunk error:", e.error);
           if (chunkIdx + 1 < chunks.length) {
-            setTimeout(() => speakChunk(chunkIdx + 1), 80);
+            setTimeout(() => speakChunk(chunkIdx + 1), 60);
           } else {
             isSpeakingRef.current = false;
             setIsPlaying(false);
           }
         };
 
-        // Small 40ms buffer to allow browser speech engine to clear state after cancel()
+        // Small 40ms buffer to allow browser speech engine to clear state
         setTimeout(() => {
           if (sessionCounterRef.current !== sessionId) return;
           try {
@@ -470,30 +491,30 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
       // Start speaking
       speakChunk(resumeFromChunk);
 
-      // WebSpeech progress ticker with smooth chunk interpolation
+      // WebSpeech progress ticker smoothly interpolated within the sentence chunk
       if (webSpeechTimerRef.current) clearInterval(webSpeechTimerRef.current);
       webSpeechTimerRef.current = setInterval(() => {
         if (sessionCounterRef.current !== sessionId) return;
         if (!isSpeakingRef.current) return;
 
         const currentChunk = currentChunkIndexRef.current;
-        const chunkWeight = 1 / chunks.length;
-        const baseProgress = currentChunk * chunkWeight;
-        const chunkDuration = (totalEstimatedDuration / chunks.length) * 1000;
-        const chunkElapsed = Math.min(chunkDuration, Math.max(0, Date.now() - chunkStartTime));
-        const withinChunkRatio = chunkElapsed / chunkDuration;
+        const chunkStartProg = (cumulativeChars[currentChunk] || 0) / totalChars;
+        const chunkEndProg = (cumulativeChars[currentChunk + 1] || totalChars) / totalChars;
+        const chunkDurationMs = (((chunkCharCounts[currentChunk] || 50) / (charsPerSec * speed))) * 1000;
+        const chunkElapsed = Math.min(chunkDurationMs, Math.max(0, Date.now() - chunkStartTime));
+        const withinChunkRatio = chunkDurationMs > 0 ? chunkElapsed / chunkDurationMs : 0;
 
-        const calculatedProgress = Math.min(0.99, baseProgress + withinChunkRatio * chunkWeight);
+        const calculatedProgress = Math.min(chunkEndProg, chunkStartProg + withinChunkRatio * (chunkEndProg - chunkStartProg));
         const calculatedTime = Math.min(totalEstimatedDuration, calculatedProgress * totalEstimatedDuration);
 
-        setCurrentTime(calculatedTime);
+        setCurrentTime(Math.round(calculatedTime));
         setProgress(calculatedProgress);
-      }, 100);
+      }, 150);
     },
     [stopAllEngines, ttsSettings.speed, ttsSettings.voiceGender, isMuted, volume, voices]
   );
 
-  // HTML5 Audio Starter for Gemini TTS
+  // HTML5 Audio Starter for Gemini TTS / pre-rendered audio
   const startGeminiAudio = useCallback(
     (audioUrl: string, track: AudioTrack, sessionId: number) => {
       stopAllEngines();
@@ -510,7 +531,7 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
       // 5-Second Fallback Timer: If audio cannot load/play within 5s, switch to WebSpeech
       fallbackTimerRef.current = setTimeout(() => {
         if (sessionCounterRef.current === sessionId && !hasStarted) {
-          console.warn("Gemini audio timed out after 5s, falling back to WebSpeech");
+          console.warn("Audio stream timed out after 5s, falling back to WebSpeech");
           startWebSpeech(track, audioMode, sessionId);
         }
       }, 5000);
@@ -528,13 +549,11 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
         }
       };
 
-      audio.onplaying = () => {
-        if (sessionCounterRef.current === sessionId) {
-          hasStarted = true;
-          if (fallbackTimerRef.current) {
-            clearTimeout(fallbackTimerRef.current);
-            fallbackTimerRef.current = null;
-          }
+      audio.onplay = () => {
+        hasStarted = true;
+        if (fallbackTimerRef.current) {
+          clearTimeout(fallbackTimerRef.current);
+          fallbackTimerRef.current = null;
         }
       };
 
@@ -554,7 +573,7 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
 
       audio.onerror = (e) => {
         if (sessionCounterRef.current === sessionId) {
-          console.warn("Gemini audio error, falling back to WebSpeech:", e);
+          console.warn("Audio stream error, falling back to WebSpeech:", e);
           if (fallbackTimerRef.current) {
             clearTimeout(fallbackTimerRef.current);
             fallbackTimerRef.current = null;
@@ -587,8 +606,6 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
     setProgress(0);
     setDuration(0);
 
-    const userForcedWebSpeech = ttsSettings.model === "browser-native";
-
     // Extract target audio URL based on selected mode
     const modeAudioUrl =
       audioMode === "bn_summary"
@@ -603,14 +620,9 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
         ? (activeTrack.audioUrls?.ar_summary || activeTrack.audioUrls?.bn_summary || activeTrack.audioUrls?.en_summary)
         : (activeTrack.audioUrls?.ar_full || activeTrack.audioUrls?.bn_full || activeTrack.audioUrls?.en_full);
 
-    const textToSpeak =
-      audioMode.includes("full")
-        ? activeTrack.raw_content || activeTrack.text || `${activeTrack.title}. ${activeTrack.summary || ""}`
-        : `${activeTrack.title}. ${activeTrack.summary || ""}`;
-
-    // If pre-rendered audio exists in DB and user didn't force native speech, play Gemini audio.
-    // If audio is missing in DB for any reason, immediately start Native WebSpeech TTS!
-    if (modeAudioUrl && !userForcedWebSpeech) {
+    // If pre-rendered audio exists in DB and is accessible, play audio stream.
+    // Otherwise immediately start instant Native WebSpeech TTS!
+    if (modeAudioUrl && ttsSettings.model !== "browser-native") {
       startGeminiAudio(modeAudioUrl, activeTrack, currentSessionId);
     } else {
       startWebSpeech(activeTrack, audioMode, currentSessionId);
@@ -633,14 +645,11 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
       }
     } else if (activeEngine === "webspeech" && typeof window !== "undefined" && window.speechSynthesis) {
       if (isPlaying) {
-        if (window.speechSynthesis.paused) {
-          window.speechSynthesis.resume();
-          isSpeakingRef.current = true;
-        } else if (!window.speechSynthesis.speaking) {
+        if (!window.speechSynthesis.speaking) {
           startWebSpeech(activeTrack, audioMode, sessionCounterRef.current, currentChunkIndexRef.current);
         }
       } else {
-        window.speechSynthesis.pause();
+        window.speechSynthesis.cancel();
         isSpeakingRef.current = false;
       }
     }
@@ -700,9 +709,12 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
       } else if (activeEngine === "webspeech" && activeTrack && speechChunksRef.current.length > 0) {
         const targetChunk = Math.min(
           speechChunksRef.current.length - 1,
-          Math.floor(val * speechChunksRef.current.length)
+          Math.max(0, Math.floor(val * speechChunksRef.current.length))
         );
-        startWebSpeech(activeTrack, audioMode, sessionCounterRef.current, targetChunk);
+        currentChunkIndexRef.current = targetChunk;
+        if (isPlaying) {
+          startWebSpeech(activeTrack, audioMode, sessionCounterRef.current, targetChunk);
+        }
       }
     }
   };
@@ -710,17 +722,21 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
   const skipSeconds = (delta: number) => {
     if (duration <= 0) return;
     const nextTime = Math.min(Math.max(0, currentTime + delta), duration);
+    const nextProgress = nextTime / duration;
     setCurrentTime(nextTime);
-    setProgress(nextTime / duration);
+    setProgress(nextProgress);
 
     if (activeEngine === "gemini" && audioRef.current) {
       audioRef.current.currentTime = nextTime;
     } else if (activeEngine === "webspeech" && activeTrack && speechChunksRef.current.length > 0) {
       const targetChunk = Math.min(
         speechChunksRef.current.length - 1,
-        Math.floor((nextTime / duration) * speechChunksRef.current.length)
+        Math.max(0, Math.floor(nextProgress * speechChunksRef.current.length))
       );
-      startWebSpeech(activeTrack, audioMode, sessionCounterRef.current, targetChunk);
+      currentChunkIndexRef.current = targetChunk;
+      if (isPlaying) {
+        startWebSpeech(activeTrack, audioMode, sessionCounterRef.current, targetChunk);
+      }
     }
   };
 

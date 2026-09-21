@@ -5,7 +5,6 @@
  */
 
 // Section terminator boundaries - once any of these headings appear, the article body has finished!
-// Section terminator boundaries - once any of these headings appear, the article body has finished!
 const SECTION_CUTOFF_PATTERNS = [
   /^(পাঠকের মন্তব্য|মন্তব্য সমূহ|comments|leave a comment|discussion)(?:\s|$|[:\-])/i,
   /^(কপিরাইট|সর্বস্বত্ব সংরক্ষিত|all rights reserved|terms & conditions|privacy policy|copyright \d+)(?:\s|$|[:\-])/i,
@@ -17,6 +16,7 @@ const SECTION_CUTOFF_PATTERNS = [
   /^\[newsdesk\]/i,
   /^written by\s+[a-z0-9_.-]+/i,
   /^\d+(\.\d+)?[KMB]?\s*(Followers|Subscribers|Follow Us|Subscribe)/i,
+  /^(##\s*\[!\[|####\s*Download|পড়ুন অন্য খবর|আরও খবর|সম্পর্কিত খবর|আরও পড়ুন)/i,
 ];
 
 // Inline promotional / teaser lines that should be skipped without breaking the rest of the article
@@ -38,8 +38,8 @@ const NOISE_PATTERNS = [
   /^(\*|\-|\_|\=|\#){3,}$/, // Markdown dividers like --- or ***
   /^https?:\/\/\S+$/i, // Standalone URLs
   /^(ছবি|ফাইল ছবি|সৌজন্যে|ছবি সংগৃহীত|ফাইল ফটো|photo|courtesy|getty images)/i, // Image captions/credits
-  /^(source|সূত্র|প্রতিবেদন|অনলাইন ডেস্ক|নিজস্ব প্রতিবেদক|ডেস্ক রিপোর্ট)/i, // Standalone attribution lines
-  /^(প্রকাশ|আপডেট|প্রকাশিত|আপডেট করা হয়েছে|published|updated)/i, // Publication timestamps
+  /^(source|সূত্র|প্রতিবেদন|অনলাইন ডেস্ক|নিজস্ব প্রতিবেদক|ডেস্ক রিপোর্ট|বিশেষ প্রতিনিধি|স্টাফ রিপোর্টার|অনলাইন সংস্করণ|বাণিজ্য ডেস্ক|খেলা ডেস্ক)/i, // Standalone attribution lines
+  /^(প্রকাশ|আপডেট|প্রকাশিত|আপডেট করা হয়েছে|published|updated)\s*[:\s]\s*[\d০-৯]/iu, // Publication timestamps (Bengali & English digits)
   /^(\d+\s*(ঘণ্টা|মিনিট|দিন|ঘন্টা|hours?|mins?|days?)\s*(আগে|ago))/i, // Relative time (e.g. ১০ ঘণ্টা আগে)
   /^(খুঁজুন|search|login|লগইন|ই-পেপার|epaper)/i, // Header navigation buttons
   /^\d+(\.\d+)?[KMB]?\s*(Followers|Subscribers|Likes|Follow Us|Subscribe)/i,
@@ -54,6 +54,10 @@ const NOISE_PATTERNS = [
   /^(entertainment|fitness & health|science and technology|youtube trending)\s*\(\d+\)/i,
   /^[a-z0-9.-]+\.(com|org|net|gov|edu)\s+is\s+a\s+trusted/i,
   /^ok$/i,
+  // Concatenated navbar and category menus (RisingBD / BD news portals)
+  /(বরিশাল.*চট্টগ্রাম|ঢাকা.*খুলনা|রাজশাহী.*সিলেট|অর্থনীতি.*শেয়ার|শেয়ার বাজার|করপোরেট কর্নার|সাতসতেরো|অন্য দুনিয়া|লাইফ স্টাইল|দেহঘড়ি|ভাগ্যচক্র|জেন জি|বাংলা কনভার্টার|পজিটিভ বাংলাদেশ|উদ্যোক্তা|শিল্প ও সাহিত্য|রাইজিংবিডি|স্পেশাল|ক্যাম্পাস.*বিশ্ববিদ্যালয়)/i,
+  /^(\d+[\.\)]\s*)?(আন্তর্জাতিক|বাংলাদেশ|সারাদেশ|জাতীয়|জাতীয়|রাজনীতি|অর্থনীতি|খেলা|খেলাধুলা|বিনোদন|মতামত|ফিচার|তথ্যপ্রযুক্তি|বিজ্ঞান|শিক্ষা|চাকরি|লাইফস্টাইল|প্রবাস|অন্যান্য)\s*$/i,
+  /^(আন্তর্জাতিক|অনলাইন|বাণিজ্য|খেলা|বিনোদন|বিশেষ|স্টাফ)\s*(ডেস্ক|প্রতিবেদক|রিপোর্টার|বার্তা)/i,
 ];
 
 /**
@@ -107,15 +111,15 @@ export function decodeHtmlEntities(text: string): string {
 /**
  * Cleans raw Jina AI / web scraped markdown text:
  * 1. Strips Jina metadata headers (Title:, URL Source:, Markdown Content:)
- * 2. Strips CDATA and RSS XML wrappers
- * 3. Strips HTML script/style/nav tags and comments
- * 4. Unescapes HTML entities (hex, decimal, named)
+ * 2. Discards pre-article navigation, menus, and banners (starts from main headline # Title)
+ * 3. Strips CDATA and RSS XML wrappers
+ * 4. Strips HTML script/style/nav tags and comments
  * 5. Removes markdown images, headings, empty links, and bold/italic markup
  * 6. Truncates text at genuine end-of-article boundaries without cutting off on early captions
  * 7. Filters out advertisements, social buttons, and navigation fragments
  * 8. Reconstructs clean narrative body paragraphs
  */
-export function cleanJinaMarkdown(rawContent: string): string {
+export function cleanJinaMarkdown(rawContent: string, articleTitle?: string): string {
   if (!rawContent || rawContent.trim() === '') {
     return '';
   }
@@ -129,7 +133,15 @@ export function cleanJinaMarkdown(rawContent: string): string {
     .replace(/^Published Time:\s*.*$/gim, '')
     .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/gi, '$1');
 
-  // 2. Strip HTML tags, scripts, styles, iframes, and comments
+  // 2. Discard everything before the main article headline (# Headline) if present
+  // In Jina AI markdown, website logos, navbars, and category menus are rendered at the top,
+  // followed by "# <Headline>" where the actual news story begins.
+  const h1Match = text.match(/^#\s+(.+)$/m);
+  if (h1Match && h1Match.index !== undefined && h1Match.index > 0) {
+    text = text.slice(h1Match.index);
+  }
+
+  // 3. Strip HTML tags, scripts, styles, iframes, and comments
   text = text
     .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, ' ')
     .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, ' ')
@@ -138,10 +150,10 @@ export function cleanJinaMarkdown(rawContent: string): string {
     .replace(/<!--[\s\S]*?-->/g, ' ')
     .replace(/<[^>]+>/g, ' ');
 
-  // 3. Decode HTML entities (handles &#x... hex, &#... decimal, &amp; etc.)
+  // 4. Decode HTML entities (handles &#x... hex, &#... decimal, &amp; etc.)
   text = decodeHtmlEntities(text);
 
-  // 4. Process line-by-line
+  // 5. Process line-by-line
   const lines = text.split('\n');
   const cleanParagraphs: string[] = [];
   const seenParagraphs = new Set<string>();
@@ -152,17 +164,61 @@ export function cleanJinaMarkdown(rawContent: string): string {
     let trimmed = line.trim();
     if (!trimmed) continue;
 
-    // Remove empty markdown links: [](url)
-    trimmed = trimmed.replace(/\[\s*\]\([^\s)]+\)/g, '');
+    // Remove empty markdown links: [](url) or [![img](url)](url)
+    trimmed = trimmed
+      .replace(/\[\s*!\[.*?\]\(.*?\)\s*\]\([^\s)]+\)/g, '')
+      .replace(/\[\s*\]\([^\s)]+\)/g, '')
+      .trim();
+    if (!trimmed) continue;
 
-    // Ignore markdown image syntax: ![alt](url)
+    // Ignore standalone markdown images
     if (/^!\[.*?\]\([^\s)]+\)$/.test(trimmed)) {
       continue;
     }
     // Remove embedded markdown images from within lines
-    trimmed = trimmed.replace(/!\[.*?\]\([^\s)]+\)/g, '');
+    trimmed = trimmed.replace(/!\[.*?\]\([^\s)]+\)/g, '').trim();
+    if (!trimmed) continue;
 
-    // Convert markdown links [text](url) -> text
+    // Check if this line marks the true end of the main article (comments, footer, copyright, tags, contact info)
+    if (SECTION_CUTOFF_PATTERNS.some((pattern) => pattern.test(trimmed))) {
+      if (cleanParagraphs.length >= 2) {
+        break;
+      }
+      continue;
+    }
+
+    // Check against inline promo / teaser lines
+    if (INLINE_PROMO_PATTERNS.some((pattern) => pattern.test(trimmed))) {
+      continue;
+    }
+
+    // Skip lines where the ENTIRE line is a link to another news story (inline teaser links)
+    if (/^\[[^\]]+\]\(https?:\/\/[^\s)]+\)$/.test(trimmed)) {
+      continue;
+    }
+
+    // Skip lines that are navigation / multiple link lists: e.g. [A](1)[B](2)[C](3)
+    const linkMatches = trimmed.match(/\[([^\]]+)\]\([^\s)]+\)/g);
+    if (linkMatches && linkMatches.length >= 2) {
+      continue;
+    }
+
+    // Check against noise patterns (advertisements, share buttons, footer links, timestamps, etc.)
+    if (NOISE_PATTERNS.some((pattern) => pattern.test(trimmed))) {
+      continue;
+    }
+
+    // Skip date / hijri / bangla calendar banners (e.g. "ঢাকা শনিবার ১৯ সেপ্টেম্বর ২০২৬ || আশ্বিন ৪ ১৪৩৩ || ৬ রবিউস সানি ১৪৪৮ হিজরি")
+    if (/(\d+\s*হিজরি|হিজরী|রবিউস সানি|আশ্বিন|কার্তিক|বৈশাখ|জ্যৈষ্ঠ|আষাঢ়|শ্রাবণ|ভাদ্র|পৌষ|মাঘ|ফাল্গুন|চৈত্র)/i.test(trimmed) && /\|\|/.test(trimmed)) {
+      continue;
+    }
+
+    // Skip desk bylines & attribution lines (e.g. "আন্তর্জাতিক ডেস্ক || রাইজিংবিডি.কম", "ডেস্ক রিপোর্ট", "বিশেষ প্রতিনিধি")
+    if (/^(আন্তর্জাতিক ডেস্ক|অনলাইন ডেস্ক|নিজস্ব প্রতিবেদক|ডেস্ক রিপোর্ট|বিশেষ প্রতিনিধি|স্টাফ রিপোর্টার|অনলাইন সংস্করণ|বাণিজ্য ডেস্ক|খেলা ডেস্ক)/i.test(trimmed)) {
+      continue;
+    }
+
+    // Convert remaining markdown links [text](url) -> text
     trimmed = trimmed.replace(/\[([^\]]+)\]\([^\s)]+\)/g, '$1');
 
     // Remove bullet points at start of line (* item, - item)
@@ -185,21 +241,14 @@ export function cleanJinaMarkdown(rawContent: string): string {
     trimmed = trimmed.replace(/\s+/g, ' ').trim();
     if (!trimmed) continue;
 
-    // Check if this line marks the true end of the main article (comments, footer, copyright, tags, contact info)
-    if (SECTION_CUTOFF_PATTERNS.some((pattern) => pattern.test(trimmed))) {
-      if (cleanParagraphs.length >= 2) {
-        break;
-      }
+    // Skip the headline itself if it's repeated as a single standalone line right before paragraphs
+    if (articleTitle && (trimmed.includes(articleTitle.slice(0, 20)) || articleTitle.includes(trimmed))) {
       continue;
     }
 
-    // Check against inline promo / teaser lines (skip this single promo line and continue parsing rest of the article!)
-    if (INLINE_PROMO_PATTERNS.some((pattern) => pattern.test(trimmed))) {
-      continue;
-    }
-
-    // Check against noise patterns (advertisements, share buttons, footer links, timestamps, etc.)
-    if (NOISE_PATTERNS.some((pattern) => pattern.test(trimmed))) {
+    // Skip standalone short category breadcrumbs or tags (< 25 chars without sentence punctuation)
+    // e.g. "বিজ্ঞান-প্রযুক্তি", "করপোরেট কর্নার", "2. আন্তর্জাতিক", "ডোনাল্ড ট্রাম্প"
+    if (trimmed.length < 25 && !/[।?!.]/.test(trimmed)) {
       continue;
     }
 
