@@ -107,24 +107,19 @@ export default function Home() {
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const savedLang = localStorage.getItem("kahf-language");
-      const hasArCookie = document.cookie.includes("googtrans=/bn/ar");
-      const hasEnCookie = document.cookie.includes("googtrans=/bn/en");
-
-      if (savedLang === "AR" || (!savedLang && hasArCookie)) {
+      const code = selectedCountry.code || "BD";
+      if (code === "SA") {
         setSiteLang("AR");
-      } else if (savedLang === "EN" || (!savedLang && hasEnCookie)) {
+      } else if (code === "GLOBAL" || code === "UK") {
         setSiteLang("EN");
-      } else if (savedLang === "BN") {
-        setSiteLang("BN");
       } else {
-        setSiteLang((selectedCountry.defaultLang as any) || "BN");
+        setSiteLang("BN");
       }
     }
   }, [selectedCountry]);
 
-  const isArabic = siteLang === "AR" || selectedCountry.code === "SA";
-  const isGlobal = siteLang === "EN" || selectedCountry.code === "GLOBAL" || selectedCountry.code === "UK";
+  const isArabic = selectedCountry.code === "SA";
+  const isGlobal = selectedCountry.code === "GLOBAL" || selectedCountry.code === "UK";
 
   const { news, loading: newsLoading } = useNews({
     country: selectedCountry.code,
@@ -256,10 +251,14 @@ export default function Home() {
     imageUrl: item.image_url || item.imageUrl,
     originalUrl: item.original_url || item.originalUrl,
     isPersonalized: item.is_personalized || item.type === "personalized" || false,
+    country: item.country || selectedCountry.code,
+    raw_content: item.raw_content || item.content || "",
     audio_bn_summary: item.audio_bn_summary,
     audio_bn_full: item.audio_bn_full,
     audio_en_summary: item.audio_en_summary,
     audio_en_full: item.audio_en_full,
+    audio_ar_summary: item.audio_ar_summary,
+    audio_ar_full: item.audio_ar_full,
   });
 
   // Transform news for headlines, feed items, and personalized feed
@@ -383,7 +382,7 @@ export default function Home() {
     const firstHeadline = headlines[0];
     const preferredLang = isArabic ? "AR" : isGlobal ? "EN" : "BN";
     const audioLangParam = isArabic ? "ar" : isGlobal ? "en" : "bn";
-    const podcastAudio = podcastAudioUrl || `/api/audio/tts?text=${encodeURIComponent(dailyPodcastScript.slice(0, 800))}&lang=${audioLangParam}`;
+    const podcastAudio = podcastAudioUrl || `/api/audio/tts?text=${encodeURIComponent(dailyPodcastScript.slice(0, 1000))}&lang=${audioLangParam}`;
 
     const podcastTitle = isArabic
       ? `بودكاست كهف اليومي - ${currentDate}`
@@ -398,15 +397,16 @@ export default function Home() {
         summary: dailyPodcastScript,
         imageUrl: firstHeadline?.imageUrl,
         source: "KahfNews AI Podcast",
+        country: selectedCountry.code,
         preferredLang: preferredLang,
         preferredType: "summary",
         audioUrls: {
-          bn_summary: !isGlobal ? podcastAudio : undefined,
-          bn_full: !isGlobal ? (firstHeadline?.audio_bn_full || podcastAudio) : undefined,
-          en_summary: (!isArabic && isGlobal) ? podcastAudio : firstHeadline?.audio_en_summary,
-          en_full: (!isArabic && isGlobal) ? podcastAudio : firstHeadline?.audio_en_full,
-          ar_summary: isArabic ? podcastAudio : undefined,
-          ar_full: isArabic ? podcastAudio : undefined,
+          bn_summary: !isGlobal && !isArabic ? podcastAudio : undefined,
+          bn_full: !isGlobal && !isArabic ? (firstHeadline?.audio_bn_full || podcastAudio) : undefined,
+          en_summary: isGlobal && !isArabic ? podcastAudio : firstHeadline?.audio_en_summary,
+          en_full: isGlobal && !isArabic ? (firstHeadline?.audio_en_full || podcastAudio) : undefined,
+          ar_summary: isArabic ? podcastAudio : firstHeadline?.audio_ar_summary,
+          ar_full: isArabic ? podcastAudio : firstHeadline?.audio_ar_full,
         }
       }
     });

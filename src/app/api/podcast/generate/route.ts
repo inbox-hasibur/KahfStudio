@@ -187,12 +187,19 @@ export async function POST(req: NextRequest) {
 
     console.log(`[AI Podcast - ${country}] Synthesizing ${ttsLang} audio with Gemini 3.1 Flash...`);
 
-    // 5. Generate Seamless Gemini Audio with fast 15s chunking
-    const wavBuffer = await generateSeamlessGeminiAudio(podcastScript, ttsLang, keys);
-    const publicId = `podcast_${country.toLowerCase()}_${Date.now()}`;
-    const audioUrl = await uploadAudioToCloudinary(wavBuffer, publicId, 'podcasts');
-
-    const durationSeconds = Math.round(wavBuffer.length / 48000);
+    // 5. Generate Seamless Gemini Audio with fallback to country default news TTS
+    let audioUrl = '';
+    let durationSeconds = 60;
+    try {
+      const wavBuffer = await generateSeamlessGeminiAudio(podcastScript, ttsLang, keys);
+      const publicId = `podcast_${country.toLowerCase()}_${Date.now()}`;
+      audioUrl = await uploadAudioToCloudinary(wavBuffer, publicId, 'podcasts');
+      durationSeconds = Math.round(wavBuffer.length / 48000);
+    } catch (geminiErr: any) {
+      console.warn(`[AI Podcast - ${country}] Gemini 3.1 Flash TTS failed, falling back to default news TTS:`, geminiErr.message);
+      audioUrl = `/api/audio/tts?text=${encodeURIComponent(podcastScript.slice(0, 1000))}&lang=${ttsLang}`;
+      durationSeconds = Math.max(30, Math.round(podcastScript.length / 14));
+    }
 
     // 6. Save in podcast_archives
     const archiveType = `daily_bulletin_${country.toLowerCase()}`;

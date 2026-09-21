@@ -20,6 +20,7 @@ import {
   RotateCw,
 } from "lucide-react";
 import AudioSettingsModal, { TTSSettings } from "./AudioSettingsModal";
+import { detectNewsLanguage, getLanguageTtsMeta, SiteLanguage } from "@/lib/audio/audio-helper";
 
 export interface AudioUrls {
   bn_summary?: string;
@@ -41,6 +42,8 @@ export interface AudioTrack {
   imageUrl?: string;
   audioUrls?: AudioUrls;
   isPodcast?: boolean;
+  country?: string;
+  preferredLang?: string;
 }
 
 interface AudioPlayerProps {
@@ -110,14 +113,7 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
     if (typeof window === "undefined") return "BN";
     const savedCountry = (localStorage.getItem("kahf_user_country") || "BD").toUpperCase();
     if (savedCountry === "SA") return "AR";
-    if (["GLOBAL", "UK", "US"].includes(savedCountry)) return "EN";
-
-    const savedLang = localStorage.getItem("kahf-language");
-    const hasArCookie = document.cookie.includes("googtrans=/bn/ar");
-    const hasEnCookie = document.cookie.includes("googtrans=/bn/en");
-
-    if (savedLang === "AR" || (!savedLang && hasArCookie)) return "AR";
-    if (savedLang === "EN" || (!savedLang && hasEnCookie)) return "EN";
+    if (["GLOBAL", "UK", "US", "GB"].includes(savedCountry)) return "EN";
     return "BN";
   }, []);
 
@@ -131,7 +127,7 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
     } else if (country === "SA") {
       setTtsSettings((prev) => ({ ...prev, model: "browser-native", languagePreference: "ar" }));
       setAudioMode("ar_summary");
-    } else if (country === "UK" || country === "GLOBAL" || country === "US") {
+    } else if (["UK", "GLOBAL", "US", "GB"].includes(country)) {
       setTtsSettings((prev) => ({ ...prev, model: "browser-native", languagePreference: "en" }));
       setAudioMode("en_summary");
     }
@@ -140,24 +136,31 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
   // 1. Initialize Playlist from props
   useEffect(() => {
     if (newsItems && newsItems.length > 0) {
-      const formatted: AudioTrack[] = newsItems.map((item) => ({
-        id: item.id || item._id,
-        title: item.title || item.headline || "সংবাদ",
-        text: item.raw_content || `${item.title || item.headline || ""}. ${item.ai_summary || item.summary || ""}`,
-        summary: item.ai_summary || item.summary || "",
-        raw_content: item.raw_content || item.content || "",
-        category: item.category || "General",
-        source: item.source || "KahfNews",
-        imageUrl: item.image_url || item.imageUrl,
-        audioUrls: {
-          bn_summary: item.audio_bn_summary || item.audioUrls?.bn_summary,
-          bn_full: item.audio_bn_full || item.audioUrls?.bn_full,
-          en_summary: item.audio_en_summary || item.audioUrls?.en_summary,
-          en_full: item.audio_en_full || item.audioUrls?.en_full,
-          ar_summary: item.audio_ar_summary || item.audioUrls?.ar_summary,
-          ar_full: item.audio_ar_full || item.audioUrls?.ar_full,
-        },
-      }));
+      const activeCountry = (typeof window !== "undefined" ? localStorage.getItem("kahf_user_country") : "BD") || "BD";
+      const formatted: AudioTrack[] = newsItems.map((item) => {
+        const itemCountry = item.country || activeCountry;
+        const itemLang = detectNewsLanguage(item, itemCountry);
+        return {
+          id: item.id || item._id,
+          title: item.title || item.headline || "সংবাদ",
+          text: item.raw_content || `${item.title || item.headline || ""}. ${item.ai_summary || item.summary || ""}`,
+          summary: item.ai_summary || item.summary || "",
+          raw_content: item.raw_content || item.content || "",
+          category: item.category || "General",
+          source: item.source || "KahfNews",
+          imageUrl: item.image_url || item.imageUrl,
+          country: itemCountry,
+          preferredLang: itemLang,
+          audioUrls: {
+            bn_summary: item.audio_bn_summary || item.audioUrls?.bn_summary,
+            bn_full: item.audio_bn_full || item.audioUrls?.bn_full,
+            en_summary: item.audio_en_summary || item.audioUrls?.en_summary,
+            en_full: item.audio_en_full || item.audioUrls?.en_full,
+            ar_summary: item.audio_ar_summary || item.audioUrls?.ar_summary,
+            ar_full: item.audio_ar_full || item.audioUrls?.ar_full,
+          },
+        };
+      });
       setPlaylist(formatted);
       if (!activeTrack && formatted.length > 0) {
         setActiveTrack(formatted[0]);
@@ -205,9 +208,17 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
         id,
         imageUrl,
         source,
+        country,
         preferredLang,
         preferredType,
       } = e.detail;
+
+      const detectedLang = preferredLang || detectNewsLanguage({
+        country,
+        title,
+        summary,
+        raw_content,
+      });
 
       const newTrack: AudioTrack = {
         id: id || `track-${Date.now()}`,
@@ -218,6 +229,8 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
         imageUrl,
         source: source || "KahfNews",
         audioUrls: audioUrls || {},
+        country,
+        preferredLang: detectedLang,
         isPodcast: id === "daily-podcast" || source?.toLowerCase().includes("podcast"),
       };
 
@@ -228,18 +241,14 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
       });
       setCurrentIndex(0);
 
-      const siteLang = preferredLang || getSiteLanguage();
-      const pref =
-        ttsSettings.languagePreference === "auto"
-          ? siteLang
-          : ttsSettings.languagePreference.toUpperCase();
       const wantFull = preferredType === "full";
-
       let targetMode: AudioMode = "bn_summary";
-      if (wantFull) {
-        targetMode = pref === "AR" ? "ar_full" : pref === "EN" ? "en_full" : "bn_full";
+      if (detectedLang === "AR") {
+        targetMode = wantFull ? "ar_full" : "ar_summary";
+      } else if (detectedLang === "EN") {
+        targetMode = wantFull ? "en_full" : "en_summary";
       } else {
-        targetMode = pref === "AR" ? "ar_summary" : pref === "EN" ? "en_summary" : "bn_summary";
+        targetMode = wantFull ? "bn_full" : "bn_summary";
       }
       setAudioMode(targetMode);
 
@@ -253,13 +262,16 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
     const handleTogglePlayer = () => setIsOpen((prev) => !prev);
     const handleCountryChanged = (e: any) => {
       const country = (e.detail?.country || localStorage.getItem("kahf_user_country") || "BD").toUpperCase();
+      // Stop currently playing audio and cancel speech on country change so audio does not auto-play or bleed into new country
+      stopAllEngines();
+      setIsPlaying(false);
       if (country === "BD") {
         setTtsSettings((prev) => ({ ...prev, model: "browser-native", languagePreference: "bn" }));
         setAudioMode("bn_summary");
       } else if (country === "SA") {
         setTtsSettings((prev) => ({ ...prev, model: "browser-native", languagePreference: "ar" }));
         setAudioMode("ar_summary");
-      } else if (country === "UK" || country === "GLOBAL" || country === "US") {
+      } else if (["UK", "GLOBAL", "US", "GB"].includes(country)) {
         setTtsSettings((prev) => ({ ...prev, model: "browser-native", languagePreference: "en" }));
         setAudioMode("en_summary");
       }
@@ -405,6 +417,14 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
       const allVoices = voices.length > 0 ? voices : (typeof window !== "undefined" && window.speechSynthesis ? window.speechSynthesis.getVoices() : []);
       const langVoices = allVoices.filter((v) => v.lang.toLowerCase().startsWith(targetLangPrefix));
 
+      // CRITICAL: If browser has NO voice for this language, seamlessly fall back to server TTS stream
+      if (langVoices.length === 0) {
+        console.warn(`No native WebSpeech voice found for language '${targetLangPrefix}', falling back to server TTS stream`);
+        const serverTtsUrl = `/api/audio/tts?text=${encodeURIComponent(cleanText.slice(0, 1000))}&lang=${targetLangPrefix}`;
+        startGeminiAudio(serverTtsUrl, track, sessionId, true);
+        return;
+      }
+
       const wantMale = ttsSettings.voiceGender === "male";
       const isVoiceNatural = (name: string) => /natural|online|neural|google|premium|pro/i.test(name);
       const isVoiceMale = (name: string) => /male|guy|david|george|christopher|mark|james|ryan/i.test(name) && !/female/i.test(name);
@@ -468,13 +488,9 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
         utterance.onerror = (e) => {
           if (sessionCounterRef.current !== sessionId) return;
           if (e.error === "canceled" || e.error === "interrupted") return;
-          console.warn("WebSpeech chunk error:", e.error);
-          if (chunkIdx + 1 < chunks.length) {
-            setTimeout(() => speakChunk(chunkIdx + 1), 60);
-          } else {
-            isSpeakingRef.current = false;
-            setIsPlaying(false);
-          }
+          console.warn("WebSpeech utterance error:", e.error, "Falling back to server TTS stream");
+          const serverTtsUrl = `/api/audio/tts?text=${encodeURIComponent(cleanText.slice(0, 1000))}&lang=${targetLangPrefix}`;
+          startGeminiAudio(serverTtsUrl, track, sessionId, true);
         };
 
         // Small 40ms buffer to allow browser speech engine to clear state
@@ -483,7 +499,9 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
           try {
             window.speechSynthesis.speak(utterance);
           } catch (err) {
-            console.warn("speechSynthesis.speak error:", err);
+            console.warn("speechSynthesis.speak error, falling back to server TTS:", err);
+            const serverTtsUrl = `/api/audio/tts?text=${encodeURIComponent(cleanText.slice(0, 1000))}&lang=${targetLangPrefix}`;
+            startGeminiAudio(serverTtsUrl, track, sessionId, true);
           }
         }, 40);
       };
@@ -514,9 +532,9 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
     [stopAllEngines, ttsSettings.speed, ttsSettings.voiceGender, isMuted, volume, voices]
   );
 
-  // HTML5 Audio Starter for Gemini TTS / pre-rendered audio
+  // HTML5 Audio Starter for Gemini TTS / pre-rendered audio / server TTS fallback
   const startGeminiAudio = useCallback(
-    (audioUrl: string, track: AudioTrack, sessionId: number) => {
+    (audioUrl: string, track: AudioTrack, sessionId: number, isFallback = false) => {
       stopAllEngines();
       setActiveEngine("gemini");
 
@@ -528,13 +546,15 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
 
       let hasStarted = false;
 
-      // 5-Second Fallback Timer: If audio cannot load/play within 5s, switch to WebSpeech
-      fallbackTimerRef.current = setTimeout(() => {
-        if (sessionCounterRef.current === sessionId && !hasStarted) {
-          console.warn("Audio stream timed out after 5s, falling back to WebSpeech");
-          startWebSpeech(track, audioMode, sessionId);
-        }
-      }, 5000);
+      // 5-Second Fallback Timer: If audio cannot load/play within 5s and NOT already a fallback, switch to WebSpeech
+      if (!isFallback) {
+        fallbackTimerRef.current = setTimeout(() => {
+          if (sessionCounterRef.current === sessionId && !hasStarted) {
+            console.warn("Audio stream timed out after 5s, falling back to WebSpeech");
+            startWebSpeech(track, audioMode, sessionId);
+          }
+        }, 5000);
+      }
 
       audio.onloadedmetadata = () => {
         if (sessionCounterRef.current === sessionId) {
@@ -573,12 +593,17 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
 
       audio.onerror = (e) => {
         if (sessionCounterRef.current === sessionId) {
-          console.warn("Audio stream error, falling back to WebSpeech:", e);
           if (fallbackTimerRef.current) {
             clearTimeout(fallbackTimerRef.current);
             fallbackTimerRef.current = null;
           }
-          startWebSpeech(track, audioMode, sessionId);
+          if (!isFallback) {
+            console.warn("Audio stream error, falling back to WebSpeech:", e);
+            startWebSpeech(track, audioMode, sessionId);
+          } else {
+            console.warn("Audio stream error on fallback:", e);
+            setIsPlaying(false);
+          }
         }
       };
 
@@ -588,8 +613,13 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
       if (isPlaying) {
         audio.play().catch((err) => {
           if (err.name !== "AbortError") {
-            console.warn("Audio play error, falling back to WebSpeech:", err);
-            startWebSpeech(track, audioMode, sessionId);
+            if (!isFallback) {
+              console.warn("Audio play error, falling back to WebSpeech:", err);
+              startWebSpeech(track, audioMode, sessionId);
+            } else {
+              console.warn("Audio play error on fallback:", err);
+              setIsPlaying(false);
+            }
           }
         });
       }
@@ -600,6 +630,8 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
   // 6. Main Orchestrator: Runs whenever activeTrack or audioMode changes
   useEffect(() => {
     if (!activeTrack) return;
+    // CRITICAL: Prevent auto-playing audio on page load, country change, or playlist update
+    if (!isPlaying) return;
 
     const currentSessionId = ++sessionCounterRef.current;
     setCurrentTime(0);
@@ -617,12 +649,12 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
         : audioMode === "en_full"
         ? activeTrack.audioUrls?.en_full
         : audioMode === "ar_summary"
-        ? (activeTrack.audioUrls?.ar_summary || activeTrack.audioUrls?.bn_summary || activeTrack.audioUrls?.en_summary)
-        : (activeTrack.audioUrls?.ar_full || activeTrack.audioUrls?.bn_full || activeTrack.audioUrls?.en_full);
+        ? activeTrack.audioUrls?.ar_summary
+        : activeTrack.audioUrls?.ar_full;
 
-    // If pre-rendered audio exists in DB and is accessible, play audio stream.
-    // Otherwise immediately start instant Native WebSpeech TTS!
-    if (modeAudioUrl && ttsSettings.model !== "browser-native") {
+    // If pre-rendered or podcast audio exists in DB, play via HTML5 Audio
+    // Otherwise immediately start Native WebSpeech TTS with server fallback!
+    if (modeAudioUrl && (activeTrack.isPodcast || ttsSettings.model !== "browser-native")) {
       startGeminiAudio(modeAudioUrl, activeTrack, currentSessionId);
     } else {
       startWebSpeech(activeTrack, audioMode, currentSessionId);
@@ -631,7 +663,7 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
     return () => {
       stopAllEngines();
     };
-  }, [activeTrack?.id, audioMode, ttsSettings.model, playTrigger]);
+  }, [activeTrack?.id, audioMode, ttsSettings.model, playTrigger, isPlaying]);
 
   // 7. Play / Pause Control
   useEffect(() => {
@@ -841,9 +873,9 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
             {/* Audio Dropdown Options - Clean 2 Options based on Active Language Mode */}
             <div className="flex items-center gap-1.5 sm:gap-2 bg-muted/50 border border-border rounded-xl p-1 sm:p-1.5 mb-3">
               <FileAudio className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary shrink-0 ml-1" />
-              {audioMode.startsWith("ar") || getSiteLanguage() === "AR" ? (
+              {audioMode.startsWith("ar") ? (
                 <select
-                  value={audioMode.startsWith("ar") ? audioMode : "ar_summary"}
+                  value={audioMode}
                   onChange={(e) => {
                     setAudioMode(e.target.value as AudioMode);
                     setIsPlaying(true);
@@ -857,9 +889,9 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
                     الخبر بالكامل (Arabic Full News)
                   </option>
                 </select>
-              ) : audioMode.startsWith("en") || getSiteLanguage() === "EN" ? (
+              ) : audioMode.startsWith("en") ? (
                 <select
-                  value={audioMode.startsWith("en") ? audioMode : "en_summary"}
+                  value={audioMode}
                   onChange={(e) => {
                     setAudioMode(e.target.value as AudioMode);
                     setIsPlaying(true);
@@ -875,7 +907,7 @@ export default function AudioPlayer({ newsItems = [] }: AudioPlayerProps) {
                 </select>
               ) : (
                 <select
-                  value={audioMode.startsWith("bn") ? audioMode : "bn_summary"}
+                  value={audioMode}
                   onChange={(e) => {
                     setAudioMode(e.target.value as AudioMode);
                     setIsPlaying(true);

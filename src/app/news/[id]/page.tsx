@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import AudioPlayer from "@/components/AudioPlayer";
 import { useSession } from "@/lib/auth-client";
 import { decodeHtmlEntities } from "@/lib/scraper/cleaner";
+import { detectNewsLanguage } from "@/lib/audio/audio-helper";
 
 // Reliable fallback image when article has no cover image
 const getPlaceholderImage = (category?: string) => {
@@ -261,8 +262,12 @@ export default function NewsDetailPage() {
   const paragraphs = effectiveSummary ? effectiveSummary.split("\n\n").filter(Boolean) : [];
 
   const handlePlayAudio = (type: "full" | "summary") => {
-    const isEnglish = typeof document !== 'undefined' && (document.cookie.includes('googtrans=/bn/en') || localStorage.getItem('kahf-language') === 'EN');
-    const preferredLang = isArabic ? 'AR' : isEnglish ? 'EN' : 'BN';
+    const preferredLang = detectNewsLanguage({
+      country: (newsItem as any).country,
+      title: newsItem.title,
+      summary: newsItem.summary,
+      raw_content: newsItem.raw_content,
+    });
 
     const event = new CustomEvent('play-audio', {
       detail: {
@@ -272,6 +277,7 @@ export default function NewsDetailPage() {
         raw_content: newsItem.raw_content,
         imageUrl: newsItem.imageUrl,
         source: newsItem.source,
+        country: (newsItem as any).country,
         preferredLang,
         preferredType: type,
         audioUrls: {

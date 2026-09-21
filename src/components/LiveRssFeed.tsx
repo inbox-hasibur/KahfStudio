@@ -27,6 +27,7 @@ import {
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useSession } from "@/lib/auth-client";
+import { detectNewsLanguage } from "@/lib/audio/audio-helper";
 
 interface LiveRssFeedProps {
   isGlobal?: boolean;
@@ -308,7 +309,12 @@ export default function LiveRssFeed({ isGlobal = false, isArabic = false, select
       .slice(0, 1500)
       .trim();
 
-    const preferredLang = isArabic ? "AR" : isGlobal ? "EN" : "BN";
+    const preferredLang = detectNewsLanguage({
+      country: (item as any).country || countryCode,
+      headline: item.headline,
+      title: item.title,
+      raw_content: item.raw_content,
+    }, countryCode);
 
     const event = new CustomEvent("play-audio", {
       detail: {
@@ -318,9 +324,10 @@ export default function LiveRssFeed({ isGlobal = false, isArabic = false, select
         raw_content: cleanContent || cleanTitle,
         imageUrl: item.image_url || getPlaceholderImage(item.category),
         source: `${item.source || "RSS"} (Live Stream)`,
+        country: (item as any).country || countryCode,
         preferredLang,
         preferredType: "full",
-        audioUrls: {}, // Empty audioUrls signals the player to use Native WebSpeech TTS!
+        audioUrls: {}, // Empty audioUrls signals the player to use Native WebSpeech TTS with server fallback!
       },
     });
     window.dispatchEvent(event);

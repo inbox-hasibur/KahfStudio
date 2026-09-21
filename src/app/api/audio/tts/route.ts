@@ -10,9 +10,26 @@ export async function GET(req: NextRequest) {
       return new NextResponse('Text is required', { status: 400 });
     }
 
-    // Split large text into chunks of 200 chars using googleTTS
-    const chunks = googleTTS.getAllAudioUrls(text, {
-      lang: 'bn',
+    const rawLang = (searchParams.get('lang') || 'bn').toLowerCase();
+    const lang = rawLang.startsWith('ar') ? 'ar' : rawLang.startsWith('en') ? 'en' : 'bn';
+
+    const cleanText = text
+      .replace(/!\[.*?\]\([^\s)]+\)/g, ' ')
+      .replace(/\[([^\]]+)\]\([^\s)]+\)/g, '$1')
+      .replace(/#{1,6}\s+/g, ' ')
+      .replace(/[*_~`[\]()<>\\\/^=+]/g, ' ')
+      .replace(/https?:\/\/\S+/gi, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 1200);
+
+    if (!cleanText) {
+      return new NextResponse('Text is required', { status: 400 });
+    }
+
+    // Split text into chunks using googleTTS with requested language
+    const chunks = googleTTS.getAllAudioUrls(cleanText, {
+      lang: lang,
       slow: false,
       host: 'https://translate.google.com',
     });

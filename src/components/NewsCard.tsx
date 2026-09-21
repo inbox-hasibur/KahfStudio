@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Play, Clock, Bookmark, Share2, Check, ExternalLink, Trash2, Copy } from "lucide-react";
 import { useSession } from "@/lib/auth-client";
+import { detectNewsLanguage } from "@/lib/audio/audio-helper";
 
 interface NewsCardProps {
   news: {
@@ -20,10 +21,13 @@ interface NewsCardProps {
     publishedAt: string;
     imageUrl?: string;
     originalUrl?: string;
+    country?: string;
     audio_bn_full?: string;
     audio_bn_summary?: string;
     audio_en_full?: string;
     audio_en_summary?: string;
+    audio_ar_full?: string;
+    audio_ar_summary?: string;
   };
   isSaved?: boolean;
   onToggleSave?: () => void;
@@ -92,13 +96,12 @@ const NewsCard = ({ news, isSaved = false, onToggleSave, onDelete }: NewsCardPro
     e.preventDefault();
     e.stopPropagation();
 
-    const isArabic =
-      typeof document !== "undefined" &&
-      (document.cookie.includes("googtrans=/bn/ar") || localStorage.getItem("kahf-language") === "AR");
-    const isEnglish =
-      typeof document !== "undefined" &&
-      (document.cookie.includes("googtrans=/bn/en") || localStorage.getItem("kahf-language") === "EN");
-    const preferredLang = isArabic ? "AR" : isEnglish ? "EN" : "BN";
+    const preferredLang = detectNewsLanguage({
+      country: news.country || (news as any).country,
+      title: news.title,
+      summary: news.summary,
+      raw_content: (news as any).raw_content || (news as any).content,
+    });
 
     const event = new CustomEvent("play-audio", {
       detail: {
@@ -108,6 +111,7 @@ const NewsCard = ({ news, isSaved = false, onToggleSave, onDelete }: NewsCardPro
         raw_content: (news as any).raw_content || (news as any).content || "",
         imageUrl: cardImage,
         source: news.source,
+        country: news.country || (news as any).country,
         preferredLang,
         preferredType: "summary",
         audioUrls: {
@@ -115,6 +119,8 @@ const NewsCard = ({ news, isSaved = false, onToggleSave, onDelete }: NewsCardPro
           bn_summary: news.audio_bn_summary || (news as any).audioUrls?.bn_summary || (news as any).audio_summary,
           en_full: news.audio_en_full || (news as any).audioUrls?.en_full,
           en_summary: news.audio_en_summary || (news as any).audioUrls?.en_summary,
+          ar_full: news.audio_ar_full || (news as any).audioUrls?.ar_full,
+          ar_summary: news.audio_ar_summary || (news as any).audioUrls?.ar_summary,
         },
       },
     });

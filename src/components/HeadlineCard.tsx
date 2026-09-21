@@ -8,6 +8,7 @@ import { useSession } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
 
 import Link from "next/link";
+import { detectNewsLanguage } from "@/lib/audio/audio-helper";
 
 interface HeadlineCardProps {
   news: {
@@ -17,10 +18,13 @@ interface HeadlineCardProps {
     imageUrl?: string;
     source: string;
     summary?: string;
+    country?: string;
     audio_bn_full?: string;
     audio_bn_summary?: string;
     audio_en_full?: string;
     audio_en_summary?: string;
+    audio_ar_full?: string;
+    audio_ar_summary?: string;
   };
   index?: number;
 }
@@ -105,9 +109,12 @@ const HeadlineCard = ({ news, index = 0 }: HeadlineCardProps) => {
   const handlePlayAudio = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    const isArabic = typeof document !== 'undefined' && (document.cookie.includes('googtrans=/bn/ar') || localStorage.getItem('kahf-language') === 'AR');
-    const isEnglish = typeof document !== 'undefined' && (document.cookie.includes('googtrans=/bn/en') || localStorage.getItem('kahf-language') === 'EN');
-    const preferredLang = isArabic ? 'AR' : isEnglish ? 'EN' : 'BN';
+    const preferredLang = detectNewsLanguage({
+      country: news.country,
+      title: news.title,
+      summary: news.summary,
+      raw_content: (news as any).raw_content || (news as any).content,
+    });
 
     const event = new CustomEvent('play-audio', {
       detail: {
@@ -117,6 +124,7 @@ const HeadlineCard = ({ news, index = 0 }: HeadlineCardProps) => {
         raw_content: (news as any).raw_content || (news as any).content || "",
         imageUrl: news.imageUrl,
         source: news.source,
+        country: news.country,
         preferredLang,
         preferredType: 'summary',
         audioUrls: {
@@ -124,6 +132,8 @@ const HeadlineCard = ({ news, index = 0 }: HeadlineCardProps) => {
           bn_summary: news.audio_bn_summary,
           en_full: news.audio_en_full,
           en_summary: news.audio_en_summary,
+          ar_full: news.audio_ar_full,
+          ar_summary: news.audio_ar_summary,
         }
       }
     });
