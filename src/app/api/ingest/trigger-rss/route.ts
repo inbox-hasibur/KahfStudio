@@ -420,23 +420,42 @@ export async function GET(req: NextRequest) {
           try {
             feed = await fetchWithTimeout(
               parser.parseURL(feedUrl),
-              3500,
+              4000,
               `Direct RSS Feed timed out`
             );
           } catch (directErr) {
-            // Attempt Smart RSS Discovery (Checks <head> link[rel="alternate"] & common paths)
+            // Attempt fetching raw XML and repairing unescaped entities
+            let repaired = false;
             try {
-              const discovered = await discoverRssFeed(source.url);
-              if (discovered) {
-                feedUrl = discovered;
-                feed = await fetchWithTimeout(
-                  parser.parseURL(feedUrl),
-                  3500,
-                  `Discovered RSS Feed timed out`
-                );
-                await sendLog(`  ├─ 🔍 [${source.name}] Smart RSS Discovered: ${discovered}`);
+              const rawRes = await axios.get(feedUrl, {
+                headers: {
+                  'User-Agent': BROWSER_HEADERS['User-Agent'],
+                  'Accept': 'application/rss+xml, application/xml, text/xml; q=0.9, */*; q=0.8'
+                },
+                timeout: 3500
+              });
+              if (typeof rawRes.data === 'string' && (rawRes.data.includes('<rss') || rawRes.data.includes('<feed') || rawRes.data.includes('<channel'))) {
+                const cleanXml = rawRes.data.replace(/&(?!(amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);)/g, '&amp;');
+                feed = await parser.parseString(cleanXml);
+                repaired = feed && feed.items && feed.items.length > 0;
               }
-            } catch (discErr) { }
+            } catch (rawErr) { }
+
+            if (!repaired) {
+              // Attempt Smart RSS Discovery (Checks <head> link[rel="alternate"] & common paths)
+              try {
+                const discovered = await discoverRssFeed(source.url);
+                if (discovered) {
+                  feedUrl = discovered;
+                  feed = await fetchWithTimeout(
+                    parser.parseURL(feedUrl),
+                    3500,
+                    `Discovered RSS Feed timed out`
+                  );
+                  await sendLog(`  ├─ 🔍 [${source.name}] Smart RSS Discovered: ${discovered}`);
+                }
+              } catch (discErr) { }
+            }
           }
 
           if (feed && feed.items && feed.items.length > 0) {

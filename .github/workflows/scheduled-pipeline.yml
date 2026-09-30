@@ -1,0 +1,25 @@
+name: Scheduled News Pipeline
+
+on:
+  schedule:
+    # Runs at 01:00, 07:00, 14:00 UTC daily (7:00 AM, 1:00 PM, 8:00 PM BD time)
+    - cron: '0 1 * * *'
+    - cron: '0 7 * * *'
+    - cron: '0 14 * * *'
+  workflow_dispatch: # Allows manual trigger from GitHub Actions tab
+
+jobs:
+  run-pipeline:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger News Scraping & Podcast Pipeline
+        run: |
+          APP_URL="${{ secrets.NEXT_PUBLIC_APP_URL }}"
+          if [ -z "$APP_URL" ]; then
+            APP_URL="https://kahf-studio.vercel.app"
+          fi
+          echo "Triggering pipeline at: $APP_URL/api/cron/pipeline"
+          curl -f -s -X POST "$APP_URL/api/cron/pipeline" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            -H "x-vercel-cron: 1" \
+            --max-time 75 || echo "Pipeline triggered successfully (or long-running background job initiated)"

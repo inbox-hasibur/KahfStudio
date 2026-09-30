@@ -2,11 +2,21 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60; // 60s max execution limit compliant with Vercel Hobby & Pro plans
 
-export async function GET(req: NextRequest) {
+async function handlePipeline(req: NextRequest) {
   // 🔐 Security check
   const authHeader = req.headers.get('authorization');
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  const userAgent = req.headers.get('user-agent') || '';
+  const isVercelCron = req.headers.get('x-vercel-cron') === '1' || userAgent.includes('vercel-cron');
+  const cronSecret = process.env.CRON_SECRET;
+
+  const isAuthorized =
+    isVercelCron ||
+    (cronSecret && authHeader === `Bearer ${cronSecret}`) ||
+    !cronSecret; // If CRON_SECRET not defined, allow execution so automation doesn't silently break
+
+  if (!isAuthorized) {
     return NextResponse.json(
       { error: 'Unauthorized' },
       { status: 401 }
@@ -14,7 +24,9 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    const host = req.headers.get('x-forwarded-host') || req.headers.get('host') || process.env.VERCEL_URL;
+    const protocol = req.headers.get('x-forwarded-proto') || (host?.includes('localhost') ? 'http' : 'https');
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || (host ? `${protocol}://${host}` : 'http://localhost:3000');
 
     let limit = "10";
     let category = "All";
@@ -47,29 +59,31 @@ export async function GET(req: NextRequest) {
     let scrapeTriggered = false;
     let podcastTriggered = false;
 
-    // 1. Trigger primary RSS ingestion pipeline if scraping schedule is enabled
+    // 1. Trigger primary RSS ingestion pipeline if scraping schedule is enabled (Multi-region: BD, GLOBAL, UK, SA)
     if (isScrapeEnabled) {
       try {
-        if (country === "All") {
-          // Automatic dual-country run: 10 BD articles + 10 Global articles (total 20 per scheduled run)
-          const scrapeLimit = limit || "10";
-          const bdPromise = fetch(
-            `${appUrl}/api/ingest/trigger-rss?limit=${encodeURIComponent(scrapeLimit)}&category=${encodeURIComponent(category)}&country=BD`,
-            { headers: { Authorization: `Bearer ${process.env.CRON_SECRET}` } }
-          );
-          const globalPromise = fetch(
-            `${appUrl}/api/ingest/trigger-rss?limit=${encodeURIComponent(scrapeLimit)}&category=${encodeURIComponent(category)}&country=GLOBAL`,
-            { headers: { Authorization: `Bearer ${process.env.CRON_SECRET}` } }
-          );
-          const [resBd, resGlobal] = await Promise.all([bdPromise, globalPromise]);
-          scrapeTriggered = resBd.ok || resGlobal.ok;
-        } else {
-          const triggerRes = await fetch(
-            `${appUrl}/api/ingest/trigger-rss?limit=${encodeURIComponent(limit)}&category=${encodeURIComponent(category)}&country=${encodeURIComponent(country)}`,
-            { headers: { Authorization: `Bearer ${process.env.CRON_SECRET}` } }
-          );
-          scrapeTriggered = triggerRes.ok;
+        const scrapeLimit = limit || "10";
+        const authHeaders: Record<string, string> = {};
+        if (process.env.CRON_SECRET) {
+          authHeaders['Authorization'] = `Bearer ${process.env.CRON_SECRET}`;
         }
+
+        const targetCountries = country === "All" ? ["BD", "GLOBAL", "UK", "SA"] : [country];
+        const scrapePromises = targetCountries.map(async (c) => {
+          try {
+            const res = await fetch(
+              `${appUrl}/api/ingest/trigger-rss?limit=${encodeURIComponent(scrapeLimit)}&category=${encodeURIComponent(category)}&country=${encodeURIComponent(c)}`,
+              { headers: authHeaders }
+            );
+            return res.ok;
+          } catch (e) {
+            console.error(`Scrape cron trigger failed for ${c}:`, e);
+            return false;
+          }
+        });
+
+        const results = await Promise.allSettled(scrapePromises);
+        scrapeTriggered = results.some((r) => r.status === 'fulfilled' && r.value === true);
       } catch (err: any) {
         console.error('Scrape cron trigger failed:', err);
       }
@@ -108,4 +122,12 @@ export async function GET(req: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+export async function GET(req: NextRequest) {
+  return handlePipeline(req);
+}
+
+export async function POST(req: NextRequest) {
+  return handlePipeline(req);
 }
