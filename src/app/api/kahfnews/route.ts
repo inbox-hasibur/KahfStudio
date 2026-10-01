@@ -114,8 +114,14 @@ export async function GET(req: NextRequest) {
       const rawText = decodeHtmlEntities(item.raw_content || '').trim();
       const aiSummary = decodeHtmlEntities(item.ai_summary || '').trim();
 
+      // Strip HTML tags and clean up
+      const stripHtml = (s: string) => s.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+
+      const sanitizedHeadline = stripHtml(cleanHeadline);
+      const sanitizedSummary = stripHtml(aiSummary || rawText || cleanHeadline);
+
       // Kahf Browser requires a non-empty summary (<= 1000 chars)
-      const cleanSummary = (aiSummary || rawText || cleanHeadline).slice(0, 1000);
+      const cleanSummary = (sanitizedSummary || sanitizedHeadline).slice(0, 1000);
 
       // Determine Language ('bn' | 'ar' | 'en')
       let itemLang: 'bn' | 'ar' | 'en' = 'en';
