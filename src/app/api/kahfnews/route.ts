@@ -47,7 +47,8 @@ export async function GET(req: NextRequest) {
     );
 
     const { searchParams } = new URL(req.url);
-    const langParam = (searchParams.get('language') || 'bn').toLowerCase();
+    const langQuery = searchParams.get('language')?.toLowerCase();
+    const locationParam = searchParams.get('location') || searchParams.get('country');
     const category = searchParams.get('category');
     const source = searchParams.get('source');
     const sort = searchParams.get('sort') || 'smart';
@@ -55,12 +56,69 @@ export async function GET(req: NextRequest) {
     const page = Math.max(parseInt(searchParams.get('page') || '1', 10), 1);
     const since = searchParams.get('since');
 
+    // Resolve target country / location
+    let targetCountry: string | string[] | null = null;
+    let resolvedLocationLabel: string | null = null;
+
+    if (locationParam) {
+      const locClean = locationParam.trim().toLowerCase();
+      if (locClean === 'bd' || locClean === 'bangladesh') {
+        targetCountry = 'BD';
+        resolvedLocationLabel = 'Bangladesh';
+      } else if (locClean === 'sa' || locClean === 'saudi' || locClean === 'saudi arabia') {
+        targetCountry = 'SA';
+        resolvedLocationLabel = 'Saudi Arabia';
+      } else if (locClean === 'uk' || locClean === 'united kingdom' || locClean === 'britain') {
+        targetCountry = 'UK';
+        resolvedLocationLabel = 'UK';
+      } else if (locClean === 'us' || locClean === 'usa' || locClean === 'united states') {
+        targetCountry = 'US';
+        resolvedLocationLabel = 'US';
+      } else if (locClean === 'global' || locClean === 'world' || locClean === 'international') {
+        targetCountry = 'GLOBAL';
+        resolvedLocationLabel = 'Global';
+      } else if (locClean !== 'all') {
+        targetCountry = locationParam.trim().toUpperCase();
+        resolvedLocationLabel = locationParam.trim();
+      }
+    }
+
+    // Determine effective language filter
+    let effectiveLang: string | null = null;
+    if (langQuery) {
+      effectiveLang = langQuery;
+    } else if (!targetCountry) {
+      // Default to Bengali if neither language nor location was provided
+      effectiveLang = 'bn';
+    } else if (targetCountry === 'BD') {
+      effectiveLang = 'bn';
+    } else if (targetCountry === 'SA') {
+      effectiveLang = 'ar';
+    } else if (targetCountry === 'UK' || targetCountry === 'US' || targetCountry === 'GLOBAL') {
+      effectiveLang = 'en';
+    }
+
     // Build Supabase Query
     let query = supabase
       .from('news_articles')
       .select('*')
       .eq('status', 'published')
       .order('published_at', { ascending: false });
+
+    // Location / Country filter at DB level
+    if (targetCountry) {
+      if (Array.isArray(targetCountry)) {
+        query = query.in('country', targetCountry);
+      } else {
+        query = query.eq('country', targetCountry);
+      }
+    } else if (effectiveLang === 'bn') {
+      query = query.eq('country', 'BD');
+    } else if (effectiveLang === 'ar') {
+      query = query.eq('country', 'SA');
+    } else if (effectiveLang === 'en') {
+      query = query.in('country', ['GLOBAL', 'UK', 'US']);
+    }
 
     // Optional timestamp filtering
     if (since) {
@@ -78,15 +136,6 @@ export async function GET(req: NextRequest) {
     // Optional source filtering
     if (source && source.toLowerCase() !== 'all') {
       query = query.eq('source', source.trim());
-    }
-
-    // Language / Country filter at DB query level when possible
-    if (langParam === 'bn') {
-      query = query.eq('country', 'BD');
-    } else if (langParam === 'ar') {
-      query = query.eq('country', 'SA');
-    } else if (langParam === 'en') {
-      query = query.in('country', ['GLOBAL', 'UK', 'US']);
     }
 
     // Overfetch buffer when using smart ranking to ensure high quality top-N ranking
@@ -166,9 +215,9 @@ export async function GET(req: NextRequest) {
       };
     });
 
-    // Language enforcement filter if not 'all'
-    if (langParam !== 'all') {
-      cards = cards.filter(card => card.language === langParam);
+    // Language enforcement filter if specified and not 'all'
+    if (effectiveLang && effectiveLang !== 'all') {
+      cards = cards.filter(card => card.language === effectiveLang);
     }
 
     // Multi-tier Smart Ranking if sort === 'smart'
@@ -203,7 +252,8 @@ export async function GET(req: NextRequest) {
         page,
         limit,
         sort,
-        language: langParam,
+        language: effectiveLang || 'all',
+        location: resolvedLocationLabel || locationParam || null,
         data: cards,
       },
       {

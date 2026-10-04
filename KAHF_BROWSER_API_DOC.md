@@ -21,7 +21,8 @@ This API serves as a unified, AI-curated news feed designed specifically for **K
 
 | Parameter | Type | Default | Description | Example |
 | :--- | :--- | :--- | :--- | :--- |
-| `language` | `string` | `bn` | Target language (`bn`, `en`, `ar`, or `all`). | `language=bn` |
+| `location` / `country` | `string` | *inferred* | Filter by country/location (e.g. `Bangladesh` / `BD`, `UK`, `Saudi Arabia` / `SA`, `Global`). | `location=Bangladesh` |
+| `language` | `string` | `bn` | Target language (`bn`, `en`, `ar`, or `all`). Auto-inferred if location is set. | `language=bn` |
 | `category` | `string` | *all* | Filter by category (e.g. Technology, Sports, Politics). | `category=Technology` |
 | `sort` | `string` | `smart` | `smart` (freshness + importance decay) or `date` (pure chronological newest first). | `sort=smart` |
 | `limit` | `number` | `50` | Number of items per batch (1 to 200). | `limit=50` |
