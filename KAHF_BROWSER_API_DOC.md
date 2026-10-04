@@ -146,3 +146,24 @@ src/kahf-browser-news/
     └── browser-news-feed-service.ts    # Startpage cards formatter & smart freshness ranker
 ```
 
+---
+
+## 7. Standalone Python FastAPI Microservice (`kahf-news-fastapi/`)
+
+For teams preferring a standalone Python microservice without Node.js runtime overhead:
+
+```text
+kahf-news-fastapi/
+├── main.py              # FastAPI app with Swagger UI at /docs
+├── scraper.py           # Async feedparser + httpx RSS scraper
+├── sources.py           # Dynamic & default regional sources registry
+├── validator.py         # Zero-token local algorithmic candidate validator
+├── database.py          # Direct connection to the same Supabase PostgreSQL DB
+├── Dockerfile           # Production Docker container (~120MB)
+└── requirements.txt     # Ultra-lightweight dependencies (6 packages)
+```
+
+- **Interactive Swagger Documentation:** `http://localhost:8000/docs`
+- **Docker Image Build:** `docker build -t kahf-news-fastapi .`
+
+
