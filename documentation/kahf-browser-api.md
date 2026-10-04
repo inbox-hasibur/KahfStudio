@@ -123,3 +123,26 @@ ALTER TABLE cards
 ```
 
 Once added, the internal `POST /api/cards` will naturally persist these fields without any further changes to the ingestion logic.
+
+---
+
+## 6. Engine Architecture (`src/kahf-browser-news/`)
+
+The news engine is fully decoupled into a dedicated module with zero dependency on the rest of the application:
+
+```text
+src/kahf-browser-news/
+├── sources/
+│   └── regional-sources-registry.ts    # Dynamic & fallback sources per region (BD, UK, SA, Global)
+├── filters/
+│   └── news-candidate-validator.ts     # Zero-token, local algorithmic & regex junk filtering
+├── crawler/
+│   └── rss-feed-crawler.ts             # High-throughput RSS discovery & metadata extraction
+├── pipeline/
+│   └── news-ingestion-pipeline.ts      # Multi-source crawling, DB deduplication, and persistence
+├── scheduler/
+│   └── news-cron-scheduler.ts          # Automated periodic news ingestion runner
+└── feed/
+    └── browser-news-feed-service.ts    # Startpage cards formatter & smart freshness ranker
+```
+
